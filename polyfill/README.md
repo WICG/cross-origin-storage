@@ -1,6 +1,6 @@
 # Cross-Origin Storage Polyfill
 
-The **Cross-Origin Storage (COS) Polyfill** provides a JavaScript implementation of the proposed [Cross-Origin Storage (COS) API](https://github.com/explainers-by-googlers/cross-origin-storage), enabling web applications to store and retrieve large files securely across origins with explicit user consent.
+The **Cross-Origin Storage (COS) Polyfill** provides a JavaScript implementation of the proposed [Cross-Origin Storage (COS) API](https://github.com/WICG/cross-origin-storage), enabling web applications to store and retrieve large files securely across origins with explicit user consent.
 
 > [!CAUTION]
 > This polyfill doesn't actually work as the final API would. It still stores files redundantly as it can't overcome storage partitioning. It aims at emulating the behavior of the `navigator.crossOriginStorage.requestFileHandles()` function.
@@ -99,4 +99,4 @@ try {
 
 ## Demo
 
-To get a feeling for how this works, check out the [demo of the polyfill](https://explainers-by-googlers.github.io/cross-origin-storage/polyfill/) that simulates the behavior of the Cross-Origin Storage API. Of course it can't actually store or retrieve files across different origins or show real permission prompts.
+To get a feeling for how this works, check out the [demo of the polyfill](https://WICG.github.io/cross-origin-storage/polyfill/) that simulates the behavior of the Cross-Origin Storage API. Of course it can't actually store or retrieve files across different origins or show real permission prompts.
