@@ -20,7 +20,7 @@ interface CrossOriginStorageRequestFileHandleOptions {
 interface CrossOriginStorageManager {
   requestFileHandles(
     hashes: CrossOriginStorageRequestFileHandleHash[],
-    options?: CrossOriginStorageRequestFileHandleOptions
+    options?: CrossOriginStorageRequestFileHandleOptions,
   ): Promise<FileSystemFileHandle[]>;
 }
 
