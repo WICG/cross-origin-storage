@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/WICG/cross-origin-storage/refs/heads/main/logo-cos.svg" alt="Cross-Origin Storage (COS) logo, consisting of a folder icon with a crossing person." width="100">
 
-This proposal outlines the design of the **Cross-Origin Storage (COS)** API, which allows web applications to store and retrieve files across different origins with explicit user consent. Using concepts introduced in **File System Living Standard** defined by the WHATWG, the COS API facilitates secure cross-origin file storage and retrieval for large files, such as AI models, SQLite databases, offline storage archives, and WebAssembly (Wasm) modules. Taking inspiration from **Cache Digests for HTTP/2**, the API uses file hashes for integrity.
+This proposal outlines the design of the **Cross-Origin Storage (COS)** API, which allows web applications to store and retrieve files across different origins with optional user consent. Using concepts introduced in **File System Living Standard** defined by the WHATWG, the COS API facilitates secure cross-origin file storage and retrieval for large files, such as AI models, SQLite databases, offline storage archives, and WebAssembly (Wasm) modules. Taking inspiration from **Cache Digests for HTTP/2**, the API uses file hashes for integrity.
 
 > [!TIP]
 > **Evaluate this proposal**
@@ -24,7 +24,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, whi
 
 ## Introduction
 
-The **Cross-Origin Storage (COS)** API provides a cross-origin file storage and retrieval mechanism for web applications. It allows applications to store and access large files, such as AI models, SQLite databases, offline storage archives, and Wasm modules across different origins securely and with user consent. Taking inspiration from **Cache Digests for HTTP/2**, files are identified by their hashes to ensure integrity. The API uses concepts like `FileSystemFileHandle` from the **File System Living Standard** with a focus on cross-origin usage particularities. Here's an example that shows the basic flow for retrieving a file from COS, which requires [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation):
+The **Cross-Origin Storage (COS)** API provides a cross-origin file storage and retrieval mechanism for web applications. It allows applications to store and access large files, such as AI models, SQLite databases, offline storage archives, and Wasm modules across different origins securely and with optional user consent. Taking inspiration from **Cache Digests for HTTP/2**, files are identified by their hashes to ensure integrity. The API uses concepts like `FileSystemFileHandle` from the **File System Living Standard** with a focus on cross-origin usage particularities. Here's an example that shows the basic flow for retrieving a file from COS, which requires [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation):
 
 ```js
 async function onButtonClick() {
@@ -34,7 +34,7 @@ async function onButtonClick() {
     value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
   };
   let handle;
-  // This triggers a permission prompt. For example:
+  // This may trigger a permission prompt. For example:
   // example.com wants to check if your browser already has files the site needs,
   // possibly saved from another site. If found, it will use the files without
   // changing them.
@@ -67,7 +67,7 @@ async function onButtonClick() {
 COS aims to:
 
 - Provide a cross-origin storage mechanism for web applications to store and retrieve large files like AI models, SQLite databases, offline storage archives (for example, complete website archives at the scale of Wikipedia), and Wasm modules.
-- Ensure security and user control with explicit consent before accessing or storing files.
+- Ensure security and user control with optional consent before accessing or storing files.
 - Guaranteeing data integrity and consistency for file identification (see [Appendix&nbsp;B](#appendixb-blob-hash-with-the-web-crypto-api)).
 - Make the web more sustainable and ethical by reducing the number of redundant huge downloads of files the user agent already has potentially stored locally.
 
@@ -78,12 +78,12 @@ COS does _not_ aim to:
 - Replace existing storage solutions such as the **Origin Private File System**, the **Cache API**, **IndexedDB**, or **Web Storage**.
 - Replace content delivery networks (CDNs). The required prompting is expected to deter websites from using the COS API unless there's a clear benefit to cross-origin file access, such as potentially utilizing a cached version.
 - Store popular JavaScript libraries like jQuery. (See the [FAQ](#appendixc-frequently-asked-questions-faq).)
-- Allow cross-origin file access _without_ explicit user consent.
+- Allow cross-origin file access _without_ the possibility for the user agent to intervene and optionally prompt for consent.
 - Question the same-origin policy or make changes to it.
 
 ## User research
 
-Feedback from developers working with large AI models, SQLite databases, offline storage archives, and Wasm modules has highlighted the need for an efficient way to store and retrieve such large files across web applications on different origins. These developers are looking for a standardized solution that allows files to be stored once and accessed by multiple applications, without needing to download and store the files redundantly. COS ensures this is possible while maintaining privacy and security via user consent.
+Feedback from developers working with large AI models, SQLite databases, offline storage archives, and Wasm modules has highlighted the need for an efficient way to store and retrieve such large files across web applications on different origins. These developers are looking for a standardized solution that allows files to be stored once and accessed by multiple applications, without needing to download and store the files redundantly. COS ensures this is possible while maintaining privacy and security via optional user consent.
 
 ### User needs example: Hugging Face
 
@@ -167,7 +167,7 @@ const hash = {
 
 // First, check if the file is already in COS.
 try {
-  // This triggers a permission prompt. For example:
+  // This may trigger a permission prompt. For example:
   // example.com wants to check if your browser already has files the site needs,
   // possibly saved from another site. If found, it will use the files without
   // changing them.
@@ -226,7 +226,7 @@ const hashes = [{
 
 // First, check if the files are already in COS.
 try {
-  // This triggers a permission prompt. For example:
+  // This may trigger a permission prompt. For example:
   // example.com wants to check if your browser already has files the site needs,
   // possibly saved from another site. If found, it will use the files without
   // changing them.
@@ -274,8 +274,8 @@ try {
 #### Retrieving files
 
 1. If the [relevant global object](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global) of [this](https://webidl.spec.whatwg.org/#this) does not have [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation), return a new promise rejected with a [`"NotAllowedError"`](https://webidl.spec.whatwg.org/#notallowederror) [`DOMException`](https://webidl.spec.whatwg.org/#idl-DOMException).
-1. Request a sequence of `FileSystemFileHandle` objects for the files, specifying the files' hashes. This will trigger a permission prompt if it's okay for the origin to check if the files are stored by the user agent.
-1. Retrieve the sequence of `FileSystemFileHandle` objects after the user has granted access.
+1. Request a sequence of `FileSystemFileHandle` objects for the files, specifying the files' hashes. This will optionally trigger a permission prompt if it's okay for the origin to check if the files are stored by the user agent.
+1. Retrieve the sequence of `FileSystemFileHandle` objects after the user agent has granted access (optionally after showing a prompt).
 
 ##### Example: Retrieving a single file
 
@@ -290,7 +290,7 @@ const hash = {
   value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
 };
 
-// This triggers a permission prompt. For example:
+// This may trigger a permission prompt. For example:
 // example.com wants to check if your browser already has files the site needs,
 // possibly saved from another site. If found, it will use the files without
 // changing them.
@@ -336,7 +336,7 @@ const hashes = [
   },
 ];
 
-// This triggers a permission prompt. For example:
+// This may trigger a permission prompt. For example:
 // example.com wants to check if your browser already has files the site needs,
 // possibly saved from another site. If found, it will use the files without
 // changing them.
@@ -377,7 +377,7 @@ const hash = {
   value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
 };
 
-// This triggers a permission prompt. For example:
+// This may trigger a permission prompt. For example:
 // site-a.example.com wants to check if your browser already has files the site
 // needs, possibly saved from another site. If found, it will use the files
 // without changing them.
@@ -438,7 +438,7 @@ const hash = {
   value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
 };
 
-// This triggers a permission prompt. For example:
+// This may trigger a permission prompt. For example:
 // site-b.example.com wants to check if your browser already has files the site
 // needs, possibly saved from another site. If found, it will use the files
 // without changing them.
@@ -472,10 +472,13 @@ try {
 
 The permission prompt must clearly convey that the user agent is granting access to shared files. The goal is to strike a balance between providing sufficient technical details and maintaining user-friendly simplicity.
 
+> [!NOTE]
+> User agents are expected to decide whether to show a permission prompt based on their own policies. For example, user agents that allow third-party cookies by default or that have a special relationship with certain origins may consider exposing this API without a prompt.
+
 > [!IMPORTANT]
 > We envision user agents to enrich permission prompts based on the hashes. For example, a user agent could know that a file identified by a given hash is a well-known AI model and optionally surface this information to the user in the permission prompt and user agent settings UI.
 
-An **access permission** will be shown every time the `navigator.crossOriginStorage.requestFileHandles(hashes)` method is called _without_ the `create` option set to `true`, which can happen to check for existence of files and to obtain the handles to then get the actual files.
+An **access permission** will optionally be shown every time the `navigator.crossOriginStorage.requestFileHandles(hashes)` method is called _without_ the `create` option set to `true`, which can happen to check for existence of files and to obtain the handles to then get the actual files.
 
 Accessing files requires [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation). Storing files can happen at any time and doesn't require [user activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation).
 
@@ -502,7 +505,7 @@ If the user agent knows that the file exists, it can customize the permission pr
 
 ### Privacy
 
-Since the files are retrieved only upon explicit user permission, there's no way for files stored in COS to become supercookies without raising the user's suspicion. Privacy-sensitive user agents can decide to prompt upon every retrieval operation, others can decide to only prompt once, and auto-allow from thereon. User agents can decide to not prompt if the present origin has stored the file before.
+Since the files are retrieved only with optional user permission, there's no way for files stored in COS to become supercookies without raising the user's suspicion. Privacy-sensitive user agents can decide to prompt upon every retrieval operation, others can decide to only prompt once, and auto-allow from thereon, or not prompt at all. User agents can decide to not prompt if the present origin has stored the file before, or if third-party cookies are allowed.
 
 If a file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which another site might take advantage of knowing. The attacker site would need to probe hashes of resources it's interested in, which the user would need to approve by granting permission to do so.
 
@@ -597,7 +600,7 @@ See the complete [questionnaire](security-privacy-questionnaire.md) for details.
 
 ### Security considerations
 
-The API mandates [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation) and [explicit user consent](#user-consent-and-permissions) before any reading cross-origin file access operation, and permission prompts clearly inform users of the requesting site's intent, providing options to allow or deny access. There's no implicit cross-origin information leakage as files in COS are inaccessible without explicit user permission, ensuring no site can infer the presence or absence of specific files across origins without user interaction. User agents can customize permission prompts to minimize confusion while providing transparency. For example, user agents may decide that origins that stored files previously may access them without prompting, provided user agents deem it safe.
+The API mandates [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation) and [optional user consent](#user-consent-and-permissions) before any reading cross-origin file access operation, and permission prompts, if shown, clearly inform users of the requesting site's intent, providing options to allow or deny access. There's no implicit cross-origin information leakage as files in COS are inaccessible without user agent approval (which may involve a prompt), ensuring no site can infer the presence or absence of specific files across origins without user interaction or user agent consent. User agents can customize permission prompts to minimize confusion while providing transparency. For example, user agents may decide that origins that stored files previously may access them without prompting, provided user agents deem it safe. User agents that allow third-party cookies may likewise consider exposing this API without a prompt.
 
 Access is scoped to individual files, [each identified by their hash](#hashing). Developers can't arbitrarily access any random files, ensuring limited and precise access control. Files are uniquely identified by their cryptographic hashes (for example, SHA-256), ensuring data integrity. Hashes prevent tampering with the file contents, that is, a site can be sure it gets the same contents from COS as if it had downloaded the file itself, as COS guarantees that each file's contents matches its hash. For enhanced protection, user agents can check file hashes against virus databases like [VirusTotal](https://www.virustotal.com/gui/home/search), and integrate with in-browser security features like [Safe Browsing](https://safebrowsing.google.com/) even before storing a file.
 
@@ -609,7 +612,7 @@ We envision user agents to enrich permission prompts based on the file hashes. F
 
 ### Privacy considerations
 
-The required transient activation and the use of explicit user permission ensures that COS cannot be exploited for tracking or persistent storage across origins without user awareness. Files in COS can't become involuntary [supercookies](https://blog.mozilla.org/en/internet-culture/mozilla-explains-cookies-and-supercookies/) without the user noticing.
+The required transient activation and the use of optional user permission ensures that COS cannot be exploited for tracking or persistent storage across origins without user awareness or user agent approval. Files in COS can't become involuntary [supercookies](https://blog.mozilla.org/en/internet-culture/mozilla-explains-cookies-and-supercookies/) without the user or user agent noticing.
 
 Prompts can [differentiate between file existence checks and access requests](#user-consent-and-permissions), reducing the risk of misuse or user misunderstanding. Recent origin access to a file is only visible to users via envisioned user agent settings UI, not to other origins.
 
@@ -729,7 +732,7 @@ getBlobHash(fileBlob).then((hash) => {
     <strong>Question:</strong> What other API is this API shaped after?
   </summary>
   <p>
-    <strong>Answer:</strong> The COS API is shaped after the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>getFileHandle()</code></a> function (<code>FileSystemDirectoryHandle.getFileHandle(name, options)</code> which returns a <code>FileSystemFileHandle</code>). COS requires permission for reading and returns handles to multiple files, so its function is called <code>CrossOriginStorageManager.requestFileHandles(hashes, options)</code>. Instead of the <code>name</code> parameter, in COS, there's the <code>hashes</code> array that fulfills the equivalent function of uniquely identifying a set of files in COS. If <code>options.create</code> isn't set or is set to <code>false</code>, the user agent will, upon user consent, return handles for the files identified by the hashes value. If and only if <code>options.create</code> is set to <code>true</code>, the user agent will return handles that can be written to, but never read from. This design means it's safe to not necessarily (but still optionally) require a permission prompt for writing, but to always require a permission prompt for reading or existence checks across origins.
+    <strong>Answer:</strong> The COS API is shaped after the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>getFileHandle()</code></a> function (<code>FileSystemDirectoryHandle.getFileHandle(name, options)</code> which returns a <code>FileSystemFileHandle</code>). COS requires permission for reading and returns handles to multiple files, so its function is called <code>CrossOriginStorageManager.requestFileHandles(hashes, options)</code>. Instead of the <code>name</code> parameter, in COS, there's the <code>hashes</code> array that fulfills the equivalent function of uniquely identifying a set of files in COS. If <code>options.create</code> isn't set or is set to <code>false</code>, the user agent will, possibly upon user consent, return handles for the files identified by the hashes value. If and only if <code>options.create</code> is set to <code>true</code>, the user agent will return handles that can be written to, but never read from. This design means it's safe to not necessarily (but still optionally) require a permission prompt for writing, but to optionally require a permission prompt for reading or existence checks across origins.
   </p>
 </details>
 

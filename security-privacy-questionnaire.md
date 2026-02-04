@@ -2,19 +2,19 @@
 
 ## 01. What information does this feature expose, and for what purposes?
 
-The COS API exposes the availability of files identified by their hash across different origins. The purpose is to enable efficient sharing of large files (for example, AI models, SQLite databases, Wasm modules) to reduce redundant downloads and storage.
+The COS API exposes the availability of files identified by their hash across different origins. The purpose is to enable efficient sharing of large files (for example, AI models, SQLite databases, Wasm modules) to reduce redundant downloads and storage. Exposing this information is optionally subject to user consent, depending on the user agent's policy.
 
 ## 02. Do features in your specification expose the minimum amount of information necessary to implement the intended functionality?
 
-Yes, after explicit user consent, the API exposes only the existence of a file with a known hash and provides read access to it. No additional metadata is exposed. Write access is always granted, just like any page can freely and until its storage quota is reached store arbitrary data in other storage mechanisms like the bucket file system (origin private file system), IndexedDB, or the Cache API.
+Yes, possibly after user consent, the API exposes only the existence of a file with a known hash and provides read access to it. No additional metadata is exposed. Write access is always granted, just like any page can freely and until its storage quota is reached store arbitrary data in other storage mechanisms like the bucket file system (origin private file system), IndexedDB, or the Cache API. User agents that allow third-party cookies by default may consider exposing this API without a prompt.
 
 ## 03. Do the features in your specification expose personal information, personally-identifiable information (PII), or information derived from either?
 
-Possibly. If a COS file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. The attacker site would need to probe hashes of resources it's interested in, which the user would need to approve by granting permission to do so. One such attack could be checking for the presence of game engines, and thereby deriving that the user may be interested in gaming.
+Possibly. If a COS file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. The attacker site would need to probe hashes of resources it's interested in, which the user agent may optionally allow the user to approve by granting permission to do so. One such attack could be checking for the presence of game engines, and thereby deriving that the user may be interested in gaming. In user agents that allow third-party cookies, this information may already be exposed.
 
 ## 04. How do the features in your specification deal with sensitive information?
 
-Files can only be accessed with explicit user consent. The API does not allow arbitrary file discovery or sharing of sensitive user data without permission.
+Files can only be accessed with optional user consent or user agent approval. The API does not allow arbitrary file discovery or sharing of sensitive user data without permission or user agent consent.
 
 ## 05. Does data exposed by your specification carry related but distinct information that may not be obvious to users?
 
@@ -22,7 +22,7 @@ No.
 
 ## 06. Do the features in your specification introduce state that persists across browsing sessions?
 
-Yes. Files stored in COS persist across sessions. However, their access is gated by user consent, and user agents can manage eviction policies to maintain control over this state.
+Yes. Files stored in COS persist across sessions. However, their access is gated by optional user consent or user agent approval, and user agents can manage eviction policies to maintain control over this state.
 
 ## 07. Do the features in your specification expose information about the underlying platform to origins?
 
@@ -54,7 +54,7 @@ None.
 
 ## 14. How does this specification distinguish between behavior in first-party and third-party contexts?
 
-Explicit user consent is required for cross-origin access.
+Optional user consent or user agent approval is required for cross-origin access. User agents that allow third-party cookies may consider exposing this API without a prompt.
 
 ## 15. How do the features in this specification work in the context of a browser’s Private Browsing or Incognito mode?
 
@@ -66,7 +66,7 @@ Yes. The specification includes detailed sections addressing [security considera
 
 ## 17. Do features in your specification enable origins to downgrade default security protections?
 
-Yes, upon explicit user consent.
+Yes, upon optional user consent or user agent approval.
 
 ## 18. What happens when a document that uses your feature is kept alive in BFCache?
 
