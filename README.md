@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/WICG/cross-origin-storage/refs/heads/main/logo-cos.svg" alt="Cross-Origin Storage (COS) logo, consisting of a folder icon with a crossing person." width="100">
 
-This proposal outlines the design of the **Cross-Origin Storage (COS)** API, which allows web applications to store and retrieve files across different origins with optional user consent. Using concepts introduced in **File System Living Standard** defined by the WHATWG, the COS API facilitates secure cross-origin file storage and retrieval for large files, such as AI models, WebAssembly (Wasm) modules, and highly popular JavaScript libraries like jQuery or React. Taking inspiration from **Cache Digests for HTTP/2**, the API uses file hashes for integrity.
+This proposal outlines the design of the **Cross-Origin Storage (COS)** API, which allows web applications to store and retrieve files across different origins with optional user consent. Building on the **File System Living Standard** defined by the WHATWG, the COS API facilitates secure cross-origin file storage and retrieval for large assets, such as AI models, WebAssembly (Wasm) modules, and highly popular JavaScript libraries like jQuery or React. Taking inspiration from **Cache Digests for HTTP/2**, the API identifies files by their hashes to ensure integrity.
 
 > [!TIP]
 > **Evaluate this proposal**
@@ -22,9 +22,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, whi
 - [PRs](https://github.com/WICG/cross-origin-storage/pulls)
 - Support this proposal: https://github.com/WICG/cross-origin-storage/labels/expression%20of%20support
 
-## Introduction
-
-The **Cross-Origin Storage (COS)** API provides a cross-origin file storage and retrieval mechanism for web applications. It allows applications to store and access large files, such as AI models, Wasm modules, and highly popular JavaScript libraries like jQuery or React, across different origins securely and with optional user consent. Taking inspiration from **Cache Digests for HTTP/2**, files are identified by their hashes to ensure integrity. The API uses concepts like `FileSystemFileHandle` from the **File System Living Standard** with a focus on cross-origin usage particularities. Here's an example that shows the basic flow for retrieving a file from COS, which requires [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation):
+The **Cross-Origin Storage (COS)** API provides a secure mechanism for web applications to store and retrieve large files across different origins. This allows applications to share common assets—such as AI models, Wasm modules, and popular libraries like jQuery or React—without redundant downloads, while maintaining user control via optional consent. Files are identified by their cryptographic hashes to ensure data integrity. The API extends concepts like `FileSystemFileHandle` from the **File System Living Standard**, specifically tailored for cross-origin scenarios. The following example demonstrates the basic flow for retrieving a file, which requires [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation):
 
 ```js
 async function onButtonClick() {
@@ -60,7 +58,7 @@ async function onButtonClick() {
 ## Risk awareness
 
 > [!CAUTION]
-> The authors acknowledge that storage is usually isolated by origin to safeguard user security and privacy. Storing large files like AI models separately for each origin, as required by new [use cases](#use-cases), presents a different challenge. For instance, if both `example.com` and `example.org` each require the same 8&nbsp;GB AI model, this would result in a total of 16&nbsp;GB downloaded data and a total allocation of 16&nbsp;GB on the user's device. The present proposal centers on effective mechanisms that uphold protection standards while addressing the inefficiencies of duplicated download and storage.
+> The authors acknowledge that storage is usually isolated by origin to safeguard user security and privacy. Storing large files like AI models separately for each origin, as required by new [use cases](#use-cases), presents a significant scalability and efficiency challenge. For instance, if both `example.com` and `example.org` each require the same 8&nbsp;GB AI model, this would result in 16&nbsp;GB of downloaded data and a total allocation of 16&nbsp;GB on the user's device. This proposal introduces mechanisms that uphold protection standards while addressing the inefficiencies of duplicated downloads and storage.
 
 ## Goals
 
@@ -68,7 +66,7 @@ COS aims to:
 
 - Provide a cross-origin storage mechanism for web applications to store and retrieve large files like AI models, Wasm modules, and highly popular JavaScript libraries like jQuery or React.
 - Ensure security and user control with optional consent before accessing or storing files.
-- Guaranteeing data integrity and consistency for file identification (see [Appendix&nbsp;B](#appendixb-blob-hash-with-the-web-crypto-api)).
+- Guarantee data integrity and consistency for file identification (see [Appendix&nbsp;B](#appendixb-blob-hash-with-the-web-crypto-api)).
 - Make the web more sustainable and ethical by reducing the number of redundant huge downloads of files the user agent already has potentially stored locally.
 
 ## Non-goals
@@ -112,11 +110,11 @@ In their [standards position](https://github.com/mozilla/standards-positions/iss
 
 ### Use case 1: Large AI models
 
-Developers working with large AI models can store these models once and access them across multiple web applications. By using the COS API, models can be stored under their hashes and retrieved with user consent, minimizing repeated downloads and storage, ensuring file integrity. An example is Google's [Gemma 2](https://huggingface.co/google/gemma-2-2b/tree/main) model [`g-2b-it-gpu-int4.bin`](https://storage.googleapis.com/jmstore/kaggleweb/grader/g-2b-it-gpu-int4.bin') (1.35&nbsp;GB). Another example is Google's [Gemma 1.1 7B](https://huggingface.co/google/gemma-1.1-7b-it) model `gemma-1.1-7b-it` (8.60&nbsp;GB), which can be [run in the browser](https://research.google/blog/unlocking-7b-language-models-in-your-browser-a-deep-dive-with-google-ai-edges-mediapipe/). Yet another example is the [`Llama-3.1-70B-Instruct-q3f16_1-MLC`](https://huggingface.co/mlc-ai/Llama-3.1-70B-Instruct-q3f16_1-MLC/tree/main) model (33&nbsp;GB), which [likewise runs in the browser](https://chat.webllm.ai/) (choose the "Llama 3.1 70B Instruct" model in the picker).
+Developers working with large AI models can store these models once and access them across multiple web applications. By using the COS API, models can be stored under their hashes and retrieved with user consent, minimizing repeated downloads and storage, ensuring file integrity. An example is Google's [Gemma 2](https://huggingface.co/google/gemma-2-2b/tree/main) model [`g-2b-it-gpu-int4.bin`](https://storage.googleapis.com/jmstore/kaggleweb/grader/g-2b-it-gpu-int4.bin) (1.35&nbsp;GB). Another example is Google's [Gemma 1.1 7B](https://huggingface.co/google/gemma-1.1-7b-it) model `gemma-1.1-7b-it` (8.60&nbsp;GB), which can be [run in the browser](https://research.google/blog/unlocking-7b-language-models-in-your-browser-a-deep-dive-with-google-ai-edges-mediapipe/). Yet another example is the [`Llama-3.1-70B-Instruct-q3f16_1-MLC`](https://huggingface.co/mlc-ai/Llama-3.1-70B-Instruct-q3f16_1-MLC/tree/main) model (33&nbsp;GB), which [likewise runs in the browser](https://chat.webllm.ai/) (choose the "Llama 3.1 70B Instruct" model in the picker).
 
 ### Use case 2: Large Wasm modules
 
-Web applications that utilize large Wasm modules can store these modules using COS and access them across different origins. This enables efficient sharing of files between applications, reducing redundant downloading and improving performance. Google's Flutter framework alone has four files that are used by more than 1,000 hosts each day making more than two million daily requests in total.
+Web applications that utilize large Wasm modules can store these modules using COS and access them across different origins. This enables efficient sharing of files between applications, reducing redundant downloading and improving performance. A notable example is Google's Flutter framework, which uses several Wasm files that are requested millions of times daily across thousands of hosts:
 
 | Request (`https://gstatic.com/flutter-canvaskit/`)                                                                                                                           | Size   | Hosts | Requests |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----- | -------- |
@@ -129,7 +127,7 @@ Web applications that utilize large Wasm modules can store these modules using C
 
 ### Use case 3: Highly popular JavaScript libraries and frameworks
 
-Bundlers used to mash vendor code and user code together, causing low cache hit rates. By bundling vendor code separately and completely (for example, all of React) instead of dead code eliminating, we can ensure a higher cache hit rate. Storing such files once with the COS API has the advantage that multiple web apps can share the same highly popular libraries.
+Traditionally, bundlers have combined vendor code and user code, leading to low cache hit rates. By bundling vendor code separately and in its entirety (for example, the complete React library) instead of using dead-code elimination, developers can ensure a higher cache hit rate. Storing such files once with the COS API allows multiple web apps to share the same highly popular libraries.
 
 #### Use case 4: Game engines
 
@@ -146,7 +144,7 @@ The **COS** API will be available through the `navigator.crossOriginStorage` int
 
 #### Storing files
 
-1. Hash the contents of the files using SHA-256 (or an equivalent secure algorithm, see [Appendix&nbsp;B](#appendixb-blob-hash-with-the-web-crypto-api)). The used hash algorithm is communicated as a valid [`HashAlgorithmIdentifier`](https://w3c.github.io/webcrypto/#dom-hashalgorithmidentifier).
+1. Hash the contents of the files using SHA-256 (or an equivalent secure algorithm, see [Appendix&nbsp;B](#appendixb-blob-hash-with-the-web-crypto-api)). The hash algorithm used is communicated as a valid [`HashAlgorithmIdentifier`](https://w3c.github.io/webcrypto/#dom-hashalgorithmidentifier).
 1. Request a sequence of `FileSystemFileHandle` objects for the files, specifying the files' hashes.
 1. Each of the `FileSystemFileHandle` objects in the resulting sequence of `FileSystemFileHandle` objects can only be used for writing. Trying to read would fail with a `NotAllowed` `DOMException`.
 1. Store the files in the user agent.
@@ -272,7 +270,7 @@ try {
 
 #### Retrieving files
 
-1. If the [relevant global object](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global) of [this](https://webidl.spec.whatwg.org/#this) does not have [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation), return a new promise rejected with a [`"NotAllowedError"`](https://webidl.spec.whatwg.org/#notallowederror) [`DOMException`](https://webidl.spec.whatwg.org/#idl-DOMException).
+1. If the [relevant global object](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global) of the current context does not have [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation), return a new promise rejected with a [`"NotAllowedError"`](https://webidl.spec.whatwg.org/#notallowederror) [`DOMException`](https://webidl.spec.whatwg.org/#idl-DOMException).
 1. Request a sequence of `FileSystemFileHandle` objects for the files, specifying the files' hashes. This will optionally trigger a permission prompt if it's okay for the origin to check if the files are stored by the user agent.
 1. Retrieve the sequence of `FileSystemFileHandle` objects after the user agent has granted access (optionally after showing a prompt).
 
@@ -477,7 +475,7 @@ The permission prompt must clearly convey that the user agent is granting access
 > [!IMPORTANT]
 > We envision user agents to enrich permission prompts based on the hashes. For example, a user agent could know that a file identified by a given hash is a well-known AI model and optionally surface this information to the user in the permission prompt and user agent settings UI.
 
-An **access permission** will optionally be shown every time the `navigator.crossOriginStorage.requestFileHandles(hashes)` method is called _without_ the `create` option set to `true`, which can happen to check for existence of files and to obtain the handles to then get the actual files.
+An **access permission** will optionally be shown every time the `navigator.crossOriginStorage.requestFileHandles(hashes)` method is called _without_ the `create` option set to `true`, which is used to check for the existence of files and to obtain handles for retrieval.
 
 Accessing files requires [transient activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation). Storing files can happen at any time and doesn't require [user activation](https://html.spec.whatwg.org/multipage/interaction.html#transient-activation).
 
@@ -500,13 +498,13 @@ If the user agent knows that the file exists, it can customize the permission pr
   ![example.com wants to access files it needs that were already saved from another site. If you allow this, it will use the files without changing them. (Allow while visiting the site) (Allow this time) (Never allow)](./permission-2.png)
 
 > [!IMPORTANT]
-> The permission could mention other recent origins that have accessed the same files, but this may be misinterpreted by the user as information the current site may learn, which is never the case. Instead, the vision is that user agents would make information about origins that have (recently) accessed files stored in COS available in special user agent settings UI, as outlined in [Handling of eviction](#handling-of-eviction).
+> The permission could mention other recent origins that have accessed the same files, but this may be misinterpreted by the user as information the current site may learn, which is not the case. Instead, the vision is that user agents would make information about origins that have (recently) accessed files stored in COS available in special user agent settings UI, as outlined in [Handling of eviction](#handling-of-eviction).
 
 ### Privacy
 
 Since the files are retrieved only with optional user permission, there's no way for files stored in COS to become supercookies without raising the user's suspicion. Privacy-sensitive user agents can decide to prompt upon every retrieval operation, others can decide to only prompt once, and auto-allow from thereon, or not prompt at all. User agents can decide to not prompt if the present origin has stored the file before, or if third-party cookies are allowed.
 
-If a file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which another site might take advantage of knowing. The attacker site would need to probe hashes of resources it's interested in, which the user would potentially need to approve by granting permission to do so.
+If a file is only used on a couple of websites, a site can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which another site might exploit this knowledge of. The attacker site would need to probe hashes of resources it's interested in, which the user would potentially need to approve by granting permission to do so.
 
 User agents are also expected to use (on-device) machine learning to identify possible fingerprinting attempts. For example, if a site crafts unique hashes for each user (which hints at fingerprinting), user agents can detect this and block the COS prompt. Popular browsers like Chrome have [successfully applied this technique](https://blog.google/products/chrome/building-a-more-helpful-browser-with-machine-learning/#:~:text=More%20peace%20of%20mind%2C%20less%20annoying%20prompts) for a long time to silence notification spam.
 
@@ -532,7 +530,7 @@ In the context of [evaluating carbon emissions in digital data usage](https://we
 - **Network transmission:** 0.013&nbsp;kWh/GB
 - **User devices:** 0.081&nbsp;kWh/GB
 
-While this document doesn't aim to critically assess the precision of these estimates, it's an established principle that minimizing redundant data downloads and storage is inherently beneficial for sustainability. The [Ethical Web Principles](https://w3ctag.github.io/ethical-web-principles/) specifically highlight that the Web [_"is an environmentally sustainable platform"_](https://w3ctag.github.io/ethical-web-principles/#sustainable) and suggest _"lowering carbon emissions by minimizing data storage and processing requirements"_ as measures to get there. Consequently, one of the key objectives of the COS API is to enhance Web sustainability by reducing redundant large file downloads when such files are possibly already stored locally on the user's device.
+While this document doesn't aim to critically assess the precision of these estimates, it's an established principle that minimizing redundant data downloads and storage is inherently beneficial for sustainability. The [Ethical Web Principles](https://w3ctag.github.io/ethical-web-principles/) specifically highlight that the Web [_"is an environmentally sustainable platform"_](https://w3ctag.github.io/ethical-web-principles/#sustainable) and suggest _"lowering carbon emissions by minimizing data storage and processing requirements"_ as measures to achieve this. Consequently, one of the key objectives of the COS API is to enhance Web sustainability by reducing redundant large file downloads when such files are possibly already stored locally on the user's device.
 
 > [!IMPORTANT]
 > In the context of AI, its implications for sustainability efforts are undeniable. It's essential to adhere to [Web Sustainability Guidelines](https://w3c.github.io/sustainableweb-wsg/) when integrating AI solutions. Prior to implementing AI, it's recommended to [assess and research visitor needs](https://w3c.github.io/sustainableweb-wsg/#assess-and-research-visitor-needs) to ensure that AI is a justifiable and effective solution that truly improves the experience. For example, by increasing user privacy of video calls by applying AI-based background blurring.
@@ -541,7 +539,7 @@ While this document doesn't aim to critically assess the precision of these esti
 
 ### Concurrency
 
-What should happen if two tabs depend on the same file, check COS, see the file is not in COS, and start downloading? Should this be handled smartly? How often does this happen in practice? In the worst case, the file gets downloaded twice, but would then still only be stored once in COS. Our current thinking is to not deal with this special case based on the tolerable worst case.
+What should happen if two tabs depend on the same file, check COS, see the file is not in COS, and start downloading? Should this be handled more efficiently? How often does this happen in practice? In the worst case, the file gets downloaded twice, but would then still only be stored once in COS. Our current thinking is to not deal with this special case based on the tolerable worst case.
 
 ### Partial COS matches
 
@@ -577,7 +575,7 @@ Storing files by their names rather than using hashes would risk name collisions
 
 ### Manually accessing files from harddisk
 
-Different origins can manually open the same file on disk, either using the File System Access API's `showOpenFilePicker()` method or using the classic `<input type="file">` approach. This requires the file to be stored once, and access to the file can then be shared as explained in [Cache AI models in the browser](https://developer.chrome.com/docs/ai/cache-models#special_case_use_a_model_on_a_hard_disk). While this works, it's manual and error-prone, as it requires the user to know what file to choose from their harddisk in the file picker.
+Different origins can manually open the same file on disk, either using the File System Access API's `showOpenFilePicker()` method or using the classic `<input type="file">` approach. This requires the file to be stored once, and access to the file can then be shared as explained in [Cache AI models in the browser](https://developer.chrome.com/docs/ai/cache-models#special_case_use_a_model_on_a_hard_disk). While this works, it's manual and error-prone, as it requires the user to know what file to choose from their hard drive in the file picker.
 
 ### Integrating cross-origin storage in the `fetch()` API
 

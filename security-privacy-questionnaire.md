@@ -6,11 +6,11 @@ The COS API exposes the availability of files identified by their hash across di
 
 ## 02. Do features in your specification expose the minimum amount of information necessary to implement the intended functionality?
 
-Yes, possibly after user consent, the API exposes only the existence of a file with a known hash and provides read access to it. No additional metadata is exposed. Write access is always granted, just like any page can freely and until its storage quota is reached store arbitrary data in other storage mechanisms like the bucket file system (origin private file system), IndexedDB, or the Cache API. User agents that allow third-party cookies by default may consider exposing this API without a prompt.
+Yes, possibly after user consent, the API exposes only the existence of a file with a known hash and provides read access to it. No additional metadata is exposed. Write access is always granted, just like any page can freely store arbitrary data until its storage quota is reached in other storage mechanisms like the bucket file system (origin private file system), IndexedDB, or the Cache API. User agents that allow third-party cookies by default may consider exposing this API without a prompt.
 
 ## 03. Do the features in your specification expose personal information, personally-identifiable information (PII), or information derived from either?
 
-Possibly. If a COS file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. The attacker site would need to probe hashes of resources it's interested in, which the user agent may optionally allow the user to approve by granting permission to do so. One such attack could be checking for the presence of highly popular JavaScript libraries, and thereby deriving that the user may be interested in sites using those specific frameworks. In user agents that allow third-party cookies, this information may already be exposed.
+Possibly. If a COS file is only used on a couple of websites, a site can discover that the user visited those sites by checking for the file's presence. The attacker site would need to probe hashes of resources it's interested in, which the user agent may optionally allow the user to approve by granting permission to do so. One such attack could be checking for the presence of highly popular JavaScript libraries, deriving that the user visits sites using specific frameworks. In user agents that allow third-party cookies, this information may already be exposed.
 
 ## 04. How do the features in your specification deal with sensitive information?
 
@@ -58,11 +58,11 @@ Optional user consent or user agent approval is required for cross-origin access
 
 ## 15. How do the features in this specification work in the context of a browser’s Private Browsing or Incognito mode?
 
-Files previously stored in COS are not accessible in Private Browsing or Incognito mode. Browser vendors may allow COS to work during an Incognito session, but the data would not be retained. Alternatively, browser vendors may disable COS entirely.
+Files previously stored in COS are not accessible in Private Browsing or Incognito mode. User agents may allow COS to work during an Incognito session, but the data would not be retained. Alternatively, user agents may disable COS entirely.
 
 ## 16. Does this specification have both "Security Considerations" and "Privacy Considerations" sections?
 
-Yes. The specification includes detailed sections addressing [security considerations](README.MD#security-considerations) and [privacy implications](README.MD#privacy-considerations).
+Yes. The specification includes detailed sections addressing [security considerations](README.md#security-considerations) and [privacy implications](README.md#privacy-considerations).
 
 ## 17. Do features in your specification enable origins to downgrade default security protections?
 
@@ -78,7 +78,7 @@ The file access operation will terminate, and any pending storage or retrieval w
 
 ## 20. Does your spec define when and how new kinds of errors should be raised?
 
-No.
+Yes. The specification defines specific use cases for `NotAllowedError` and `NotFoundError` `DOMException`s.
 
 ## 21. Does your feature allow sites to learn about the user's use of assistive technology?
 
@@ -86,4 +86,4 @@ No.
 
 ## 22. What should this questionnaire have asked?
 
-It could include a question about whether the API promotes transparency in user-facing permission prompts to enhance user understanding of the implications of granting access.
+It could include a question about whether the API promotes transparency in user-facing permission prompts, enhancing user understanding of the implications of granting access.
