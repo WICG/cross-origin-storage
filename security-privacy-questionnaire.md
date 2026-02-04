@@ -2,7 +2,7 @@
 
 ## 01. What information does this feature expose, and for what purposes?
 
-The COS API exposes the availability of files identified by their hash across different origins. The purpose is to enable efficient sharing of large files (for example, AI models, SQLite databases, Wasm modules) to reduce redundant downloads and storage. Exposing this information is optionally subject to user consent, depending on the user agent's policy.
+The COS API exposes the availability of files identified by their hash across different origins. The purpose is to enable efficient sharing of large files (for example, AI models, highly popular JavaScript libraries, Wasm modules) to reduce redundant downloads and storage. Exposing this information is optionally subject to user consent, depending on the user agent's policy.
 
 ## 02. Do features in your specification expose the minimum amount of information necessary to implement the intended functionality?
 
@@ -10,7 +10,7 @@ Yes, possibly after user consent, the API exposes only the existence of a file w
 
 ## 03. Do the features in your specification expose personal information, personally-identifiable information (PII), or information derived from either?
 
-Possibly. If a COS file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. The attacker site would need to probe hashes of resources it's interested in, which the user agent may optionally allow the user to approve by granting permission to do so. One such attack could be checking for the presence of game engines, and thereby deriving that the user may be interested in gaming. In user agents that allow third-party cookies, this information may already be exposed.
+Possibly. If a COS file is only used on a couple websites, then a site can discover that the user visited those sites by checking for the file's presence. The attacker site would need to probe hashes of resources it's interested in, which the user agent may optionally allow the user to approve by granting permission to do so. One such attack could be checking for the presence of highly popular JavaScript libraries, and thereby deriving that the user may be interested in sites using those specific frameworks. In user agents that allow third-party cookies, this information may already be exposed.
 
 ## 04. How do the features in your specification deal with sensitive information?
 
