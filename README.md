@@ -53,8 +53,6 @@ async function onButtonClick() {
 }
 ```
 
-![Cross-origin storage permission prompt mock-up. The prompt says: "example.com wants to check if your browser already has files the site needs, possibly saved from another site. If found, it will use the files without changing them". There are three buttons: Allow while visiting the site, Allow this time, Never allow.](./cos-permission.png)
-
 ## Risk awareness
 
 > [!CAUTION]
@@ -74,7 +72,7 @@ COS aims to:
 COS does _not_ aim to:
 
 - Replace existing storage solutions such as the **Origin Private File System**, the **Cache API**, **IndexedDB**, or **Web Storage**.
-- Replace content delivery networks (CDNs). The required prompting is expected to deter websites from using the COS API unless there's a clear benefit to cross-origin file access, such as potentially utilizing a cached version.
+- Replace content delivery networks (CDNs). The optional prompting is expected to deter websites from using the COS API unless there's a clear benefit to cross-origin file access, such as potentially utilizing a cached version.
 - Allow cross-origin file access _without_ the possibility for the user agent to intervene and optionally prompt for consent.
 - Question the same-origin policy or make changes to it.
 
@@ -129,7 +127,7 @@ Web applications that utilize large Wasm modules can store these modules using C
 
 Traditionally, bundlers have combined vendor code and user code, leading to low cache hit rates. By bundling vendor code separately and in its entirety (for example, the complete React library) instead of using dead-code elimination, developers can ensure a higher cache hit rate. Storing such files once with the COS API allows multiple web apps to share the same highly popular libraries.
 
-#### Use case 4: Game engines
+### Use case 4: Game engines
 
 Web games built with game engines that have browser support like [Godot](https://godotengine.org/), [Unity](https://unity.com/), or [Construct&nbsp;3](https://www.construct.net/en) to name a few popular examples can store the core game engine code in COS and only load game-specific assets like textures and game logic from the network. Web gaming portals like [WebGamer](https://webgamer.io/) that host plenty of casual games with a short path to gameplay on different cross-origin iframes can benefit greatly from this.
 
@@ -481,7 +479,7 @@ Accessing files requires [transient activation](https://html.spec.whatwg.org/mul
 
 Each of the `FileSystemFileHandle` objects in the resulting sequence of `FileSystemFileHandle` objects that the developer obtains when `create` is set to `true` can only be used for writing. Trying to call `FileSystemFileHandle.getFile()` would fail with a `NotAllowed` `DOMException`.
 
-Following an initial required permission, user agents can decide to allow access on every following visit, or to explicitly ask upon each access attempt. If an origin itself has stored the file before, the user agent can decide to not show a prompt if the same origin requests access to the file again.
+Following an initial optional permission, user agents can decide to allow access on every following visit, or to explicitly ask upon each access attempt. If an origin itself has stored the file before, the user agent can decide to not show a prompt if the same origin requests access to the file again.
 
 If the user grants permission for subsequent visits, a change in the order of the hashes in the `hashes` array doesn't matter when accessing the same set of files. It's also allowed to request reading access to just a subset of previously accessed files without triggering another permission prompt.
 
@@ -502,7 +500,7 @@ If the user agent knows that the file exists, it can customize the permission pr
 
 ### Privacy
 
-Since the files are retrieved only with optional user permission, there's no way for files stored in COS to become supercookies without raising the user's suspicion. Privacy-sensitive user agents can decide to prompt upon every retrieval operation, others can decide to only prompt once, and auto-allow from thereon, or not prompt at all. User agents can decide to not prompt if the present origin has stored the file before, or if third-party cookies are allowed.
+Since the files are retrieved only with optional user permission, there's no way for files stored in COS to become supercookies without raising the user agent's suspicion upon excessive reading attempts. Privacy-sensitive user agents can decide to prompt upon every retrieval operation, others can decide to only prompt once, and auto-allow from thereon, or not prompt at all. User agents can decide to not prompt if the present origin has stored the file before, or if third-party cookies are allowed.
 
 If a file is only used on a couple of websites, a site can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which another site might exploit this knowledge of. The attacker site would need to probe hashes of resources it's interested in, which the user would potentially need to approve by granting permission to do so.
 
@@ -547,7 +545,7 @@ If the developer wants to check if two files A and B, with the hashes hash_A and
 
 ### Minimum file size
 
-Should there be a required minimum file size for a file to be eligible for COS? Most likely not, since it would be trivial to inflate the file size of non-qualifying files by adding space characters or comments. The assumption is that the required prompting would be scary enough for websites to only use COS for files where it really makes sense to have them available cross-origin, that is, where they could profit themselves from using a potentially already cached version rather than downloading their own version from the network.
+Should there be a required minimum file size for a file to be eligible for COS? Most likely not, since it would be trivial to inflate the file size of non-qualifying files by adding space characters or comments. The assumption is that the optional prompting, should a user agent implement it, would be scary enough for websites to only use COS for files where it really makes sense to have them available cross-origin, that is, where they could profit themselves from using a potentially already cached version rather than downloading their own version from the network.
 
 ### Handling of eviction
 
@@ -729,7 +727,7 @@ getBlobHash(fileBlob).then((hash) => {
     <strong>Question:</strong> What other API is this API shaped after?
   </summary>
   <p>
-    <strong>Answer:</strong> The COS API is shaped after the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>getFileHandle()</code></a> function (<code>FileSystemDirectoryHandle.getFileHandle(name, options)</code> which returns a <code>FileSystemFileHandle</code>). COS requires permission for reading and returns handles to multiple files, so its function is called <code>CrossOriginStorageManager.requestFileHandles(hashes, options)</code>. Instead of the <code>name</code> parameter, in COS, there's the <code>hashes</code> array that fulfills the equivalent function of uniquely identifying a set of files in COS. If <code>options.create</code> isn't set or is set to <code>false</code>, the user agent will, possibly upon user consent, return handles for the files identified by the hashes value. If and only if <code>options.create</code> is set to <code>true</code>, the user agent will return handles that can be written to, but never read from. This design means it's safe to not necessarily (but still optionally) require a permission prompt for writing, but to optionally require a permission prompt for reading or existence checks across origins.
+    <strong>Answer:</strong> The COS API is shaped after the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>getFileHandle()</code></a> function (<code>FileSystemDirectoryHandle.getFileHandle(name, options)</code> which returns a <code>FileSystemFileHandle</code>). COS optionally requires permission for reading and returns handles to multiple files, so its function is called <code>CrossOriginStorageManager.requestFileHandles(hashes, options)</code>. Instead of the <code>name</code> parameter, in COS, there's the <code>hashes</code> array that fulfills the equivalent function of uniquely identifying a set of files in COS. If <code>options.create</code> isn't set or is set to <code>false</code>, the user agent will, possibly upon user consent, return handles for the files identified by the hashes value. If and only if <code>options.create</code> is set to <code>true</code>, the user agent will return handles that can be written to, but never read from. This design means it's safe to not necessarily (but still optionally) require a permission prompt even for writing, and to also optionally require a permission prompt for reading or existence checks across origins.
   </p>
 </details>
 
@@ -750,3 +748,7 @@ getBlobHash(fileBlob).then((hash) => {
     <strong>Answer:</strong> Workers cannot directly access Cross-Origin Storage because cross-origin checks or reads require user activation and explicit permission. However, the <a href="https://github.com/WICG/capability-delegation">Capability Delegation</a> proposal might enable other global objects to gain permission in the future. For now, worker access is not pursued, especially since documents can access files in COS on the main thread and transfer the blobs to a worker as needed.
 </p>
 </details>
+
+### Appendix&nbsp;D: Optional permission prompt example
+
+We expect most user agents to implement this API without permission prompts, but provide an [example](/cos-permission.png) for how such a prompt could look like.
