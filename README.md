@@ -463,9 +463,9 @@ try {
 
 ## Detailed design discussion
 
-### User consent and permissions
+### Optional user consent and permissions
 
-The permission prompt must clearly convey that the user agent is granting access to shared files. The goal is to strike a balance between providing sufficient technical details and maintaining user-friendly simplicity.
+If implemented, the optional permission prompt must clearly convey that the user agent is granting access to shared files. The goal is to strike a balance between providing sufficient technical details and maintaining user-friendly simplicity.
 
 > [!NOTE]
 > User agents are expected to decide whether to show a permission prompt based on their own policies. For example, user agents that allow third-party cookies by default or that have a special relationship with certain origins may consider exposing this API without a prompt.
@@ -486,14 +486,6 @@ If the user grants permission for subsequent visits, a change in the order of th
 If the user has disallowed access to COS by clicking **Block** or **Never allow** or similar in the permission prompt, the developer can always fall back to traditional ways of obtaining files over the network, like `fetch()` or `XMLHttpRequest`, or possibly cached versions of the files in the Cache API or IndexedDB. The permission can be reset to the initial state using the user agent's site settings UI.
 
 If the user agent knows that the file exists, it can customize the permission prompt to differentiate the existence check and the access prompt.
-
-> [!IMPORTANT]
-> All permission strings in this explainer are purely for illustrative purposes. User agents are expected to customize them.
-
-- If the files don't exist:
-  ![example.com wants to check if your browser already has files the site needs, possibly saved from another site. If found, it will use the files without changing them. (Allow while visiting the site) (Allow this time) (Never allow)](./permission-1.png)
-- If the files do exist:
-  ![example.com wants to access files it needs that were already saved from another site. If you allow this, it will use the files without changing them. (Allow while visiting the site) (Allow this time) (Never allow)](./permission-2.png)
 
 > [!IMPORTANT]
 > The permission could mention other recent origins that have accessed the same files, but this may be misinterpreted by the user as information the current site may learn, which is not the case. Instead, the vision is that user agents would make information about origins that have (recently) accessed files stored in COS available in special user agent settings UI, as outlined in [Handling of eviction](#handling-of-eviction).
@@ -751,4 +743,5 @@ getBlobHash(fileBlob).then((hash) => {
 
 ### Appendix&nbsp;D: Optional permission prompt example
 
-We expect most user agents to implement this API without permission prompts, but provide an [example](/cos-permission.png) for how such a prompt could look like.
+We expect most user agents to implement this API without permission prompts, but provide examples ([example 1](/permission-1.png), [example 2](/permission-2.png), [example 3](/cos-permission.png)) for how such a prompt could look like. All permission strings in this explainer are purely for illustrative purposes. User agents are expected to customize them.
+
