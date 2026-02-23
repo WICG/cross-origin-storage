@@ -744,4 +744,3 @@ getBlobHash(fileBlob).then((hash) => {
 ### Appendix&nbsp;D: Optional permission prompt example
 
 We expect most user agents to implement this API without permission prompts, but provide examples ([example 1](/permission-1.png), [example 2](/permission-2.png), [example 3](/cos-permission.png)) for how such a prompt could look like. All permission strings in this explainer are purely for illustrative purposes. User agents are expected to customize them.
-
