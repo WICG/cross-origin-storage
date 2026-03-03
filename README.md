@@ -185,6 +185,8 @@ try {
         [hash],
         {
           create: true,
+          // Optional: Only allow these origins to read the file.
+          origins: ['https://example.com', 'https://example.org'],
         },
       );
       // The resulting `FileSystemFileHandle` can only be used for writing.
@@ -201,6 +203,31 @@ try {
   // 'NotAllowedError', the user didn't grant access to the file.
   console.log('The user did not grant access to the file.');
 }
+```
+
+##### Example: Restricting resources to specific origins
+
+The `origins` field is useful for sharing resources between a set of related origins without making them globally available. **This is expected for proprietary resources or in cases where global COS cache hits are not anticipated.**
+
+```js
+// The hash of an AI model for proofreading.
+const hash = {
+  algorithm: 'SHA-256',
+  value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
+};
+
+// Site `write.example.com` stores the model and restricts it to itself and
+// `calculate.example.com`.
+const [handle] = await navigator.crossOriginStorage.requestFileHandles([hash], {
+  create: true,
+  origins: ['https://calculate.example.com', 'https://write.example.com'],
+});
+
+// Write the file…
+
+// Now, `calculate.example.com` can request the same hash and it will be found.
+// Any other origin NOT in the list (e.g., `https://unrelated.com`) will receive
+// a `NotFoundError` when requesting this hash, even if it's stored in COS.
 ```
 
 ##### Example: Storing multiple files
@@ -494,7 +521,7 @@ If the user agent knows that the file exists, it can customize the permission pr
 
 Since the files are retrieved only with optional user permission, there's no way for files stored in COS to become supercookies without raising the user agent's suspicion upon excessive reading attempts. Privacy-sensitive user agents can decide to prompt upon every retrieval operation, others can decide to only prompt once, and auto-allow from thereon, or not prompt at all. User agents can decide to not prompt if the present origin has stored the file before, or if third-party cookies are allowed.
 
-If a file is only used on a couple of websites, a site can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which another site might exploit this knowledge of. The attacker site would need to probe hashes of resources it's interested in, which the user would potentially need to approve by granting permission to do so.
+If a file is only used on a couple of websites, a site can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which another site might exploit this knowledge of. The attacker site would need to probe hashes of resources it's interested in, which the user would potentially need to approve by granting permission to do so. The optional `origins` field mitigates this risk by allowing origins to restrict resource access to a specific set of trusted origins, ensuring the resource isn't globally "probeable". Sites are expected to use this field for proprietary resources or when global COS cache hits are not expected.
 
 User agents are also expected to use (on-device) machine learning to identify possible fingerprinting attempts. For example, if a site crafts unique hashes for each user (which hints at fingerprinting), user agents can detect this and block the COS prompt. Popular browsers like Chrome have [successfully applied this technique](https://blog.google/products/chrome/building-a-more-helpful-browser-with-machine-learning/#:~:text=More%20peace%20of%20mind%2C%20less%20annoying%20prompts) for a long time to silence notification spam.
 
@@ -655,6 +682,7 @@ dictionary CrossOriginStorageRequestFileHandleHash {
 
 dictionary CrossOriginStorageRequestFileHandleOptions {
   optional boolean create = false;
+  optional sequence<USVString> origins;
 }
 ```
 
@@ -719,7 +747,7 @@ getBlobHash(fileBlob).then((hash) => {
     <strong>Question:</strong> What other API is this API shaped after?
   </summary>
   <p>
-    <strong>Answer:</strong> The COS API is shaped after the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>getFileHandle()</code></a> function (<code>FileSystemDirectoryHandle.getFileHandle(name, options)</code> which returns a <code>FileSystemFileHandle</code>). COS optionally requires permission for reading and returns handles to multiple files, so its function is called <code>CrossOriginStorageManager.requestFileHandles(hashes, options)</code>. Instead of the <code>name</code> parameter, in COS, there's the <code>hashes</code> array that fulfills the equivalent function of uniquely identifying a set of files in COS. If <code>options.create</code> isn't set or is set to <code>false</code>, the user agent will, possibly upon user consent, return handles for the files identified by the hashes value. If and only if <code>options.create</code> is set to <code>true</code>, the user agent will return handles that can be written to, but never read from. This design means it's safe to not necessarily (but still optionally) require a permission prompt even for writing, and to also optionally require a permission prompt for reading or existence checks across origins.
+    <strong>Answer:</strong> The COS API is shaped after the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>getFileHandle()</code></a> function (<code>FileSystemDirectoryHandle.getFileHandle(name, options)</code> which returns a <code>FileSystemFileHandle</code>). COS optionally requires permission for reading and returns handles to multiple files, so its function is called <code>CrossOriginStorageManager.requestFileHandles(hashes, options)</code>. Instead of the <code>name</code> parameter, in COS, there's the <code>hashes</code> array that fulfills the equivalent function of uniquely identifying a set of files in COS. If <code>options.create</code> isn't set or is set to <code>false</code>, the user agent will, possibly upon user consent, return handles for the files identified by the hashes value. If and only if <code>options.create</code> is set to <code>true</code>, the user agent will return handles that can be written to, but never read from. Optionally, when <code>options.create</code> is <code>true</code>, developers can also provide a list of <code>origins</code> to restrict who can later read the resource. This design means it's safe to not necessarily (but still optionally) require a permission prompt even for writing, and to also optionally require a permission prompt for reading or existence checks across origins.
   </p>
 </details>
 
