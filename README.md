@@ -234,7 +234,7 @@ const [handle] = await navigator.crossOriginStorage.requestFileHandles([hash], {
 
 The visibility of a resource in COS can be upgraded but never downgraded:
 
-- **Restricted to global**: If a resource was initially stored with an `origins` list, any site (including the original storer or a completely different site) can later call `requestFileHandles()` for the same hash with `create: true` and _omit_ the `origins` field. If the user agent verifies the hash matches, the resource is then marked as globally available. This is safe because the act of providing the hash proves the site already has access to the resource.
+- **Restricted to global**: If a resource was initially stored with an `origins` list, any site (including the original storer or a completely different site) can later call `requestFileHandles()` for the same hash with `create: true` and _omit_ the `origins` field. If the user agent verifies the hash matches, the resource is then marked as globally available. The new site *must still* write the full file using the returned `handle` object, to prevent sites from using this behavior to detect whether a file was previously stored.
 - **Global to restricted**: If a resource is already globally available in COS, any attempt to store it again with a specific `origins` list is ignored. The resource remains globally available, and the user agent should log a warning to the console to inform the developer that the restriction was not applied.
 
 ##### Example: Storing multiple files
