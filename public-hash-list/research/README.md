@@ -10,10 +10,13 @@ Everything here is exploratory: it raises questions about the design, it propose
 the [COS specification](https://wicg.github.io/cross-origin-storage/) or to the PHL's inclusion
 criteria, and no number in it is a measurement of real users.
 
-| File | What it is |
-| --- | --- |
-| [`probing-attack-model.md`](probing-attack-model.md) | The models, the calibration against the real published list, and the results. Start here. |
-| [`probing-simulator.html`](probing-simulator.html) | The simulator the results come from. Open it in a browser; no build step, no dependencies, no network access. |
+The work is in two parts, plus the simulator behind both.
+
+| | File | What it is |
+| --- | --- | --- |
+| **Part one: the problem** | [`probing-attack-model.md`](probing-attack-model.md) | The models, the calibration against the real published list, and the results. |
+| **Part two: the proposed solution** | [`proposed-solution.md`](proposed-solution.md) | Four rules that bound the attack, in plain terms, with what each one costs. **Start here** for the conclusions. |
+| The simulator | [`probing-simulator.html`](probing-simulator.html) | What both parts draw on. Open it in a browser; no build step, no dependencies, no network access. |
 
 ## The attack
 
@@ -54,8 +57,8 @@ Presets in the scenario dropdown reproduce each result in §12 of the model docu
 
 ## Headline results
 
-The [Results](probing-attack-model.md#12-results) section has the numbers and the caveats.
-In short: the k-anonymity gate does the job it was designed for, and does it with margin, but
+The [Results](probing-attack-model.md#12-results) section of part one has the numbers and the
+caveats. In short: the k-anonymity gate does the job it was designed for, and does it with margin, but
 it only governs one tier of the list and only one of the four threat models; strategic probe
 selection is worth about 50× the probe budget over random selection; and GREASE'ing's value
 depends almost entirely on a keying choice the specification does not currently make.
@@ -68,6 +71,16 @@ chosen, cross-site, GREASE-immune state in 275 KB, and the global-grant write of
 attack plants a whole-web identifier in 48 KB. Cross-site download elision and the tracking
 oracle are the same bit, so closing the channel fully costs the feature; a per-origin budget on
 distinct cross-site-disclosed hashes is the interior fix that keeps the AI use case.
+
+## The proposal in one paragraph
+
+A COS lookup answers yes or no, so it yields one bit, and ten lookups can never yield more than
+ten bits. Picking one device out of a billion needs about 30. So metering the lookups that cross
+a site boundary puts a hard ceiling on what a tracker can learn, and a site's lookups of files it
+stored itself can stay free, which is what keeps the build-tool and AI cases working. Pair that
+with a user gesture before a stored file becomes shareable, so a silently reloading page cannot
+accumulate, and a counter that survives reloads. Part two works through the rules, the examples,
+the costs, and what stays unsolved.
 
 ## Reproducing
 

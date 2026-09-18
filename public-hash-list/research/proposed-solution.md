@@ -1,0 +1,249 @@
+<!--
+  Copyright 2026 Google LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+
+# A proposed solution: metered reads and gesture-gated writes
+
+This is part two of the PHL privacy research. Part one,
+[`probing-attack-model.md`](probing-attack-model.md), describes the problem: how a tracker can
+use Cross-Origin Storage to recognize the same device on unrelated websites. This document
+proposes what to do about it.
+
+It is written to be read on its own. Everything here is a proposal for discussion, and none of it
+is a change to the COS specification today.
+
+---
+
+## The short version
+
+Four rules. The first two carry the weight.
+
+1. **Count the reads that cross a site boundary**, and give each site a small budget.
+2. **Wait for a user gesture before a write takes effect.** The page can use the file
+   immediately; only the sharing waits.
+3. **Keep the count per site, per time window, and keep counting across page reloads.**
+4. **Count small writes, and weigh large ones by size.**
+
+Together these put a hard ceiling on how much a tracker can learn, while leaving the things COS
+was built for working normally.
+
+---
+
+## Why one number decides everything
+
+A COS lookup has exactly two possible answers: "here is the file" or "not found." That is one
+yes-or-no answer, which is one bit of information.
+
+This is the key fact, and it is worth saying plainly:
+
+> **Ten lookups can never tell you more than ten bits. A hundred lookups can never tell you more
+> than a hundred bits.** No clever encoding gets around it, because each lookup only ever returns
+> one of two answers.
+
+Now compare that to what a tracker needs. To pick one specific device out of a billion, you need
+about 30 bits. Call it 32 to be safe.
+
+So the whole problem reduces to a counting question. If a website can make 64 cross-site lookups,
+it can learn up to 64 bits, which is more than enough to single out a device. If it can make 8,
+it can learn at most 8 bits, which narrows a billion devices down to about four million. That is
+useless for identifying anybody.
+
+**Limiting lookups is therefore a mathematical ceiling on what a tracker can extract, with no
+guesswork involved.** That is what makes it a better control than trying to detect bad behavior.
+
+---
+
+## Rule 1: Count the reads that cross a site boundary
+
+Give each requesting origin a budget of cross-site lookups, per website the user is on, per time
+window. Something in the range of 8 to 16.
+
+The important detail is *which* lookups count. Only count a lookup when it could reveal something
+about a **different** website. Concretely:
+
+| Lookup | Counts against the budget? |
+| --- | --- |
+| A file this website itself put in the cache | No |
+| A file already in the cache from this website's own earlier visits | No |
+| A file that is only visible because some *other* website stored it | **Yes** |
+| A file the requesting origin stored while the user was on a *different* website | **Yes** |
+
+**Example.** `shop.example` uses a build tool that splits its JavaScript into 40 shared chunks.
+On every page load it looks up all 40. Every one of those chunks was stored by `shop.example`
+itself, so none of them count. The budget is untouched, and the site works exactly as it does
+today.
+
+**Example.** `tracker.example` runs on both `news.example` and `shop.example`. On `news.example`
+it stored 64 small files. On `shop.example` it now looks those same files up. Every one of those
+lookups is asking about something a different website stored, so every one counts. It runs out of
+budget after 8, and it learns 8 bits.
+
+This is the rule that separates the two cases. A simple "limit all lookups" rule cannot do it,
+because the honest build-tool case makes far more lookups than the attack does.
+
+---
+
+## Rule 2: Wait for a user gesture before a write takes effect
+
+Before a file a website stores becomes visible to other websites, require that the user has
+actually done something on the page: a click, a tap, or a key press.
+
+The important detail is that **the page does not have to wait.** If a site fetches a file and
+wants to use it, it uses it right away. Only the step that makes it shareable is held back, and
+it happens quietly as soon as the user interacts.
+
+**Example.** An AI site downloads a 4 GB model. The model loads and runs immediately, exactly as
+it does today. The moment the user clicks anything at all, the model becomes shareable with other
+sites. If the user reads the page and leaves without clicking, the model still worked; it just
+did not join the shared cache.
+
+**Why this matters.** Without it, a tracker can reload its own page in a loop. Each reload is a
+fresh page, so any per-page limit resets, and the tracker can write as much as it likes in a few
+seconds while the user sees nothing. Requiring a gesture breaks that loop, because a silent
+reload produces no clicks. A tracker can only accumulate at the speed the user actually engages
+with pages.
+
+Two practical notes. Scrolling does not count as a gesture in browsers today, so the rule really
+does bind on pages nobody interacts with. And one gesture unlocking the page's whole write budget
+is simpler to build than demanding a separate gesture per file, with nearly the same effect.
+
+---
+
+## Rule 3: Count per site, per window, and keep counting across reloads
+
+The counter has to survive page reloads and navigations. If it resets every page load, the same
+reload loop that Rule 2 blocks for writes would work for reads, and reads are the step that
+actually extracts the identifier.
+
+So the counter is keyed to the combination of (requesting origin, website the user is on), and it
+persists for a chosen window of time.
+
+**Example.** A per-page-load budget of 8 gives a tracker 8 bits per reload. Reloading four times
+takes about a second and yields 32 bits, which is a complete identifier. A budget of 8 per day
+gives the same tracker 8 bits per day.
+
+**The window length is the main dial in this whole proposal.** It sets how fast a determined
+tracker can accumulate. Shorter windows are friendlier to sites that legitimately share a lot;
+longer windows are stronger against tracking.
+
+---
+
+## Rule 4: Count small writes, weigh large ones by size
+
+Writes deserve a limit too, and the natural one falls out of file sizes.
+
+The files a tracker uses as carriers have to be small, because it needs many of them. Sixty-four
+carriers fit in about 48 KB, roughly 750 bytes each. The files COS exists to share are the
+opposite: AI model pieces run 8 to 128 MB each, and some model files reach several gigabytes.
+
+So: **count small writes, and meter large writes by total bytes.** A site storing one big model
+spends bytes and barely touches the count. A tracker storing 64 tiny files spends almost no bytes
+and immediately hits the count.
+
+This also closes the obvious dodge. A tracker that switches to large carriers to escape the count
+now has to push gigabytes onto the user's device for a 32-bit identifier, which the storage quota
+stops and the user's bandwidth bill notices.
+
+---
+
+## What the attack looks like under these rules
+
+Same cast as before: `tracker.example` embedded on `news.example` and `shop.example`, trying to
+recognize the same device on both.
+
+1. On `news.example`, the tracker wants to store 64 small files to encode an identifier. Rule 4
+   counts all 64 against a small-write budget, so most are refused. Rule 2 holds even the
+   permitted ones until the user clicks something, so a silently reloading page gets nowhere.
+2. Suppose the user does click, and the tracker gets its 8 writes through. It now has 8 bits
+   planted.
+3. On `shop.example`, the tracker looks those files up. Rule 1 counts every one of those lookups,
+   because they ask about something another website stored. Rule 3 makes that count stick across
+   reloads. After 8 lookups the tracker is done for the window.
+4. It has 8 bits, which narrows a billion devices to about four million. It cannot identify
+   anyone.
+
+To reach a full 32-bit identifier it needs four windows on the writing side and four on the
+reading side, each one requiring a real user interaction. With a window of a day, that is several
+days of repeat visits to both sites.
+
+---
+
+## What it costs
+
+Being straight about the downsides:
+
+- **Sites that legitimately share a lot across origins will hit the budget.** A site that wants
+  to reuse twenty different large files from other sites in one visit will get some misses and
+  fall back to the network. Rule 1's carve-out for a site's own files keeps this rare.
+- **Users who never interact never contribute to the shared cache.** Their own browsing still
+  works; their downloads just do not become shareable.
+- **There is a tuning problem.** The budget size and the window length trade sharing against
+  tracking, and picking them needs real deployment data.
+
+---
+
+## What is left open
+
+**A patient tracker can still accumulate.** It is first-party script on each site, so it has
+ordinary storage there. It can read 8 bits today, save that partial result, read 8 more tomorrow,
+and stitch them together. The budget sets the *rate*, and a tracker willing to wait several
+windows still gets there.
+
+This is the residual risk, and it is a real one. It means the honest claim for this proposal is:
+
+> Cross-site tracking goes from instant and free to slow, paced by the user's own engagement, and
+> capped in bits per unit of time.
+
+Drive-by identification on a first visit is gone. Tracking a user who visits both sites daily for
+a week is still possible.
+
+---
+
+## Smaller fixes worth making alongside
+
+These come out of the same analysis and are largely independent of the rules above.
+
+- **Say what the GREASE'ing coin is keyed on.** The specification says a browser may occasionally
+  answer "not found" for a file that is present, and leaves open what decides that. The choice
+  matters far more than the probability does. Keyed to the device and the requesting origin, a
+  tracker in an iframe sees the identical answer on every site, so it learns just as much. Keyed
+  fresh per call, a tracker defeats it by asking a few times. Keyed to the device, the origin,
+  and a rotating time window, it works.
+- **Rethink the size exemption.** Large files are exempt from GREASE'ing today, for the good
+  reason that a false "not found" forces an expensive re-download. That exemption hands a tracker
+  a noise-free channel exactly where the most identifying files live. An alternative keeps the
+  performance benefit: answer the first lookup honestly, then freeze that answer for that origin,
+  so repeated asking reveals nothing new and no re-download is ever forced.
+- **Look at who serves the files, and not only how many.** The list admits a file once it is
+  served from at least 100 different hosts. One hundred hosts that are all the same hosting
+  provider or the same plugin fall short of 100 independent observations.
+- **Watch the write path too.** Detection today is aimed at unusual lookup patterns. A site
+  storing files it never actually uses is an equally strong signal, and nothing counts it.
+
+---
+
+## Options considered and set aside
+
+- **Partition everything by website.** Make a stored file visible only to the website that stored
+  it. This closes the problem completely, and it also removes the feature: letting site B skip a
+  download because site A already fetched the file is the same observable fact as telling site B
+  that site A fetched it. Remove one and you remove the other, which leaves COS doing what the
+  ordinary browser cache already does. Deduplicating storage on disk needs no API at all, since a
+  browser can keep one copy of identical bytes internally without telling anyone.
+- **Rely on storage quotas and cache eviction.** These limit how large an identifier can be and
+  how long it survives with no refresh. Neither one stops it. A full 32-bit identifier fits in
+  48 KB, far under any realistic quota, and a tracker rewrites it on every visit, which resets
+  the clock. They bound the size and the lifetime while leaving the channel open.
+- **Rely on detection alone.** Worth doing, and evadable. A tracker can load the files it stores
+  so they look used, and can blend them into a plausible set of resources. Detection raises the
+  cost and catches careless implementations, and it cannot give a guarantee.
+
+---
+
+## How to check these numbers
+
+The simulator, [`probing-simulator.html`](probing-simulator.html), reproduces every figure quoted
+here and in part one. Open it in a browser and press "Run simulation"; nothing is fetched and
+nothing leaves the page. The `Channel` selector switches between the lookup attack and the write
+attack, and the scenario dropdown has a preset for each result.

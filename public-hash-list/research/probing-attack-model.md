@@ -3,7 +3,11 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
-# Cross-site probing of the Public Hash List: models and measurements
+# Part one, the problem: cross-site probing of the Public Hash List
+
+This is part one of the PHL privacy research, and it sets out the problem. Part two,
+[`proposed-solution.md`](proposed-solution.md), proposes what to do about it in plain terms; read
+that one first if you want the conclusions without the derivations.
 
 This document develops the probabilistic models behind the cross-site probing attack that
 [Cross-Origin Storage](https://wicg.github.io/cross-origin-storage/) (COS) and its
@@ -45,8 +49,9 @@ attacker's own storage.
 12. [Results](#12-results)
 13. [The write channel](#13-the-write-channel)
 14. [Comparison to traditional fingerprinting](#14-comparison-to-traditional-fingerprinting)
-15. [Directions worth evaluating](#15-directions-worth-evaluating)
-16. [Limitations](#16-limitations)
+15. [Limitations](#15-limitations)
+
+Part two, [`proposed-solution.md`](proposed-solution.md), carries the mitigations.
 
 ---
 
@@ -725,7 +730,7 @@ rule removes noise from exactly the subset where noise would matter most.
 ### F6. Threat models A and B come apart, measurably
 
 *(preset F5b/F6)* A `rarest` probe set of 64 AI weights at `g = 0.9` scores **rank-1 0.000 and
-AUC 0.503** on the population — indistinguishable from chance — while, restricted to the 33
+AUC 0.503** on the population, indistinguishable from chance. Restricted to the 33
 devices in the gallery that actually carry one of those weights, each carries **12.0 bits** and
 rank-1 among them is **0.121**, rising to 0.267 at `r = 2` and **0.433** at `r = 4`. A probe
 set can be useless on average and effective against the people it was built for, and a metric
@@ -758,7 +763,7 @@ addresses this; only removing resources from the list does.
 ### F9. Entropy overstates the attacker, sometimes by a lot
 
 A naive 64-probe set under epoch-keyed GREASE'ing at `g = 0.5` measures `H₁ = 63.5` bits and
-`H₂ = 63.1` bits, and links at **rank-1 0.002** — its actual margin is **0.1 bits**, an
+`H₂ = 63.1` bits, and links at **rank-1 0.002**. Its actual margin is **0.1 bits**, an
 overstatement of roughly 600×. The entropies count the user agent's noise as though it were the
 device's state. Any assessment of this attack surface that reports "bits of identifying
 information" without specifying the channel is not measuring the thing it claims to measure,
@@ -866,61 +871,22 @@ Four things bound it, with a fifth that looks like a bound and is weak.
 
 ### 13.5 Mitigations
 
-The prompt's attack succeeds because a first-party script can unilaterally make a chosen set of
-PHL resources both present and globally disclosable on site A, and a second origin can read that
-exact set on site B. First, a limit that frames every option below.
+The mitigations are developed in part two,
+[`proposed-solution.md`](proposed-solution.md), which digests them into four rules and works
+through what each one costs. In outline: a per-origin budget on the lookups that cross a site
+boundary, a user-gesture gate on the step that makes a written file shareable, a counter that
+survives page reloads, and a write limit that counts small files and weighs large ones by size.
 
-**The feature and the leak are one bit.** COS's value over a partitioned HTTP cache plus
-internal single-instance storage is exactly one thing: letting site B skip a download because
-site A already fetched the bytes. Storage dedup needs no disclosure and no API, since a browser
-can content-address its own cache internally, keep one physical blob keyed by hash, track which
+One limit frames all of them. COS's value over a partitioned HTTP cache plus internal
+single-instance storage is exactly one thing: letting site B skip a download because site A
+already fetched the bytes. Storage dedup needs no disclosure and no API, since a browser can
+content-address its own cache internally, keep one physical blob keyed by hash, track which
 top-level-site partitions may see it, and collapse a duplicate the moment B fetches the bytes on
 its own. Download elision is the only added capability, and it is observable to B, whose server
 sees no request when the fetch is skipped. So cross-site download elision and the cross-site
 existence oracle are the same observable. Any mitigation that fully preserves the first fully
-preserves the second, and any mitigation that fully removes the second removes the first. The
-mitigations below are points on that tradeoff curve, and the simulator prices the cardinality
-budget and the storing-origin gate.
-
-1. **Budget the number of distinct cross-site-disclosed hashes per origin.** This is the lever
-   that separates the AI use case from the tracking channel, because the two differ in
-   cardinality. Serving one large model, or choosing among the handful of interchangeable
-   variants a model family ships, touches O(1) to O(10) hashes; a whole-web identifier needs
-   O(30) or more (F11 uses 64 carriers for ~30 bits, and the read channel needs ~33 bits in
-   F1). A per-origin budget of, say, 16 distinct cross-site-disclosed hashes lets a site dedup a
-   big model and pick a variant, and caps a planted or probed identifier at 16 bits, which
-   distinguishes about 65,000 devices where the whole web needs 30. It is the write-path analogue
-   of the read-path probe budget (F7), and it bounds the channel's bit rate at a cost only to how
-   many resources a site may share cross-site.
-2. **Require runtime storing-origin diversity before the global grant discloses.** Make a
-   `'*'` resource cross-origin readable only after some threshold `k` of independent origins have
-   stored it, a runtime echo of the PHL's own k-anonymity gate. A lone tracker writing a rare
-   long-tail resource on site A is one origin, so its chosen subset stays undisclosable until
-   `k` unrelated sites independently store the same bytes, which no attacker can arrange for an
-   obscure resource. This preserves cross-site download elision for genuinely popular resources
-   and neuters the unilateral chosen-subset write. Its cost falls on the rare-but-large model,
-   the headline AI case, which reaches `k` slowly or never, so it pairs best with the budget in
-   mitigation 1.
-3. **Tie global disclosability to the byte-serving origin's authorization.** Extend the
-   [`Cross-Origin-Storage-Allow-Origin` header](../../README.md#the-cross-origin-storage-allow-origin-header)
-   from the list-scoped grant to the global one, so a `'*'` write discloses cross-origin only
-   when the resource's canonical origin opts in. A tracker cannot make an arbitrary resource
-   globally disclosable on its own say-so.
-4. **Extend fingerprinting detection and rate limits to the write path.** The explainer already
-   anticipates on-device detection of anomalous probing; a first-party script that writes PHL
-   resources it never serves, especially many obscure ones, is an equally strong signal, and the
-   write side is currently uncounted.
-5. **Treat quota and eviction as magnitude limits.** They bound how large and how
-   long-lived an identifier is (F10), and they force periodic rewriting, but on their own they
-   leave a whole-web identifier comfortably within reach.
-
-**Partitioning the existence disclosure by top-level site** is the endpoint of the curve, and it
-is worth naming because it closes both routes at once, including the storing-origin supercookie
-(W1) that touches neither the PHL nor the global grant. It also collapses COS's download elision
-to once per top-level site, which is the partitioned HTTP cache's behavior today, so it removes
-the feature along with the channel and leaves only the internal storage dedup that needs no API.
-It is the right reference point for what full closure costs, and the budget of mitigation 1 is
-the interior point that keeps the AI use case.
+preserves the second, and any mitigation that fully removes the second removes the first. Every
+option in part two is a point on that tradeoff curve.
 
 ---
 
@@ -994,34 +960,7 @@ Browser Fingerprinting at Large Scale*, WWW 2018,
 
 ---
 
-## 15. Directions worth evaluating
-
-These follow from the models and have not been evaluated beyond them, so treat them as
-candidates for discussion.
-
-* **Specify GREASE keying** as PRF(device secret, requesting origin, hash, epoch) with a stated
-  epoch length, and specify that the budget counts across all four probe surfaces. Per F4 this
-  is worth more than any choice of `g`.
-* **Reconsider the size exemption.** The performance argument is sound, and an alternative
-  preserves it: make a large resource's disclosure *sticky per origin after the first truthful
-  answer*, so the first probe answers honestly (no re-download penalty for the honest case) and
-  the answer is then frozen for that origin, leaving repetition and epoch rotation with nothing
-  to average. This costs no bandwidth and removes the F5 channel.
-* **Gate on serving-host diversity**, so that 100 hosts under one publisher,
-  one hosting provider, or one plugin do not clear a bar meant to represent 100 independent
-  observations. F3 shows the count-based gate works where it applies; the question is whether
-  its hosts are as independent as the count assumes.
-* **Consider extending a gate to the ungated sections.** F3's residual 0.33–0.40% comes
-  entirely from sections the gate does not cover.
-* **Partition the disclosure decision by top-level site**, so a third-party iframe's probes are
-  keyed to the embedding site. This is the one change that would make COS's privacy story match
-  the rest of the platform's post-partitioning model, and it costs the shared cache nothing in
-  bandwidth: the bytes stay shared, the *disclosure* becomes per-site, and the price is one
-  extra miss per new site.
-
----
-
-## 16. Limitations
+## 15. Limitations
 
 * **Prevalence is modeled.** There is no public dataset of per-resource cache
   prevalence across real users. The parametric defaults are anchored to the list's own
