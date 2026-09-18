@@ -90,6 +90,9 @@
       .warn {
         color: #a00;
       }
+      .hidden {
+        display: none;
+      }
       #tiers td,
       #tiers th {
         padding: 1px 3px;
@@ -138,6 +141,90 @@
         </p>
 
         <fieldset>
+          <legend>Channel</legend>
+          <label
+            ><span>Attack channel</span>
+            <select id="channel">
+              <option value="read">read (probe what is already cached)</option>
+              <option value="write">write (plant a chosen identifier)</option>
+            </select>
+          </label>
+          <p class="note">
+            Read is the probing attack of &sect;&sect;1&ndash;12. Write turns
+            COS into a store: the tracker writes a chosen pattern on site A and
+            reads it back on site B. See &sect;13 of
+            <a href="probing-attack-model.md">probing-attack-model.md</a>.
+          </p>
+        </fieldset>
+
+        <fieldset class="write-only hidden">
+          <legend>Write channel</legend>
+          <label
+            ><span>Readback path</span>
+            <select id="writeMode">
+              <option value="storing">
+                storing origin (supercookie: no PHL, no GREASE)
+              </option>
+              <option value="global">
+                global grant (cross-origin: PHL + GREASE apply)
+              </option>
+            </select>
+          </label>
+          <label
+            ><span>Carrier selection</span>
+            <select id="writeStrategy">
+              <option value="smallest">smallest (max bits per byte)</option>
+              <option value="rarest">rarest (min organic collision)</option>
+              <option value="persistent">max capacity per carrier</option>
+              <option value="random">random</option>
+            </select>
+          </label>
+          <label
+            ><span>Identifier length (bits)</span>
+            <input
+              type="number"
+              id="idBits"
+              value="64"
+              min="1"
+              max="1024"
+              step="1"
+          /></label>
+          <label
+            ><span>Carriers available (n)</span>
+            <input
+              type="number"
+              id="nCarriers"
+              value="256"
+              min="1"
+              max="8192"
+              step="1"
+          /></label>
+          <label
+            ><span>Storage quota (MB)</span>
+            <input type="number" id="quotaMB" value="20" min="0.1" step="1"
+          /></label>
+          <label
+            ><span>Write&rarr;read cache aging (&times;)</span>
+            <input
+              type="number"
+              id="writeInterval"
+              value="1"
+              min="0"
+              max="12"
+              step="0.25"
+          /></label>
+          <p class="note">
+            Aging: a written resource survives to the readback with probability
+            &rho;<sup>aging</sup>, where &rho; is its tier persistence. 0 reads
+            back immediately; higher ages the cache between the write on site A
+            and the read on site B. Storing-origin mode also needs the embedder
+            to grant the
+            <code>cross-origin-storage</code> Permissions Policy (default
+            <code>self</code>).
+          </p>
+        </fieldset>
+
+        <fieldset>
           <legend>Preset</legend>
           <label
             ><span>Scenario</span>
@@ -170,6 +257,12 @@
               </option>
               <option value="sitemode-weak-gate">
                 F3b: the same with the gate at 5
+              </option>
+              <option value="write-cookie">
+                F10: write channel as a supercookie
+              </option>
+              <option value="write-global">
+                F11: write channel via the global grant
               </option>
             </select>
           </label>
@@ -269,7 +362,7 @@
           </details>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="read-only">
           <legend>Generative site graph (site mode only)</legend>
           <label
             ><span>Origins</span>
@@ -329,7 +422,7 @@
           </p>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="read-only">
           <legend>Attacker</legend>
           <label
             ><span>Selection strategy</span>
@@ -511,7 +604,7 @@
           /></label>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="read-only">
           <legend>Inference extras</legend>
           <label
             ><span>Cohort probes per cohort</span>
@@ -842,6 +935,17 @@
       ['grease', 'corr', 'sizeLimit', 'siteClustering'].forEach((id) =>
         $(id).addEventListener('input', syncOutputs),
       );
+
+      function toggleChannel() {
+        const write = $('channel').value === 'write';
+        document
+          .querySelectorAll('.write-only')
+          .forEach((e) => e.classList.toggle('hidden', !write));
+        document
+          .querySelectorAll('.read-only')
+          .forEach((e) => e.classList.toggle('hidden', write));
+      }
+      $('channel').addEventListener('change', toggleChannel);
 
       /* ------------------------------------------------------------------ *
        * Universe construction
@@ -2092,6 +2196,28 @@
           meanVisits: 180,
           kAnon: 5,
         },
+        'write-cookie': {
+          channel: 'write',
+          writeMode: 'storing',
+          writeStrategy: 'smallest',
+          idBits: 64,
+          nCarriers: 256,
+          quotaMB: 20,
+          writeInterval: 1,
+          numDevices: 20000,
+        },
+        'write-global': {
+          channel: 'write',
+          writeMode: 'global',
+          writeStrategy: 'rarest',
+          idBits: 64,
+          nCarriers: 256,
+          quotaMB: 20,
+          writeInterval: 1,
+          grease: 0.1,
+          keying: 'K1',
+          numDevices: 20000,
+        },
       };
 
       $('preset').addEventListener('change', () => {
@@ -2104,6 +2230,7 @@
           else el.value = v;
         });
         syncOutputs();
+        toggleChannel();
       });
 
       $('reset').addEventListener('click', () => {
@@ -2185,6 +2312,13 @@
           seed: Math.round(+$('seed').value),
           cohortProbes: Math.round(+$('cohortProbes').value),
           interC: Math.round(+$('interC').value),
+          channel: $('channel').value,
+          writeMode: $('writeMode').value,
+          writeStrategy: $('writeStrategy').value,
+          idBits: Math.round(+$('idBits').value),
+          nCarriers: Math.round(+$('nCarriers').value),
+          quota: Math.max(1, +$('quotaMB').value) * 1e6,
+          writeInterval: +$('writeInterval').value,
         };
       }
 
@@ -2199,6 +2333,11 @@
         const rng = mulberry32(cfg.seed);
         $('charts').innerHTML = '';
         const warnings = [];
+
+        if (cfg.channel === 'write') {
+          await runWrite(cfg, rng, warnings);
+          return;
+        }
 
         // The probe budget caps n * r.
         const affordable = Math.floor(cfg.budget / cfg.repeats);
@@ -2327,6 +2466,391 @@
           history,
           warnings,
           graph,
+        );
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Write channel
+       * ------------------------------------------------------------------ */
+
+      // Per-carrier round-trip channel from a planted bit (written or not on site A)
+      // to the read-back bit on site B. s is the survival probability of a written
+      // resource across the write->read gap. Returns P(read 1 | written) and
+      // P(read 1 | not written).
+      function writeBitChannel(cfg, pOrganic, sizeBytes, s) {
+        if (cfg.writeMode === 'storing') {
+          // The attacker's own origin wrote the bytes, so the readback succeeds
+          // whenever the resource is still cached, with no PHL check and no
+          // GREASE'ing. The bytes are attacker-authored, so a carrier it did not
+          // write is never present: the channel is clean, bounded only by eviction.
+          return { a1: s, a0: 0 };
+        }
+        // A different origin reads, so the carrier must be on the PHL and GREASE'ing
+        // applies to the read. A carrier the attacker did not write can still be
+        // present from the user's own browsing, an organic false positive.
+        const keep = 1 - greaseChannel(cfg, sizeBytes).eps;
+        const present1 = s + (1 - s) * pOrganic;
+        return { a1: present1 * keep, a0: pOrganic * keep };
+      }
+
+      // Capacity of a binary asymmetric channel in bits, by maximizing the mutual
+      // information over the input prior. a1 = P(Y=1|X=1), a0 = P(Y=1|X=0). This is
+      // the reliable identifier bits a carrier yields under an optimal code.
+      function bacCapacity(a1, a0) {
+        let best = 0;
+        for (let k = 1; k < 100; k++) {
+          const pi = k / 100;
+          const py1 = pi * a1 + (1 - pi) * a0;
+          const mi =
+            binaryEntropy(py1) -
+            (pi * binaryEntropy(a1) + (1 - pi) * binaryEntropy(a0));
+          if (mi > best) best = mi;
+        }
+        return Math.max(0, best);
+      }
+
+      function carrierSurvival(u, i, cfg) {
+        return Math.pow(u.rho[i], cfg.writeInterval);
+      }
+
+      function carrierCapacity(u, i, cfg) {
+        const c = writeBitChannel(
+          cfg,
+          u.p[i],
+          u.size[i],
+          carrierSurvival(u, i, cfg),
+        );
+        return bacCapacity(c.a1, c.a0);
+      }
+
+      // Choose carriers under a strategy, then greedily pack them under the byte
+      // quota by capacity-per-byte, which is what an attacker minimizing the user's
+      // storage footprint would do.
+      function selectCarriers(u, cfg, rng) {
+        const idx = Array.from({ length: u.n }, (_, i) => i);
+        // Score every resource once. The capacity of each carrier is a 99-point
+        // optimization, so computing it inside the sort comparator would be
+        // hundreds of millions of calls; precompute into a flat array first.
+        const score = new Float64Array(u.n);
+        if (cfg.writeStrategy === 'rarest') {
+          for (let i = 0; i < u.n; i++) score[i] = -u.p[i];
+        } else if (cfg.writeStrategy === 'random') {
+          for (let i = 0; i < u.n; i++) score[i] = rng();
+        } else {
+          const perByte = cfg.writeStrategy === 'smallest';
+          for (let i = 0; i < u.n; i++) {
+            const cap = carrierCapacity(u, i, cfg);
+            score[i] = perByte ? cap / Math.max(1, u.size[i]) : cap;
+          }
+        }
+        idx.sort((a, b) => score[b] - score[a]);
+        const carriers = [];
+        let bytes = 0;
+        for (const i of idx) {
+          if (carriers.length >= cfg.nCarriers) break;
+          if (bytes + u.size[i] > cfg.quota) continue;
+          carriers.push(i);
+          bytes += u.size[i];
+        }
+        return { carriers, bytes };
+      }
+
+      // Monte-Carlo the uncoded round trip: mint a random idBits identifier per
+      // device, write the 1-bits, age the cache, read every carrier back, and decode
+      // an observed 1 as a set bit. Reports round-trip fidelity and how many distinct
+      // identifiers survive in practice.
+      function simulateWrite(u, carriers, cfg, rng) {
+        const n = carriers.length;
+        const b = Math.min(cfg.idBits, n);
+        const ch = carriers.slice(0, b).map((i) => ({
+          s: carrierSurvival(u, i, cfg),
+          p: cfg.writeMode === 'storing' ? 0 : u.p[i],
+          keep:
+            cfg.writeMode === 'storing'
+              ? 1
+              : 1 - greaseChannel(cfg, u.size[i]).eps,
+        }));
+        let exact = 0;
+        let err = 0;
+        let tot = 0;
+        const seen = new Map();
+        for (let d = 0; d < cfg.numDevices; d++) {
+          let ok = true;
+          let key = '';
+          for (let j = 0; j < b; j++) {
+            const bit = rng() < 0.5 ? 1 : 0;
+            const c = ch[j];
+            const present =
+              bit === 1
+                ? rng() < c.s + (1 - c.s) * c.p
+                  ? 1
+                  : 0
+                : rng() < c.p
+                  ? 1
+                  : 0;
+            const obs = present && rng() < c.keep ? 1 : 0;
+            if (obs !== bit) {
+              ok = false;
+              err++;
+            }
+            tot++;
+            key += obs;
+          }
+          if (ok) exact++;
+          seen.set(key, (seen.get(key) || 0) + 1);
+        }
+        return {
+          idBitsUsed: b,
+          exact: exact / cfg.numDevices,
+          ber: tot ? err / tot : 0,
+          distinctIds: seen.size,
+        };
+      }
+
+      function writeMetrics(u, carriers, cfg, rng) {
+        let capBits = 0;
+        let bytes = 0;
+        const surv = [];
+        carriers.forEach((i) => {
+          capBits += carrierCapacity(u, i, cfg);
+          bytes += u.size[i];
+          surv.push(carrierSurvival(u, i, cfg));
+        });
+        surv.sort((a, b) => a - b);
+        const mc = simulateWrite(u, carriers, cfg, rng);
+        return {
+          n: carriers.length,
+          bytes,
+          capBits,
+          medianSurv: surv[Math.floor(surv.length / 2)] || 0,
+          mbPerBit: capBits > 0 ? bytes / 1e6 / capBits : Infinity,
+          ...mc,
+        };
+      }
+
+      async function runWrite(cfg, rng, warnings) {
+        setStatus('building universe…');
+        await nextFrame();
+        const u = buildUniverse(cfg, rng);
+        if (csvData) applyCsv(u, cfg);
+
+        if (cfg.writeMode === 'global') {
+          warnings.push(
+            'Global-grant readback requires every carrier to be on the PHL; in the ' +
+              'parametric universe all entries are listed, so this holds by construction.',
+          );
+        }
+
+        setStatus('selecting carriers…');
+        await nextFrame();
+        const { carriers } = selectCarriers(u, cfg, rng);
+        if (carriers.length === 0) {
+          warnings.push('The byte quota admits no carriers; raise the quota.');
+          renderWrite(cfg, u, [], null, warnings);
+          return;
+        }
+        if (carriers.length < cfg.idBits) {
+          warnings.push(
+            `Quota and n allow only ${carriers.length} carriers, fewer than the ` +
+              `${cfg.idBits}-bit identifier; the uncoded readout uses ${carriers.length} bits.`,
+          );
+        }
+
+        setStatus(
+          `writing and reading back on ${cfg.numDevices.toLocaleString()} devices…`,
+        );
+        await nextFrame();
+        const wm = writeMetrics(u, carriers, cfg, rng);
+
+        setStatus('');
+        renderWrite(cfg, u, carriers, wm, warnings);
+      }
+
+      function renderWrite(cfg, u, carriers, wm, warnings) {
+        const out = [];
+        if (warnings.length) {
+          out.push(`<p class="warn">${warnings.join('<br>')}</p>`);
+        }
+        if (!wm) {
+          $('out').innerHTML = out.join('');
+          return;
+        }
+        const need = log2(cfg.attackerScale);
+        const modeLabel =
+          cfg.writeMode === 'storing'
+            ? 'storing-origin readback (supercookie)'
+            : 'global-grant cross-origin readback';
+
+        out.push('<h2>Write channel</h2>');
+        out.push(
+          `<p>${modeLabel}. ${wm.n} carriers selected by the ` +
+            `<b>${cfg.writeStrategy}</b> rule, holding ${fmtBytes(wm.bytes)} of the ` +
+            `user's storage quota (${fmtBytes(cfg.quota)}). Median carrier survival to ` +
+            `readback is ${fmt(wm.medianSurv, 3)} at aging ${cfg.writeInterval}.</p>`,
+        );
+
+        out.push('<h3>Reliable capacity (coded)</h3>');
+        out.push('<table><tr><th>quantity</th><th>value</th></tr>');
+        out.push(
+          `<tr><td>identifier bits plantable and recoverable</td><td><b>${fmt(
+            wm.capBits,
+            1,
+          )}</b> bits</td></tr>`,
+        );
+        out.push(
+          `<tr><td>devices distinguishable (2<sup>bits</sup>)</td><td>${
+            wm.capBits > 40 ? '&gt; 10¹²' : fmt(Math.pow(2, wm.capBits), 0)
+          }</td></tr>`,
+        );
+        out.push(
+          `<tr><td>bits needed for M = ${Number(
+            cfg.attackerScale,
+          ).toExponential(0)}</td><td>${fmt(need, 1)}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>storage cost per reliable bit</td><td>${
+            isFinite(wm.mbPerBit) ? fmt(wm.mbPerBit, 3) + ' MB' : '&infin;'
+          }</td></tr>`,
+        );
+        out.push('</table>');
+        const verdict =
+          wm.capBits >= need
+            ? `<b>The channel plants a full ${fmt(
+                need,
+                0,
+              )}-bit cross-site identifier in ${fmtBytes(wm.bytes)}.</b>`
+            : `The channel falls short of ${fmt(
+                need,
+                0,
+              )} bits at this quota and aging; it still identifies within smaller populations.`;
+        out.push(`<p>${verdict}</p>`);
+
+        out.push('<h3>Uncoded round trip (naive attacker)</h3>');
+        out.push('<table><tr><th>metric</th><th>value</th></tr>');
+        out.push(
+          `<tr><td>identifier bits carried</td><td>${wm.idBitsUsed}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>exact round-trip recovery</td><td>${fmt(wm.exact, 3)}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>per-bit error rate</td><td>${fmt(wm.ber, 4)}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>distinct identifiers seen (of ${cfg.numDevices.toLocaleString()})</td><td>${wm.distinctIds.toLocaleString()}</td></tr>`,
+        );
+        out.push('</table>');
+        out.push(
+          `<p class="note">The uncoded readout writes one carrier per bit and decodes a ` +
+            `read of 1 as a set bit. A real attacker adds an error-correcting code and ` +
+            `reaches the reliable-capacity row above; the uncoded numbers are the floor.</p>`,
+        );
+
+        out.push('<h3>How it compares to a third-party cookie</h3>');
+        out.push(
+          `<p class="note">A third-party cookie carries unlimited bits at zero error, ` +
+            `but it is partitioned per top-level site and cleared when the user clears ` +
+            `cookies. This channel carries ${fmt(wm.capBits, 0)} bits at ${fmt(
+              wm.mbPerBit,
+              2,
+            )} MB per bit, survives cookie clearing, and is unpartitioned; its ceiling ` +
+            `is the storage quota and its half-life is cache eviction. ${
+              cfg.writeMode === 'storing'
+                ? 'As a storing-origin write it is noise-free and needs no PHL entry.'
+                : 'As a global-grant write it must use PHL carriers and pays the GREASE and organic-collision noise above.'
+            }</p>`,
+        );
+
+        $('out').innerHTML = out.join('');
+        drawWriteCharts(cfg, u, carriers);
+      }
+
+      function drawWriteCharts(cfg, u, carriers) {
+        // 1. Reliable capacity vs cache aging (the decay curve).
+        const agingPts = [];
+        const survPts = [];
+        for (let w = 0; w <= 12; w += 0.5) {
+          const c2 = Object.assign({}, cfg, { writeInterval: w });
+          let cap = 0;
+          let sSum = 0;
+          carriers.forEach((i) => {
+            cap += carrierCapacity(u, i, c2);
+            sSum += carrierSurvival(u, i, c2);
+          });
+          agingPts.push([w, cap]);
+          survPts.push([w, (100 * sSum) / carriers.length]);
+        }
+        plot(
+          makeCanvas('Reliable capacity vs cache aging'),
+          [
+            { label: 'reliable bits', points: agingPts },
+            {
+              label: 'mean survival %',
+              points: survPts.map((p) => [p[0], p[1]]),
+              color: '#c30',
+            },
+          ],
+          {
+            xLabel: 'write→read aging exponent',
+            xMin: 0,
+            xMax: 12,
+            yMin: 0,
+            hline: log2(cfg.attackerScale),
+            xFmt: (v) => v.toFixed(0),
+            yFmt: (v) => v.toFixed(0),
+          },
+        );
+
+        // 2. Reliable capacity vs GREASE probability (flat for the supercookie).
+        const gPts = [];
+        for (let g = 0; g <= 0.95; g += 0.05) {
+          const c2 = Object.assign({}, cfg, { grease: g });
+          let cap = 0;
+          carriers.forEach((i) => (cap += carrierCapacity(u, i, c2)));
+          gPts.push([g, cap]);
+        }
+        plot(
+          makeCanvas('Reliable capacity vs GREASE probability'),
+          [{ label: cfg.writeMode, points: gPts }],
+          {
+            xLabel: 'GREASE probability g',
+            xMin: 0,
+            xMax: 0.95,
+            yMin: 0,
+            hline: log2(cfg.attackerScale),
+            xFmt: (v) => v.toFixed(2),
+            yFmt: (v) => v.toFixed(0),
+          },
+        );
+
+        // 3. Reliable capacity vs storage quota.
+        const order = carriers
+          .slice()
+          .sort(
+            (a, b) =>
+              carrierCapacity(u, b, cfg) / Math.max(1, u.size[b]) -
+              carrierCapacity(u, a, cfg) / Math.max(1, u.size[a]),
+          );
+        const quotaPts = [];
+        let cum = 0;
+        let cap = 0;
+        let step = 0;
+        for (const i of order) {
+          cum += u.size[i];
+          cap += carrierCapacity(u, i, cfg);
+          if (step++ % 4 === 0) quotaPts.push([cum / 1e6, cap]);
+        }
+        plot(
+          makeCanvas('Reliable capacity vs storage spent'),
+          [{ label: 'reliable bits', points: quotaPts }],
+          {
+            xLabel: 'storage written (MB)',
+            xMin: 0,
+            yMin: 0,
+            hline: log2(cfg.attackerScale),
+            xFmt: (v) => v.toFixed(1),
+            yFmt: (v) => v.toFixed(0),
+          },
         );
       }
 
@@ -2712,6 +3236,7 @@
 
       buildTierTable();
       syncOutputs();
+      toggleChannel();
       $('run').addEventListener('click', () => {
         run().catch((err) => {
           setStatus('');

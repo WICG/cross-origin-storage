@@ -43,8 +43,10 @@ attacker's own storage.
 10. [Calibrating prevalence](#10-calibrating-prevalence)
 11. [Attacker selection strategies](#11-attacker-selection-strategies)
 12. [Results](#12-results)
-13. [Directions worth evaluating](#13-directions-worth-evaluating)
-14. [Limitations](#14-limitations)
+13. [The write channel](#13-the-write-channel)
+14. [Comparison to traditional fingerprinting](#14-comparison-to-traditional-fingerprinting)
+15. [Directions worth evaluating](#15-directions-worth-evaluating)
+16. [Limitations](#16-limitations)
 
 ---
 
@@ -764,7 +766,208 @@ and the error runs in the alarming direction.
 
 ---
 
-## 13. Directions worth evaluating
+## 13. The write channel
+
+Sections 1 through 12 model an attacker reading state the user's own browsing created. COS also
+lets a site *write*: [`requestFileHandle(hash, {create: true})`](../../README.md#write-path)
+supplies the bytes, they are hash-verified, and the entry is stored. A tracker can use that to
+plant a chosen bit pattern on site A and recover it on site B, which turns COS into a writable,
+unpartitioned, cross-site store. This is a different attack from probing, and it is the one that
+most resembles the mechanism cookie partitioning was built to remove.
+
+The simulator models it under **Channel → write**, with two presets: F10 (supercookie) and F11
+(global grant). Both are calibrated against the same 438,684-entry universe as the read channel.
+
+### 13.1 Two ways to read the write back
+
+The [read-path grant table](../../README.md#read-path) admits two cross-site routes to a
+planted bit, and the attacker picks per deployment.
+
+* **Storing-origin readback (W1, the supercookie).** A third-party iframe `tracker.example`
+  writes the bytes on site A and reads them on site B. On both sites the requesting origin is
+  `tracker.example`, so it qualifies as a **storing origin**, which "always succeeds,
+  independent of PHL, `origins`, or GREASE'ing". The attacker writes content it authored, so it
+  can use hashes no honest user would ever hold, and the readback is a clean, noise-free channel
+  bounded only by eviction and quota. It needs no PHL entry. Its one prerequisite is the
+  [`cross-origin-storage` Permissions Policy](../../index.bs), whose default allowlist is
+  `self`, so the embedding site must grant `allow="cross-origin-storage"` to the iframe.
+* **Global-grant readback (W2).** A first-party script writes each carrier with `origins: '*'`
+  on site A. A different origin on site B reads it back, qualifying through the global grant plus
+  PHL membership. This is the attack in the prompt: pick 64 obscure PHL entries, write a chosen
+  subset, read it back elsewhere. It requires PHL carriers and pays GREASE'ing and organic
+  collision noise, and it sidesteps the Permissions-Policy opt-in that W1 needs.
+
+### 13.2 The round-trip channel
+
+Each carrier is one bit: written on site A (input `1`) or left alone (input `0`); read on site B
+(output). Three effects sit between write and read.
+
+* **Eviction.** A written resource survives to the readback with probability `s`, modeled as the
+  tier persistence `ρ` raised to a write-to-read aging exponent. `s = ρ` at aging 1.
+* **GREASE'ing** (W2 only; a storing-origin read is never GREASEd). It erases a surviving `1`
+  with the same size-aware, keying-aware probability the read channel uses, so `r` read repeats
+  cut it to `g^r` under per-call keying.
+* **Organic collision** (W2 only). A carrier the attacker did not write can be present from the
+  user's own browsing, with the carrier's population prevalence `p`. This is a genuine false
+  positive on the intended `0`.
+
+So the per-carrier channel is binary asymmetric, with
+
+```
+P(read 1 | written)      = ( s + (1 − s)·p ) · (1 − g_eff)      = a₁
+P(read 1 | not written)  = p · (1 − g_eff)                       = a₀      (13.1)
+```
+
+and `g_eff = 0` for the storing-origin route. The reliable identifier length is the sum of the
+per-carrier channel capacities, `Σᵢ max_π I(X;Y)` over the input prior, which an
+error-correcting code approaches. The simulator also Monte-Carlos an uncoded round trip (one
+carrier per bit, decode a read of `1` as a set bit) to show the naive floor.
+
+### 13.3 Results
+
+**F10. The storing-origin write is a supercookie: a full cross-site identifier in a quarter of a
+megabyte, immune to GREASE'ing, decaying only with the cache.** Two hundred fifty-six
+small carriers chosen by bits-per-byte hold **143 reliable bits in 275 KB** at aging 1
+(`s = 0.75`), which distinguishes more than 10¹² devices where the whole web needs 29.9. Sweeping
+the GREASE probability from 0 to 0.9 leaves the capacity at 143 bits throughout, since the
+storing-origin read is never GREASEd. Capacity tracks survival and nothing else: 256 bits at
+aging 0 (immediate readback), 143 at aging 1, 50 at aging 4 (`s = 0.32`), and 19 at aging 8
+(`s = 0.10`), so even a heavily aged cache still carries a site's worth of identification. The
+storage cost is 0.002 MB per reliable bit, and a 256-bit identifier fits in 1.7 MB.
+
+**F11. The global-grant write plants a whole-web identifier in 48 KB, and GREASE'ing only raises
+the attacker's redundancy.** The prompt's attack, 64 obscure PHL carriers by bits-per-byte,
+holds **34.8 reliable bits in 48 KB** with GREASE off and **29.8 bits at `g = 0.1`**, past the
+29.9-bit whole-web threshold. At `g = 0.5` under per-call keying the capacity falls to 14.2 bits,
+and four read repeats restore it to 31.6 bits at four times the read budget, the same
+budget-multiplier result the read channel shows in F4. The organic-collision floor is small
+because the carriers are long-tail resources with `p ≈ 0.002`.
+
+### 13.4 What bounds the write channel, and what does not
+
+The write channel does **not** depend on population statistics for its strength. The read channel
+borrows entropy from how the user's cache happens to be distributed, and its power rises and
+falls with the prevalence model. The write channel manufactures its own entropy by planting a
+chosen pattern, so a perfectly ubiquitous, perfectly "safe" list is a fully usable write medium.
+Every result above holds at any prevalence calibration.
+
+Four things bound it, with a fifth that looks like a bound and is weak.
+
+* **Eviction** sets the half-life. Capacity falls with survival `s` (F10), so the identifier
+  decays and the tracker refreshes it on each revisit.
+* **Quota** caps the total. The per-origin storage limit bounds how many carriers fit, though the
+  attack needs so little (48 KB for a whole-web identifier) that quota is a weak lever here.
+* **Permissions Policy** gates the storing-origin route (W1) behind the embedder's
+  `allow="cross-origin-storage"`.
+* **PHL membership** is required for the global-grant route (W2), which the 293,522-entry core
+  section supplies in abundance.
+* **GREASE'ing** looks like a bound and mostly falls short: it is absent from W1 (F10) and coded
+  around in W2 (F11).
+
+### 13.5 Mitigations
+
+The prompt's attack succeeds because a first-party script can unilaterally make a chosen set of
+PHL resources both present and globally disclosable on site A, and a second origin can read that
+exact set on site B. The mitigations below attack that chain. They are candidates for discussion,
+and the simulator prices the first two.
+
+1. **Partition the existence disclosure by top-level site, keeping byte-level dedup cross-site.**
+   This is the strongest option and it closes both routes at once. The cache stays global for
+   *bytes*, so the download-once benefit survives, and only the *disclosure* of what a given
+   top-level site wrote is partitioned. Site B, on a different top-level site, sees a cache miss
+   for A's planted subset and falls through to the network. It costs one extra miss per new site,
+   and it aligns COS with the double-keyed model the rest of the platform's storage already uses.
+2. **Require runtime storing-origin diversity before the global grant discloses.** Make a
+   `'*'` resource cross-origin readable only after some threshold `k` of independent origins have
+   stored it, a runtime echo of the PHL's own k-anonymity gate. A lone tracker writing a rare
+   long-tail resource on site A is one origin, so its chosen subset stays undisclosable until
+   `k` unrelated sites independently store the same bytes, which no attacker can arrange for an
+   obscure resource. This preserves organic sharing of genuinely popular resources and neuters
+   the unilateral chosen-subset write.
+3. **Tie global disclosability to the byte-serving origin's authorization.** Extend the
+   [`Cross-Origin-Storage-Allow-Origin` header](../../README.md#the-cross-origin-storage-allow-origin-header)
+   from the list-scoped grant to the global one, so a `'*'` write discloses cross-origin only
+   when the resource's canonical origin opts in. A tracker cannot make an arbitrary resource
+   globally disclosable on its own say-so.
+4. **Extend fingerprinting detection and rate limits to the write path.** The explainer already
+   anticipates on-device detection of anomalous probing; a first-party script that writes PHL
+   resources it never serves, especially many obscure ones, is an equally strong signal, and the
+   write side is currently uncounted.
+5. **Treat quota and eviction as magnitude limits.** They bound how large and how
+   long-lived an identifier is (F10), and they force periodic rewriting, but on their own they
+   leave a whole-web identifier comfortably within reach.
+
+The storing-origin supercookie (W1) is closed only by mitigation 1, because it never touches the
+PHL or the global grant. Partitioning the existence disclosure by top-level site is therefore the
+one change that addresses the write channel in full.
+
+---
+
+## 14. Comparison to traditional fingerprinting
+
+The framing question for this whole document: measured against browser fingerprinting, with
+third-party cookies already removed, is COS a better or a worse tracking vector? The models
+support a two-part answer. The read channel is comparable to fingerprinting in raw power and
+better positioned for defense; the write channel reintroduces the globally readable cross-site
+state that partitioning removed, which is worse in kind.
+
+### 14.1 The read channel against fingerprinting
+
+The largest public measurement of fingerprinting, Gómez-Boix et al.'s two million fingerprints,
+found **33.6% unique**, far below the 80–90% of lab studies, because a stock phone on a current
+browser looks like every other stock phone.[^gb] The COS read channel reaches 100% uniqueness at
+64 strategically chosen probes (F2). Three properties matter more than that headline.
+
+* **The entropy is orthogonal.** Fingerprinting entropy comes from device and software
+  configuration; COS entropy comes from browsing history. The stock phones that collapse the
+  fingerprinting distribution have wildly different caches, so COS contributes near its full
+  entropy on exactly the population where fingerprinting fails. A weaker signal would still be
+  serious if it were this uncorrelated with the dominant one.
+* **The trend is opposite.** Fingerprinting entropy shrinks as browsers freeze the user-agent
+  string, remove plugins, and add canvas noise. The PHL grows: it is 45% larger than the figure
+  in its own explainer, and every added entry is another probeable bit.
+* **The defensive position is stronger.** Fingerprinting has no chokepoint, which is why a decade
+  of countermeasures has only eroded it. COS probing has exactly one API, countable per origin,
+  reading from a public auditable allowlist, behind a rate limit and GREASE'ing. The read
+  channel is a problem the platform can hold in check, conditional on the keying fix (F4) and a
+  probe budget in the tens (F7).
+
+On uniqueness the read channel exceeds fingerprinting; on durability it is weaker, since the
+cache decays and the user can clear it, and it is per-profile where a configuration fingerprint
+travels across browsers on one device.
+
+### 14.2 The write channel against fingerprinting
+
+The write channel is a different comparison. It works as a cookie by another mechanism, planting
+state the tracker chooses. F10 plants 143 bits of chosen, persistent, cross-site state in 275 KB, and F11
+plants a whole-web identifier in 48 KB. That state is unpartitioned, survives third-party cookie
+clearing, and, in the storing-origin form, is immune to GREASE'ing. Measured against
+fingerprinting it is worse in kind: fingerprinting reads what the device already is, while this
+writes a chosen identifier the tracker controls, which is the capability the platform spent years
+removing when it partitioned storage and dropped third-party cookies.
+
+Its saving graces are the bounds of §13.4: it decays with the cache, it sits behind a quota, the
+storing-origin route needs a Permissions-Policy grant, and, decisively, a single mitigation
+(partition the disclosure by top-level site) closes it while keeping the dedup benefit.
+
+### 14.3 Verdict
+
+COS is **worse in kind and better in controllability**. Worse, because the write channel
+reintroduces globally readable cross-site state at the moment the platform has finished removing
+it, and the read channel adds a history-derived signal orthogonal to the configuration
+fingerprint and strongest where that fingerprint is weakest. Better, because every part of it has
+a chokepoint the rest of the fingerprinting surface lacks: one API, countable and rate-limitable,
+reading from a public list, with a clear structural fix for the write channel. Fingerprinting is
+a surface the platform can only erode. COS is a surface the platform can actually close, provided
+the write channel gets the attention the read channel has already had.
+
+[^gb]: Gómez-Boix, Laperdrix, Baudry, *Hiding in the Crowd: an Analysis of the Effectiveness of
+Browser Fingerprinting at Large Scale*, WWW 2018,
+<https://doi.org/10.1145/3178876.3186097>.
+
+---
+
+## 15. Directions worth evaluating
 
 These follow from the models and have not been evaluated beyond them, so treat them as
 candidates for discussion.
@@ -791,7 +994,7 @@ candidates for discussion.
 
 ---
 
-## 14. Limitations
+## 16. Limitations
 
 * **Prevalence is modeled.** There is no public dataset of per-resource cache
   prevalence across real users. The parametric defaults are anchored to the list's own

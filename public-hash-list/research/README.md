@@ -28,6 +28,11 @@ two visits to one device, recognizing one known device again, inferring which si
 visited, and inferring what kind of user it belongs to. Treating them as one question is the
 main way this analysis goes wrong, and the document keeps them apart throughout.
 
+COS also lets a site *write*, so the tracker can plant a chosen identifier on site A and read it
+back on site B. That write channel, modeled in §13, turns COS into an unpartitioned cross-site
+store: a supercookie that survives third-party cookie clearing. §14 weighs the whole surface,
+read and write, against traditional browser fingerprinting.
+
 ## What the simulator does
 
 Loads a model of the 438,684-entry list calibrated from the real `public-hash-list.dat`
@@ -57,6 +62,11 @@ depends almost entirely on a keying choice the specification does not currently 
 
 Composing two gated resources leaves the gate intact: at the real threshold of 100 hosts, no
 simulated device was pinned to a site.
+
+The write channel (§13) is the sharper concern: a storing-origin write plants 143 bits of
+chosen, cross-site, GREASE-immune state in 275 KB, and the global-grant write of the prompt's
+attack plants a whole-web identifier in 48 KB. A single mitigation, partitioning the existence
+disclosure by top-level site, closes it while keeping the download-once benefit.
 
 ## Reproducing
 
