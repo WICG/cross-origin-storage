@@ -1,0 +1,2725 @@
+<!doctype html>
+<!--
+  Copyright 2026 Google LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PHL cross-site probing simulator</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+        margin: 1rem;
+        max-width: 1400px;
+      }
+      h1 {
+        font-size: 1.3rem;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin-top: 1.5rem;
+      }
+      h3 {
+        font-size: 1rem;
+        margin-bottom: 0.3rem;
+      }
+      fieldset {
+        margin: 0 0 0.6rem 0;
+        padding: 0.4rem 0.6rem 0.6rem;
+      }
+      legend {
+        font-weight: bold;
+      }
+      label {
+        display: block;
+        margin: 0.2rem 0;
+      }
+      label > span {
+        display: inline-block;
+        min-width: 15rem;
+      }
+      input[type='number'],
+      select {
+        width: 8rem;
+      }
+      input[type='range'] {
+        width: 12rem;
+        vertical-align: middle;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 0.4rem 0;
+      }
+      th,
+      td {
+        border: 1px solid #bbb;
+        padding: 2px 6px;
+        text-align: right;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        background: #eee;
+      }
+      #layout {
+        display: flex;
+        gap: 1.5rem;
+        align-items: flex-start;
+      }
+      #controls {
+        flex: 0 0 30rem;
+      }
+      #results {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        margin: 0.3rem 0.6rem 0.3rem 0;
+      }
+      .note {
+        color: #555;
+        font-size: 0.9em;
+      }
+      .warn {
+        color: #a00;
+      }
+      #tiers td,
+      #tiers th {
+        padding: 1px 3px;
+        font-size: 12px;
+      }
+      #tiers input {
+        width: 5.2rem;
+        font-size: 12px;
+      }
+      #run {
+        font-size: 1rem;
+        padding: 0.3rem 1rem;
+      }
+      code {
+        background: #f2f2f2;
+        padding: 0 3px;
+      }
+      details {
+        margin: 0.3rem 0;
+      }
+      .charts {
+        display: flex;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Cross-site probing simulator for the Public Hash List</h1>
+    <p class="note">
+      Models the attack where a tracker embedded on many sites probes
+      <code>requestFileHandle()</code> for <code>n</code> Public Hash List
+      hashes on each site and links visits whose bit vectors agree. The math,
+      the calibration against the real 438,684-entry list, and the findings are
+      in <a href="probing-attack-model.md">probing-attack-model.md</a>. Defaults
+      reproduce the <code>VERSION: 2026-09-14</code> snapshot's composition.
+      Everything is an assumption you can change; nothing here is a measurement
+      of real users.
+    </p>
+
+    <div id="layout">
+      <div id="controls">
+        <p>
+          <button id="run">Run simulation</button>
+          <button id="reset">Reset defaults</button>
+          <span id="status" class="note"></span>
+        </p>
+
+        <fieldset>
+          <legend>Preset</legend>
+          <label
+            ><span>Scenario</span>
+            <select id="preset">
+              <option value="custom">(custom)</option>
+              <option value="naive">
+                F2a: naive attacker, 256 random probes
+              </option>
+              <option value="strategic">
+                F2b: strategic attacker, 16 probes
+              </option>
+              <option value="grease-k1">
+                F4a: GREASE K1, beaten by repeats (raise r)
+              </option>
+              <option value="grease-k2">
+                F4b: GREASE K2, nullified by an iframe
+              </option>
+              <option value="grease-k3">
+                F4c: GREASE K3, epoch-keyed, works
+              </option>
+              <option value="sizeexempt">
+                F5a: size exemption, g stops mattering
+              </option>
+              <option value="targeted">
+                F5b/F6: targeted attack on AI weights
+              </option>
+              <option value="budget">F7: tight probe budget</option>
+              <option value="sitemode">
+                F3a: history inference, gate at 100
+              </option>
+              <option value="sitemode-weak-gate">
+                F3b: the same with the gate at 5
+              </option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Resource universe</legend>
+          <label
+            ><span>Cache model</span>
+            <select id="universeMode">
+              <option value="parametric">
+                Parametric tiers (fast, analytic)
+              </option>
+              <option value="sites">Generative site graph (correlated)</option>
+            </select>
+          </label>
+          <label
+            ><span>Universe scale (1 = full PHL)</span>
+            <input
+              type="number"
+              id="universeScale"
+              value="1"
+              min="0.01"
+              max="1"
+              step="0.01"
+          /></label>
+          <label
+            ><span>Browsing intensity (&times; &lambda;)</span>
+            <input
+              type="number"
+              id="intensity"
+              value="1"
+              min="0.05"
+              max="20"
+              step="0.05"
+          /></label>
+          <label
+            ><span>Include HUGGING-FACE section</span>
+            <input type="checkbox" id="includeHF" checked
+          /></label>
+          <label
+            ><span>Within-cluster correlation</span>
+            <input
+              type="range"
+              id="corr"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.8"
+            />
+            <output id="corrOut">0.80</output>
+          </label>
+          <details>
+            <summary>Tier table (counts from the real list)</summary>
+            <table id="tiers">
+              <thead>
+                <tr>
+                  <th>tier</th>
+                  <th>count</th>
+                  <th>p median</th>
+                  <th>p p99</th>
+                  <th>size med</th>
+                  <th>size p99</th>
+                  <th>&rho;</th>
+                  <th>cluster</th>
+                  <th>cohort</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <p class="note">
+              Sizes in bytes. &rho; is cache-state persistence between the two
+              visits. Cluster is the number of co-arriving resources (font
+              subsets, model shards, a plugin's js+css).
+            </p>
+          </details>
+          <details>
+            <summary>Load measured prevalence (HTTP Archive CSV)</summary>
+            <p class="note">
+              Accepts the report
+              <code>body_hash,type,num_origins,traffic_weighted_score</code>
+              published at
+              <code
+                >cdn.httparchive.org/v1/static/reports/public_hash_list.csv</code
+              >. Replaces the fitted core tiers with &lambda; = &kappa; &middot;
+              score.
+            </p>
+            <label
+              ><span>CSV file</span
+              ><input type="file" id="csvFile" accept=".csv"
+            /></label>
+            <label
+              ><span>&kappa; (score &rarr; &lambda;)</span>
+              <input type="number" id="kappa" value="0.00002" step="0.000001"
+            /></label>
+            <span id="csvStatus" class="note"></span>
+          </details>
+        </fieldset>
+
+        <fieldset>
+          <legend>Generative site graph (site mode only)</legend>
+          <label
+            ><span>Origins</span>
+            <input
+              type="number"
+              id="numSites"
+              value="60000"
+              min="1000"
+              step="1000"
+          /></label>
+          <label
+            ><span>Zipf exponent &alpha;</span>
+            <input
+              type="number"
+              id="zipf"
+              value="0.95"
+              min="0.5"
+              max="1.5"
+              step="0.05"
+          /></label>
+          <label
+            ><span>Mean origins visited per device</span>
+            <input type="number" id="meanVisits" value="180" min="5" step="5"
+          /></label>
+          <label
+            ><span>k-anonymity gate (min hosts)</span>
+            <input type="number" id="kAnon" value="100" min="1" step="10"
+          /></label>
+          <label
+            ><span>Sites per community</span>
+            <input
+              type="number"
+              id="communitySize"
+              value="2000"
+              min="1"
+              step="100"
+          /></label>
+          <label
+            ><span>Share of a resource's sites drawn from its community</span>
+            <input
+              type="range"
+              id="siteClustering"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.7"
+            />
+            <output id="siteClusteringOut">0.70</output>
+          </label>
+          <p class="note">
+            Communities stand in for co-deployment: the sites running the same
+            CMS, theme, or plugin bundle. With clustering at 0, every resource
+            picks its sites independently and two resources almost never share
+            one; at 1, resources cluster tightly and their site sets intersect
+            sharply. This is the parameter the intersection attack of &sect;7
+            turns on, and it is not one the list itself controls.
+          </p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Attacker</legend>
+          <label
+            ><span>Selection strategy</span>
+            <select id="strategy">
+              <option value="random">random (uniform over the PHL)</option>
+              <option value="linkage" selected>
+                max-linkage (channel-aware, strongest)
+              </option>
+              <option value="entropy">
+                top-entropy (naive: observed p &asymp; &frac12;)
+              </option>
+              <option value="collision">max-collision entropy</option>
+              <option value="rarest">rarest (targeted)</option>
+              <option value="greaseExempt">
+                GREASE-exempt (size &gt; limit)
+              </option>
+              <option value="nearFloor">
+                smallest site sets, any section (site mode)
+              </option>
+              <option value="nearFloorGated">
+                smallest site sets, gated tier only (site mode)
+              </option>
+              <option value="decorrelated">
+                decorrelated greedy (linkage, one per cluster)
+              </option>
+            </select>
+          </label>
+          <label
+            ><span>Probes per resource (r)</span>
+            <input
+              type="number"
+              id="repeats"
+              value="1"
+              min="1"
+              max="64"
+              step="1"
+          /></label>
+          <label
+            ><span>Distinct resources (n)</span>
+            <input
+              type="number"
+              id="nProbes"
+              value="64"
+              min="1"
+              max="1024"
+              step="1"
+          /></label>
+          <label
+            ><span>Probe budget B per origin/site/epoch</span>
+            <input type="number" id="budget" value="4096" min="1" step="16"
+          /></label>
+          <label
+            ><span>Execution context</span>
+            <select id="context">
+              <option value="iframe">
+                third-party iframe (one origin everywhere)
+              </option>
+              <option value="firstparty">
+                first-party script (origin per site)
+              </option>
+            </select>
+          </label>
+          <label
+            ><span>Prevalence estimate noise &sigma;</span>
+            <input
+              type="number"
+              id="estNoise"
+              value="0"
+              min="0"
+              max="2"
+              step="0.05"
+          /></label>
+          <label
+            ><span>Scorer</span>
+            <select id="scorer">
+              <option value="llr">log-likelihood ratio (optimal)</option>
+              <option value="hamming">Hamming distance</option>
+              <option value="jaccard">Jaccard on the 1-sets</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Defenses</legend>
+          <label
+            ><span>GREASE probability g</span>
+            <input
+              type="range"
+              id="grease"
+              min="0"
+              max="0.95"
+              step="0.01"
+              value="0.1"
+            />
+            <output id="greaseOut">0.10</output>
+          </label>
+          <label
+            ><span>GREASE size limit L</span>
+            <input
+              type="range"
+              id="sizeLimit"
+              min="3"
+              max="10.4"
+              step="0.1"
+              value="7"
+            />
+            <output id="sizeLimitOut">10 MB</output>
+          </label>
+          <label
+            ><span>GREASE keying</span>
+            <select id="keying">
+              <option value="K1">K1 &mdash; fresh coin per probe</option>
+              <option value="K2" selected>
+                K2 &mdash; PRF(device, origin, hash)
+              </option>
+              <option value="K3">
+                K3 &mdash; PRF(device, origin, hash, epoch)
+              </option>
+              <option value="K4">K4 &mdash; PRF(device, hash)</option>
+            </select>
+          </label>
+          <label
+            ><span>Visits fall in the same epoch (K3)</span>
+            <input type="checkbox" id="sameEpoch"
+          /></label>
+          <label
+            ><span>Hypothetical: false-positive rate f</span>
+            <input
+              type="number"
+              id="falsePos"
+              value="0"
+              min="0"
+              max="0.5"
+              step="0.01"
+          /></label>
+          <p class="note">
+            f is not in the specification: COS never reports a file it does not
+            have. It is here to price what two-sided noise would buy.
+          </p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Population</legend>
+          <label
+            ><span>Devices N</span>
+            <input
+              type="number"
+              id="numDevices"
+              value="20000"
+              min="200"
+              step="1000"
+          /></label>
+          <label
+            ><span>Gallery size for 1:M identification</span>
+            <input type="number" id="gallery" value="2000" min="100" step="100"
+          /></label>
+          <label
+            ><span>Attacker scale M (for the bit threshold)</span>
+            <input
+              type="number"
+              id="attackerScale"
+              value="1000000000"
+              min="1000"
+              step="1000"
+          /></label>
+          <label
+            ><span>Persistence multiplier</span>
+            <input
+              type="number"
+              id="rhoMul"
+              value="1"
+              min="0"
+              max="1"
+              step="0.05"
+          /></label>
+          <label
+            ><span>Random seed</span>
+            <input type="number" id="seed" value="12345" min="0" step="1"
+          /></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Inference extras</legend>
+          <label
+            ><span>Cohort probes per cohort</span>
+            <input
+              type="number"
+              id="cohortProbes"
+              value="8"
+              min="0"
+              max="64"
+              step="1"
+          /></label>
+          <label
+            ><span>History: intersection size c</span>
+            <input
+              type="number"
+              id="interC"
+              value="3"
+              min="1"
+              max="50"
+              step="1"
+          /></label>
+        </fieldset>
+      </div>
+
+      <div id="results">
+        <div id="out"></div>
+        <div class="charts" id="charts"></div>
+      </div>
+    </div>
+
+    <script>
+      'use strict';
+
+      /* ------------------------------------------------------------------ *
+       * Random number generation
+       * ------------------------------------------------------------------ */
+
+      function mulberry32(seed) {
+        let a = seed >>> 0;
+        return function () {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function gaussian(rng) {
+        // Box-Muller; one sample per call is fine at this scale.
+        let u = 0;
+        let v = 0;
+        while (u === 0) u = rng();
+        while (v === 0) v = rng();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      }
+
+      // Log-normal parameters from a median and a 99th percentile.
+      function lnParams(median, p99) {
+        const mu = Math.log(median);
+        const sigma = Math.max(1e-6, (Math.log(p99) - mu) / 2.3263479);
+        return { mu, sigma };
+      }
+
+      function poisson(rng, lambda) {
+        if (lambda > 30) {
+          // Normal approximation is plenty for visit counts.
+          return Math.max(
+            0,
+            Math.round(lambda + Math.sqrt(lambda) * gaussian(rng)),
+          );
+        }
+        const l = Math.exp(-lambda);
+        let k = 0;
+        let p = 1;
+        do {
+          k++;
+          p *= rng();
+        } while (p > l);
+        return k - 1;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Information-theoretic helpers
+       * ------------------------------------------------------------------ */
+
+      const LOG2 = Math.log(2);
+      const log2 = (x) => Math.log(x) / LOG2;
+
+      function binaryEntropy(p) {
+        if (p <= 0 || p >= 1) return 0;
+        return -p * log2(p) - (1 - p) * log2(1 - p);
+      }
+
+      // Renyi order 2 ("collision") entropy of one Bernoulli bit.
+      function collisionEntropy(p) {
+        const c = p * p + (1 - p) * (1 - p);
+        return -log2(c);
+      }
+
+      function minEntropy(p) {
+        return -log2(Math.max(p, 1 - p));
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Tier configuration, calibrated against the 2026-09-14 PHL snapshot
+       * ------------------------------------------------------------------ */
+
+      const DEFAULT_TIERS = [
+        {
+          id: 'core-pervasive',
+          poolFrac: 1,
+          siteScale: 300,
+          selfHosted: false,
+          label: 'core: pervasive libs/widgets',
+          section: 'core',
+          count: 1800,
+          pMed: 0.35,
+          pP99: 0.93,
+          sizeMed: 90e3,
+          sizeP99: 1.2e6,
+          rho: 0.9,
+          cluster: 3,
+          cohort: 'web-common',
+        },
+        {
+          id: 'core-fonts-latin',
+          poolFrac: 1,
+          siteScale: 60,
+          selfHosted: false,
+          label: 'core: Google Fonts, latin',
+          section: 'core',
+          count: 24000,
+          pMed: 0.004,
+          pP99: 0.3,
+          sizeMed: 25e3,
+          sizeP99: 60e3,
+          rho: 0.85,
+          cluster: 30,
+          cohort: 'font-latin',
+        },
+        {
+          id: 'core-fonts-intl',
+          poolFrac: 1,
+          siteScale: 8,
+          selfHosted: false,
+          label: 'core: Google Fonts, non-latin subsets',
+          section: 'core',
+          count: 10485,
+          pMed: 0.0008,
+          pP99: 0.06,
+          sizeMed: 35e3,
+          sizeP99: 90e3,
+          rho: 0.85,
+          cluster: 30,
+          cohort: 'font-intl',
+        },
+        {
+          id: 'core-httparchive',
+          poolFrac: 1,
+          siteScale: 1,
+          selfHosted: true,
+          label: 'core: HTTP Archive long tail',
+          section: 'core',
+          count: 254077,
+          pMed: 0.002,
+          pP99: 0.1,
+          sizeMed: 35e3,
+          sizeP99: 400e3,
+          rho: 0.75,
+          cluster: 2,
+          cohort: 'longtail',
+        },
+        {
+          id: 'core-other',
+          poolFrac: 1,
+          siteScale: 25,
+          selfHosted: false,
+          label: 'core: wasm, mjs, misc',
+          section: 'core',
+          count: 3160,
+          pMed: 0.02,
+          pP99: 0.5,
+          sizeMed: 120e3,
+          sizeP99: 3e6,
+          rho: 0.85,
+          cluster: 2,
+          cohort: 'web-common',
+        },
+        {
+          id: 'hf-tokenizer',
+          poolFrac: 0.0004,
+          siteScale: 0.5,
+          selfHosted: false,
+          label: 'HF: tokenizer.json sidecars',
+          section: 'hf',
+          count: 1026,
+          pMed: 0.0004,
+          pP99: 0.01,
+          sizeMed: 800e3,
+          sizeP99: 5.7e6,
+          rho: 0.95,
+          cluster: 1,
+          cohort: 'ai',
+        },
+        {
+          id: 'hf-onnx',
+          poolFrac: 0.0004,
+          siteScale: 0.5,
+          selfHosted: false,
+          label: 'HF: ONNX / TFLite / LiteRT',
+          section: 'hf',
+          count: 30229,
+          pMed: 0.0001,
+          pP99: 0.006,
+          sizeMed: 120e6,
+          sizeP99: 1.2e9,
+          rho: 0.97,
+          cluster: 4,
+          cohort: 'ai',
+        },
+        {
+          id: 'hf-webllm',
+          poolFrac: 0.0004,
+          siteScale: 0.5,
+          selfHosted: false,
+          label: 'HF: WebLLM params_shard_*.bin',
+          section: 'hf',
+          count: 80564,
+          pMed: 0.00006,
+          pP99: 0.003,
+          sizeMed: 40e6,
+          sizeP99: 130e6,
+          rho: 0.97,
+          cluster: 20,
+          cohort: 'ai',
+        },
+        {
+          id: 'hf-gguf',
+          poolFrac: 0.0004,
+          siteScale: 0.5,
+          selfHosted: false,
+          label: 'HF: GGUF',
+          section: 'hf',
+          count: 33342,
+          pMed: 0.00004,
+          pP99: 0.002,
+          sizeMed: 2.5e9,
+          sizeP99: 15e9,
+          rho: 0.98,
+          cluster: 4,
+          cohort: 'ai',
+        },
+      ];
+
+      // Cohort base rates: the fraction of devices that belong to the cohort at all.
+      const COHORT_BASE = {
+        'web-common': 1.0,
+        'font-latin': 1.0,
+        'font-intl': 0.35,
+        longtail: 1.0,
+        ai: 0.03,
+      };
+
+      let tiers = JSON.parse(JSON.stringify(DEFAULT_TIERS));
+      let csvData = null; // {lambda: Float64Array, type: []} when a report is loaded
+
+      /* ------------------------------------------------------------------ *
+       * UI plumbing
+       * ------------------------------------------------------------------ */
+
+      const $ = (id) => document.getElementById(id);
+
+      function fmtBytes(b) {
+        const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        while (b >= 1000 && i < u.length - 1) {
+          b /= 1000;
+          i++;
+        }
+        return `${b < 10 ? b.toFixed(1) : Math.round(b)} ${u[i]}`;
+      }
+
+      function fmt(x, d = 3) {
+        if (!isFinite(x)) return String(x);
+        if (x !== 0 && (Math.abs(x) < 1e-3 || Math.abs(x) >= 1e6))
+          return x.toExponential(2);
+        return x.toFixed(d);
+      }
+
+      function buildTierTable() {
+        const tbody = $('tiers').querySelector('tbody');
+        tbody.innerHTML = '';
+        tiers.forEach((t, i) => {
+          const tr = document.createElement('tr');
+          const cells = [
+            `<td title="${t.id}">${t.label}</td>`,
+            `<td><input data-i="${i}" data-k="count" value="${t.count}"></td>`,
+            `<td><input data-i="${i}" data-k="pMed" value="${t.pMed}"></td>`,
+            `<td><input data-i="${i}" data-k="pP99" value="${t.pP99}"></td>`,
+            `<td><input data-i="${i}" data-k="sizeMed" value="${t.sizeMed}"></td>`,
+            `<td><input data-i="${i}" data-k="sizeP99" value="${t.sizeP99}"></td>`,
+            `<td><input data-i="${i}" data-k="rho" value="${t.rho}"></td>`,
+            `<td><input data-i="${i}" data-k="cluster" value="${t.cluster}"></td>`,
+            `<td>${t.cohort}</td>`,
+          ];
+          tr.innerHTML = cells.join('');
+          tbody.appendChild(tr);
+        });
+        tbody.addEventListener('change', (e) => {
+          const el = e.target;
+          if (!el.dataset.k) return;
+          const v = parseFloat(el.value);
+          if (isFinite(v)) tiers[+el.dataset.i][el.dataset.k] = v;
+          $('preset').value = 'custom';
+        });
+      }
+
+      function syncOutputs() {
+        $('greaseOut').textContent = (+$('grease').value).toFixed(2);
+        $('corrOut').textContent = (+$('corr').value).toFixed(2);
+        $('sizeLimitOut').textContent = fmtBytes(
+          Math.pow(10, +$('sizeLimit').value),
+        );
+        $('siteClusteringOut').textContent = (+$('siteClustering')
+          .value).toFixed(2);
+      }
+      ['grease', 'corr', 'sizeLimit', 'siteClustering'].forEach((id) =>
+        $(id).addEventListener('input', syncOutputs),
+      );
+
+      /* ------------------------------------------------------------------ *
+       * Universe construction
+       * ------------------------------------------------------------------ */
+
+      function buildUniverse(cfg, rng) {
+        const scale = cfg.universeScale;
+        const active = tiers.filter((t) => cfg.includeHF || t.section !== 'hf');
+        const counts = active.map((t) =>
+          Math.max(1, Math.round(t.count * scale)),
+        );
+        const total = counts.reduce((a, b) => a + b, 0);
+
+        const p = new Float64Array(total);
+        const size = new Float64Array(total);
+        const rho = new Float64Array(total);
+        const tierOf = new Uint8Array(total);
+        const cluster = new Int32Array(total);
+        const clusterMaxP = [];
+        const clusterTier = [];
+
+        let idx = 0;
+        let clusterId = 0;
+        active.forEach((t, ti) => {
+          const lamMed = -Math.log(1 - Math.min(0.999999, t.pMed));
+          const lamP99 = -Math.log(1 - Math.min(0.999999, t.pP99));
+          const lam = lnParams(lamMed, Math.max(lamP99, lamMed * 1.0001));
+          const sz = lnParams(
+            t.sizeMed,
+            Math.max(t.sizeP99, t.sizeMed * 1.0001),
+          );
+          const csize = Math.max(1, Math.round(t.cluster));
+          // The lognormal tail over hundreds of thousands of draws would otherwise
+          // manufacture a single near-universal outlier in a tier of rare resources,
+          // so prevalence is truncated at twice the tier's stated p99.
+          const pCap = Math.min(0.999, t.pP99 * 2);
+          let inCluster = 0;
+          let maxP = 0;
+          for (let k = 0; k < counts[ti]; k++) {
+            const lambda =
+              Math.exp(lam.mu + lam.sigma * gaussian(rng)) * cfg.intensity;
+            const pi = Math.min(pCap, 1 - Math.exp(-lambda));
+            p[idx] = pi;
+            size[idx] = Math.exp(sz.mu + sz.sigma * gaussian(rng));
+            rho[idx] = Math.min(1, t.rho * cfg.rhoMul);
+            tierOf[idx] = ti;
+            cluster[idx] = clusterId;
+            maxP = Math.max(maxP, pi);
+            idx++;
+            inCluster++;
+            if (inCluster >= csize) {
+              clusterMaxP[clusterId] = maxP;
+              clusterTier[clusterId] = ti;
+              clusterId++;
+              inCluster = 0;
+              maxP = 0;
+            }
+          }
+          if (inCluster > 0) {
+            clusterMaxP[clusterId] = maxP;
+            clusterTier[clusterId] = ti;
+            clusterId++;
+          }
+        });
+
+        return {
+          n: total,
+          p,
+          size,
+          rho,
+          tierOf,
+          cluster,
+          clusterMaxP: Float64Array.from(clusterMaxP),
+          clusterTier: Int32Array.from(clusterTier),
+          tiers: active,
+          numClusters: clusterId,
+        };
+      }
+
+      // Replace core-tier prevalences with lambda = kappa * traffic_weighted_score.
+      function applyCsv(u, cfg) {
+        if (!csvData) return;
+        const lam = csvData.lambda;
+        let j = 0;
+        for (let i = 0; i < u.n; i++) {
+          if (u.tiers[u.tierOf[i]].section !== 'core') continue;
+          const l = lam[j % lam.length] * cfg.kappa * cfg.intensity;
+          u.p[i] = Math.min(0.999, 1 - Math.exp(-l));
+          j++;
+        }
+        const cmax = u.clusterMaxP;
+        cmax.fill(0);
+        for (let i = 0; i < u.n; i++) {
+          const c = u.cluster[i];
+          if (u.p[i] > cmax[c]) cmax[c] = u.p[i];
+        }
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Generative site graph
+       * ------------------------------------------------------------------ */
+
+      function buildSiteGraph(u, cfg, rng) {
+        const S = cfg.numSites;
+        const q = new Float64Array(S);
+        let norm = 0;
+        for (let j = 0; j < S; j++) {
+          q[j] = 1 / Math.pow(j + 1, cfg.zipf);
+          norm += q[j];
+        }
+        // q[j] is the probability that a single visit lands on site j.
+        for (let j = 0; j < S; j++) q[j] /= norm;
+        const alias = buildAlias(q, rng);
+
+        // The model separates two things the word "origin" runs together.
+        //
+        //   embedding sites  the pages that load the resource. This is what
+        //                    decides how many users end up with it cached.
+        //   serving hosts    the hosts the bytes are fetched from. This is what
+        //                    the HTTP Archive query counts, because it groups by
+        //                    NET.HOST of the request URL.
+        //
+        // For a self-hosted asset (a WordPress plugin's script, copied into every
+        // installation) the two sets coincide, and the k-anonymity gate really does
+        // count independent sites. For a CDN-hosted asset they diverge completely:
+        // every site on the web loading jQuery from one CDN is a single serving
+        // host, so the gate sees 1. That is why CDN assets cannot enter through the
+        // HTTP Archive source and need the curated catalogs, and the model tracks
+        // the two sets separately to capture it.
+        const C = u.numClusters;
+        const clusterSites = new Array(C);
+        const servingHosts = new Int32Array(C);
+        const onPhl = new Uint8Array(C);
+        let nextHost = 0;
+
+        for (let c = 0; c < C; c++) {
+          const t = u.tiers[u.clusterTier[c]] || u.tiers[0];
+          const poolSize = Math.max(1, Math.round(S * (t.poolFrac ?? 1)));
+          // A deterministic, tier-specific window into the popularity ordering, so
+          // that a tier serving a niche (model demos) does not draw from the same
+          // sites as the general web.
+          const poolStart =
+            poolSize >= S
+              ? 0
+              : Math.floor(
+                  ((u.clusterTier[c] * 0.137 + 0.41) % 1) * (S - poolSize),
+                );
+          const pareto = Math.pow(rng(), -1 / 1.15);
+          const k = Math.max(
+            1,
+            Math.min(poolSize, Math.round(pareto * (t.siteScale ?? 1))),
+          );
+          // Sites are drawn partly from the resource's own community (co-deployment)
+          // and partly from the whole pool.
+          const comSize = Math.min(poolSize, cfg.communitySize);
+          const comStart =
+            poolStart +
+            (comSize >= poolSize ? 0 : (rng() * (poolSize - comSize)) | 0);
+          const set = new Set();
+          let guard = 0;
+          while (set.size < k && guard < k * 4 + 32) {
+            if (rng() < cfg.siteClustering)
+              set.add(comStart + ((rng() * comSize) | 0));
+            else set.add(poolStart + ((rng() * poolSize) | 0));
+            guard++;
+          }
+          clusterSites[c] = Int32Array.from(set);
+          if (t.selfHosted) {
+            // Each installation serves its own copy, so hosts track sites.
+            servingHosts[c] = set.size;
+          } else {
+            // A CDN: a handful of hosts no matter how many sites embed it.
+            servingHosts[c] = 1 + ((rng() * 3) | 0);
+          }
+          // The HTTP Archive source is the only one gated on host count. The curated
+          // catalogs and the model hub admit their entries on other grounds, which
+          // the explainer states outright, so those clusters are on the list whatever
+          // their host count.
+          onPhl[c] = t.selfHosted ? (servingHosts[c] >= cfg.kAnon ? 1 : 0) : 1;
+        }
+
+        return { S, q, alias, clusterSites, servingHosts, onPhl };
+      }
+
+      function buildAlias(weights, rng) {
+        const n = weights.length;
+        const prob = new Float64Array(n);
+        const aliasIdx = new Int32Array(n);
+        const scaled = new Float64Array(n);
+        let sum = 0;
+        for (let i = 0; i < n; i++) sum += weights[i];
+        for (let i = 0; i < n; i++) scaled[i] = (weights[i] * n) / sum;
+        const small = [];
+        const large = [];
+        for (let i = 0; i < n; i++) (scaled[i] < 1 ? small : large).push(i);
+        while (small.length && large.length) {
+          const s = small.pop();
+          const l = large.pop();
+          prob[s] = scaled[s];
+          aliasIdx[s] = l;
+          scaled[l] = scaled[l] + scaled[s] - 1;
+          (scaled[l] < 1 ? small : large).push(l);
+        }
+        while (large.length) prob[large.pop()] = 1;
+        while (small.length) prob[small.pop()] = 1;
+        return { prob, aliasIdx, n };
+      }
+
+      function sampleAlias(a, rng) {
+        const i = (rng() * a.n) | 0;
+        return rng() < a.prob[i] ? i : a.aliasIdx[i];
+      }
+
+      /* ------------------------------------------------------------------ *
+       * GREASE channel
+       * ------------------------------------------------------------------ */
+
+      // Returns {eps, shared} for a resource: eps is the per-visit false-negative
+      // probability, shared says whether both visits see the identical mask.
+      function greaseChannel(cfg, sizeBytes) {
+        if (sizeBytes > cfg.sizeLimit || cfg.grease <= 0)
+          return { eps: 0, shared: false };
+        const g = cfg.grease;
+        switch (cfg.keying) {
+          case 'K1':
+            // A fresh coin per probe: r repeats OR'd together.
+            return { eps: Math.pow(g, cfg.repeats), shared: false };
+          case 'K2':
+            // Keyed on the requesting origin: shared only if that origin is the same.
+            return { eps: g, shared: cfg.context === 'iframe' };
+          case 'K3':
+            return {
+              eps: g,
+              shared: cfg.context === 'iframe' && cfg.sameEpoch,
+            };
+          case 'K4':
+            return { eps: g, shared: true };
+          default:
+            return { eps: g, shared: false };
+        }
+      }
+
+      // Observed marginal prevalence for a resource.
+      function observedPrevalence(cfg, p, sizeBytes) {
+        const { eps } = greaseChannel(cfg, sizeBytes);
+        const a = p * (1 - eps);
+        return cfg.falsePos > 0 ? a + (1 - a) * cfg.falsePos : a;
+      }
+
+      // Joint distribution of the two observations under H1 (same device),
+      // returned as [P00, P01, P10, P11].
+      function jointUnderSame(cfg, p, rho, sizeBytes) {
+        const { eps, shared } = greaseChannel(cfg, sizeBytes);
+        const f = cfg.falsePos;
+        // True-state joint, stationary two-state chain with persistence rho.
+        const t11 = p * p + rho * p * (1 - p);
+        const t10 = p * (1 - p) * (1 - rho);
+        const t01 = t10;
+        const t00 = (1 - p) * (1 - p) + rho * p * (1 - p);
+
+        // Push each true-state pair through the observation channel.
+        const out = [0, 0, 0, 0]; // 00, 01, 10, 11
+        const emit = (xa, xb, w) => {
+          if (shared) {
+            // One mask drawn once, applied to both observations.
+            for (const m of [0, 1]) {
+              const pm = m === 1 ? eps : 1 - eps;
+              if (pm === 0) continue;
+              const ya = m === 1 ? 0 : xa;
+              const yb = m === 1 ? 0 : xb;
+              emitFp(ya, yb, w * pm);
+            }
+          } else {
+            for (const ma of [0, 1]) {
+              const pa = ma === 1 ? eps : 1 - eps;
+              if (pa === 0) continue;
+              for (const mb of [0, 1]) {
+                const pb = mb === 1 ? eps : 1 - eps;
+                if (pb === 0) continue;
+                emitFp(ma === 1 ? 0 : xa, mb === 1 ? 0 : xb, w * pa * pb);
+              }
+            }
+          }
+        };
+        const emitFp = (ya, yb, w) => {
+          // Hypothetical two-sided noise: independent false positives.
+          if (f <= 0) {
+            out[yb * 2 + ya] += w;
+            return;
+          }
+          for (const za of [0, 1]) {
+            const wa = ya === 1 ? (za === 1 ? 1 : 0) : za === 1 ? f : 1 - f;
+            if (wa === 0) continue;
+            for (const zb of [0, 1]) {
+              const wb = yb === 1 ? (zb === 1 ? 1 : 0) : zb === 1 ? f : 1 - f;
+              if (wb === 0) continue;
+              out[zb * 2 + za] += w * wa * wb;
+            }
+          }
+        };
+        emit(1, 1, t11);
+        emit(1, 0, t10);
+        emit(0, 1, t01);
+        emit(0, 0, t00);
+        return out;
+      }
+
+      // Bhattacharyya distance between the same-device joint and the
+      // different-device product, in bits. It is additive across independent
+      // probes and bounds the linking error probability by 2^-B, which makes it
+      // the right thing for an attacker to maximize and the right thing to sum
+      // when reporting how much linking margin a probe set carries. It sees
+      // through GREASE noise, which observed entropy counts as information, and
+      // it accounts for the variance a rare resource contributes, which the mean
+      // log-likelihood separation ignores.
+      function bhattacharyya(cfg, p, rho, sizeBytes) {
+        const joint = jointUnderSame(cfg, p, rho, sizeBytes);
+        const a = observedPrevalence(cfg, p, sizeBytes);
+        const marg = [(1 - a) * (1 - a), a * (1 - a), (1 - a) * a, a * a];
+        let bc = 0;
+        for (let k = 0; k < 4; k++) bc += Math.sqrt(joint[k] * marg[k]);
+        return -log2(Math.min(1, Math.max(1e-300, bc)));
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Probe selection
+       * ------------------------------------------------------------------ */
+
+      function selectProbes(u, cfg, rng) {
+        const n = Math.min(cfg.nProbes, u.n);
+        const idx = [];
+        const a = new Float64Array(u.n);
+        for (let i = 0; i < u.n; i++) {
+          let pi = u.p[i];
+          if (cfg.estNoise > 0) {
+            pi = Math.min(0.999, pi * Math.exp(cfg.estNoise * gaussian(rng)));
+          }
+          a[i] = observedPrevalence(cfg, pi, u.size[i]);
+        }
+
+        if (cfg.strategy === 'random') {
+          const seen = new Set();
+          while (idx.length < n && seen.size < u.n) {
+            const j = (rng() * u.n) | 0;
+            if (!seen.has(j)) {
+              seen.add(j);
+              idx.push(j);
+            }
+          }
+          return idx;
+        }
+
+        let score;
+        if (cfg.strategy === 'linkage' || cfg.strategy === 'decorrelated') {
+          // Maximize linking margin. Observed entropy is a trap whenever the channel
+          // is noisy: a resource present on every device still shows entropy once
+          // GREASE'ing masks it, that entropy is entirely the user agent's noise, and
+          // it links nothing.
+          score = (i) => bhattacharyya(cfg, u.p[i], u.rho[i], u.size[i]);
+        } else if (cfg.strategy === 'entropy') {
+          score = (i) => binaryEntropy(a[i]);
+        } else if (cfg.strategy === 'collision') {
+          score = (i) => collisionEntropy(a[i]);
+        } else if (cfg.strategy === 'rarest') {
+          // Rarest, but only among resources common enough to be observable at all:
+          // a resource nobody has is maximally surprising and completely useless.
+          const floor = 5 / cfg.numDevices;
+          score = (i) => (a[i] >= floor ? -log2(a[i]) : -Infinity);
+        } else if (cfg.strategy === 'nearFloor') {
+          // Resources sitting just above the k-anonymity gate: the fewest embedding
+          // sites still on the list, so their site sets intersect most sharply.
+          score = (i) =>
+            u.siteCount && u.siteCount[i] > 0
+              ? -u.siteCount[i] + (u.p[i] > 0 ? 1e-6 * log2(1 / u.p[i]) : 0)
+              : -Infinity;
+        } else if (cfg.strategy === 'nearFloorGated') {
+          // The same idea restricted to the tier the k-anonymity gate actually
+          // governs, so the gate's effect can be measured.
+          score = (i) =>
+            u.siteCount &&
+            u.siteCount[i] > 0 &&
+            (u.tiers[u.tierOf[i]] || {}).selfHosted
+              ? -u.siteCount[i]
+              : -Infinity;
+        } else if (cfg.strategy === 'greaseExempt') {
+          score = (i) =>
+            u.size[i] > cfg.sizeLimit ? binaryEntropy(a[i]) : -Infinity;
+        }
+
+        const order = Array.from({ length: u.n }, (_, i) => i);
+        order.sort((x, y) => score(y) - score(x));
+
+        if (cfg.strategy !== 'decorrelated') {
+          for (let k = 0; k < order.length && idx.length < n; k++) {
+            if (score(order[k]) > -Infinity) idx.push(order[k]);
+          }
+          return idx;
+        }
+
+        // Decorrelated: at most one resource per cluster.
+        const usedCluster = new Set();
+        for (let k = 0; k < order.length && idx.length < n; k++) {
+          const c = u.cluster[order[k]];
+          if (usedCluster.has(c)) continue;
+          usedCluster.add(c);
+          idx.push(order[k]);
+        }
+        return idx;
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Device-state simulation
+       * ------------------------------------------------------------------ */
+
+      // Parametric mode: hierarchical cohort -> cluster -> resource latent model,
+      // preserving the marginal p_i exactly while inducing correlation.
+      function simulateParametric(u, probes, cfg, rng) {
+        const n = probes.length;
+        const N = cfg.numDevices;
+        const va = new Uint8Array(n * N);
+        const vb = new Uint8Array(n * N);
+        const truthCohort = {};
+
+        const cohortsUsed = new Set();
+        probes.forEach((i) => cohortsUsed.add(u.tiers[u.tierOf[i]].cohort));
+
+        // Per-probe conditional probabilities.
+        const clusterList = [];
+        const clusterIndex = new Map();
+        probes.forEach((i) => {
+          const c = u.cluster[i];
+          if (!clusterIndex.has(c)) {
+            clusterIndex.set(c, clusterList.length);
+            clusterList.push(c);
+          }
+        });
+
+        const cohortOf = probes.map((i) => u.tiers[u.tierOf[i]].cohort);
+        const cohortNames = Array.from(new Set(Object.keys(COHORT_BASE)));
+        const piCohort = {};
+        cohortNames.forEach((name) => {
+          let maxP = 0;
+          for (let i = 0; i < u.n; i++) {
+            if (u.tiers[u.tierOf[i]].cohort === name && u.p[i] > maxP)
+              maxP = u.p[i];
+          }
+          piCohort[name] = Math.min(1, Math.max(COHORT_BASE[name] ?? 1, maxP));
+        });
+
+        const piCluster = new Float64Array(clusterList.length);
+        clusterList.forEach((c, k) => {
+          // Cluster adoption probability, constrained to stay above the largest
+          // conditional prevalence in the cluster.
+          let maxCond = 0;
+          for (let i = 0; i < probes.length; i++) {
+            if (u.cluster[probes[i]] === c) {
+              const cond = u.p[probes[i]] / piCohort[cohortOf[i]];
+              if (cond > maxCond) maxCond = cond;
+            }
+          }
+          maxCond = Math.min(1, maxCond);
+          piCluster[k] = Math.min(1, maxCond + (1 - maxCond) * (1 - cfg.corr));
+        });
+
+        const condP = new Float64Array(n);
+        const clusterSlot = new Int32Array(n);
+        for (let i = 0; i < n; i++) {
+          clusterSlot[i] = clusterIndex.get(u.cluster[probes[i]]);
+          const denom = piCohort[cohortOf[i]] * piCluster[clusterSlot[i]];
+          condP[i] = denom > 0 ? Math.min(1, u.p[probes[i]] / denom) : 0;
+        }
+
+        const chan = probes.map((i) => greaseChannel(cfg, u.size[i]));
+        const rhoArr = probes.map((i) => u.rho[i]);
+        const pArr = probes.map((i) => u.p[i]);
+
+        const cohortTruth = {};
+        cohortNames.forEach((c) => (cohortTruth[c] = new Uint8Array(N)));
+
+        const zCoh = {};
+        const zClu = new Uint8Array(clusterList.length);
+        for (let d = 0; d < N; d++) {
+          cohortNames.forEach((c) => {
+            zCoh[c] = rng() < piCohort[c] ? 1 : 0;
+            cohortTruth[c][d] = zCoh[c];
+          });
+          for (let k = 0; k < clusterList.length; k++)
+            zClu[k] = rng() < piCluster[k] ? 1 : 0;
+
+          for (let i = 0; i < n; i++) {
+            const gate = zCoh[cohortOf[i]] && zClu[clusterSlot[i]];
+            const xa = gate && rng() < condP[i] ? 1 : 0;
+            // Markov transition preserving the stationary marginal p.
+            const p = pArr[i];
+            const rho = rhoArr[i];
+            let xb;
+            if (xa === 1) {
+              xb = rng() < p + rho * (1 - p) ? 1 : 0;
+            } else {
+              xb = rng() < p * (1 - rho) ? 1 : 0;
+            }
+            const { eps, shared } = chan[i];
+            let ya;
+            let yb;
+            if (shared) {
+              const masked = rng() < eps;
+              ya = masked ? 0 : xa;
+              yb = masked ? 0 : xb;
+            } else {
+              ya = rng() < eps ? 0 : xa;
+              yb = rng() < eps ? 0 : xb;
+            }
+            if (cfg.falsePos > 0) {
+              if (ya === 0 && rng() < cfg.falsePos) ya = 1;
+              if (yb === 0 && rng() < cfg.falsePos) yb = 1;
+            }
+            va[d * n + i] = ya;
+            vb[d * n + i] = yb;
+          }
+        }
+        return { va, vb, n, N, cohortTruth, visits: null };
+      }
+
+      // Site mode: a device visits origins, and caches whatever they serve.
+      function simulateSites(u, probes, cfg, rng, graph) {
+        const n = probes.length;
+        const N = cfg.numDevices;
+        const va = new Uint8Array(n * N);
+        const vb = new Uint8Array(n * N);
+
+        // Map each probed resource's cluster to the set of sites that embed it.
+        const probeOriginSets = probes.map(
+          (i) => new Set(graph.clusterSites[u.cluster[i]]),
+        );
+        // Reverse index: origin -> probe slots, only for origins that matter.
+        const originToProbes = new Map();
+        probeOriginSets.forEach((set, slot) => {
+          set.forEach((o) => {
+            if (!originToProbes.has(o)) originToProbes.set(o, []);
+            originToProbes.get(o).push(slot);
+          });
+        });
+
+        // Cohort ground truth: a device belongs to a cohort if it visited a site
+        // that embeds anything from that cohort.
+        const cohortNames = Array.from(new Set(tiers.map((t) => t.cohort)));
+        const cohortOrigin = {};
+        cohortNames.forEach((c) => (cohortOrigin[c] = new Uint8Array(graph.S)));
+        for (let c = 0; c < u.numClusters; c++) {
+          const tier = u.tiers[u.clusterTier[c]];
+          if (!tier) continue;
+          const sites = graph.clusterSites[c];
+          const mark = cohortOrigin[tier.cohort];
+          for (let k = 0; k < sites.length; k++) mark[sites[k]] = 1;
+        }
+        const cohortTruth = {};
+        cohortNames.forEach((c) => (cohortTruth[c] = new Uint8Array(N)));
+
+        const chan = probes.map((i) => greaseChannel(cfg, u.size[i]));
+        const rhoArr = probes.map((i) => u.rho[i]);
+        const keepVisits = Math.min(N, 3000);
+        const visits = [];
+
+        for (let d = 0; d < N; d++) {
+          const nv = poisson(rng, cfg.meanVisits);
+          const visited = new Set();
+          for (let t = 0; t < nv; t++)
+            visited.add(sampleAlias(graph.alias, rng));
+          const xa = new Uint8Array(n);
+          visited.forEach((o) => {
+            const slots = originToProbes.get(o);
+            if (slots) for (let k = 0; k < slots.length; k++) xa[slots[k]] = 1;
+            cohortNames.forEach((c) => {
+              if (cohortOrigin[c][o]) cohortTruth[c][d] = 1;
+            });
+          });
+          if (d < keepVisits) visits.push(visited);
+
+          for (let i = 0; i < n; i++) {
+            const rho = rhoArr[i];
+            // Between visits, a cached resource survives with probability rho, and
+            // an absent one is acquired with the stationary re-acquisition rate.
+            const pEff = probeOriginSets[i].size ? u.p[probes[i]] : 0;
+            let xb;
+            if (xa[i] === 1) {
+              xb = rng() < rho + (1 - rho) * pEff ? 1 : 0;
+            } else {
+              xb = rng() < (1 - rho) * pEff ? 1 : 0;
+            }
+            const { eps, shared } = chan[i];
+            let ya;
+            let yb;
+            if (shared) {
+              const masked = rng() < eps;
+              ya = masked ? 0 : xa[i];
+              yb = masked ? 0 : xb;
+            } else {
+              ya = rng() < eps ? 0 : xa[i];
+              yb = rng() < eps ? 0 : xb;
+            }
+            if (cfg.falsePos > 0) {
+              if (ya === 0 && rng() < cfg.falsePos) ya = 1;
+              if (yb === 0 && rng() < cfg.falsePos) yb = 1;
+            }
+            va[d * n + i] = ya;
+            vb[d * n + i] = yb;
+          }
+        }
+        return { va, vb, n, N, cohortTruth, visits, probeOriginSets };
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Metrics
+       * ------------------------------------------------------------------ */
+
+      function analyticMetrics(u, probes, cfg) {
+        let h1 = 0;
+        let h2 = 0;
+        let hinf = 0;
+        let greaseFree = 0;
+        let meanDist = 0;
+        let bhat = 0;
+        const aList = [];
+        probes.forEach((i) => {
+          const a = observedPrevalence(cfg, u.p[i], u.size[i]);
+          aList.push(a);
+          h1 += binaryEntropy(a);
+          h2 += collisionEntropy(a);
+          hinf += minEntropy(a);
+          bhat += bhattacharyya(cfg, u.p[i], u.rho[i], u.size[i]);
+          if (u.size[i] > cfg.sizeLimit) greaseFree++;
+          meanDist += Math.abs(a - 0.5);
+        });
+        return {
+          h1,
+          h2,
+          hinf,
+          bhat,
+          aList,
+          greaseFree,
+          detectability: meanDist / Math.max(1, probes.length),
+        };
+      }
+
+      function buildScoreTable(u, probes, cfg) {
+        // Per-probe LLR contributions indexed by (vb*2 + va).
+        const table = new Float64Array(probes.length * 4);
+        const FLOOR = -40;
+        probes.forEach((idx, i) => {
+          const p = u.p[idx];
+          const a = observedPrevalence(cfg, p, u.size[idx]);
+          const joint = jointUnderSame(cfg, p, u.rho[idx], u.size[idx]);
+          const marg = [(1 - a) * (1 - a), a * (1 - a), (1 - a) * a, a * a];
+          for (let k = 0; k < 4; k++) {
+            const j = joint[k];
+            const m = marg[k];
+            table[i * 4 + k] =
+              j <= 0 || m <= 0 ? FLOOR : Math.max(FLOOR, log2(j / m));
+          }
+        });
+        return table;
+      }
+
+      function scorePair(cfg, table, va, ia, vb, ib, n) {
+        if (cfg.scorer === 'llr') {
+          let s = 0;
+          for (let i = 0; i < n; i++) {
+            s += table[i * 4 + (vb[ib + i] * 2 + va[ia + i])];
+          }
+          return s;
+        }
+        if (cfg.scorer === 'hamming') {
+          let d = 0;
+          for (let i = 0; i < n; i++) if (va[ia + i] !== vb[ib + i]) d++;
+          return -d;
+        }
+        // Jaccard on the 1-sets.
+        let inter = 0;
+        let uni = 0;
+        for (let i = 0; i < n; i++) {
+          const x = va[ia + i];
+          const y = vb[ib + i];
+          if (x | y) uni++;
+          if (x & y) inter++;
+        }
+        return uni === 0 ? 0 : inter / uni;
+      }
+
+      function linkingMetrics(sim, u, probes, cfg, rng) {
+        const { va, vb, n, N } = sim;
+        const table = buildScoreTable(u, probes, cfg);
+        const K = Math.min(N, 20000);
+        const genuine = new Float64Array(K);
+        const impostor = new Float64Array(K);
+        for (let k = 0; k < K; k++) {
+          const d = (rng() * N) | 0;
+          genuine[k] = scorePair(cfg, table, va, d * n, vb, d * n, n);
+          let e = (rng() * N) | 0;
+          if (e === d) e = (e + 1) % N;
+          impostor[k] = scorePair(cfg, table, va, d * n, vb, e * n, n);
+        }
+
+        // ROC by sweeping the threshold over the pooled scores.
+        const all = Array.from(genuine).concat(Array.from(impostor));
+        all.sort((a, b) => b - a);
+        const gs = Float64Array.from(genuine).sort();
+        const is = Float64Array.from(impostor).sort();
+        const roc = [];
+        const steps = 200;
+        for (let s = 0; s <= steps; s++) {
+          const thr =
+            all[
+              Math.min(
+                all.length - 1,
+                Math.floor((s / steps) * (all.length - 1)),
+              )
+            ];
+          const tpr = 1 - lowerBound(gs, thr) / gs.length;
+          const fpr = 1 - lowerBound(is, thr) / is.length;
+          roc.push([fpr, tpr]);
+        }
+        roc.sort((a, b) => a[0] - b[0]);
+        let auc = 0;
+        for (let i = 1; i < roc.length; i++) {
+          auc +=
+            ((roc[i][0] - roc[i - 1][0]) * (roc[i][1] + roc[i - 1][1])) / 2;
+        }
+
+        // TPR at the operating point where false links are O(1) per query.
+        const targetFpr = 1 / Math.max(2, cfg.attackerScale);
+        const effFpr = Math.max(targetFpr, 1 / K);
+        const thrIdx = Math.max(0, Math.floor(is.length * (1 - effFpr)) - 1);
+        const thr = is[thrIdx];
+        // Strictly greater: with a noise-free channel and a probe set nobody has,
+        // every score ties at zero, and counting ties as hits would report a
+        // perfect true-positive rate for a test that has learned nothing.
+        const tprAt = 1 - upperBound(gs, thr) / gs.length;
+
+        // 1:M identification, rank-1 accuracy over a gallery.
+        const G = Math.min(cfg.gallery, N);
+        const queries = Math.min(500, G);
+        let rank1 = 0;
+        for (let q = 0; q < queries; q++) {
+          const target = (rng() * G) | 0;
+          let best = -Infinity;
+          let bestIdx = -1;
+          for (let gI = 0; gI < G; gI++) {
+            const s = scorePair(cfg, table, va, gI * n, vb, target * n, n);
+            if (s > best) {
+              best = s;
+              bestIdx = gI;
+            }
+          }
+          if (bestIdx === target) rank1++;
+        }
+
+        // Targeted re-identification: the attacker does not care about the average
+        // device, only about the ones carrying a rare artifact it has seen before.
+        const carriers = [];
+        for (let d = 0; d < G; d++) {
+          for (let i = 0; i < n; i++) {
+            if (va[d * n + i]) {
+              carriers.push(d);
+              break;
+            }
+          }
+        }
+        const surprisal = [];
+        const aVals = probes.map((i) =>
+          observedPrevalence(cfg, u.p[i], u.size[i]),
+        );
+        for (let k = 0; k < Math.min(carriers.length, 2000); k++) {
+          const d = carriers[k];
+          let bits = 0;
+          for (let i = 0; i < n; i++) {
+            const a = Math.min(1 - 1e-12, Math.max(1e-12, aVals[i]));
+            bits += va[d * n + i] ? -log2(a) : -log2(1 - a);
+          }
+          surprisal.push(bits);
+        }
+        surprisal.sort((x, y) => x - y);
+        let targetedRank1 = 0;
+        const targetedQueries = Math.min(300, carriers.length);
+        for (let q = 0; q < targetedQueries; q++) {
+          const target = carriers[(rng() * carriers.length) | 0];
+          let best = -Infinity;
+          let bestIdx = -1;
+          for (let gI = 0; gI < G; gI++) {
+            const sc = scorePair(cfg, table, va, gI * n, vb, target * n, n);
+            if (sc > best) {
+              best = sc;
+              bestIdx = gI;
+            }
+          }
+          if (bestIdx === target) targetedRank1++;
+        }
+
+        // Uniqueness of the first visit's vector.
+        const counts = new Map();
+        for (let d = 0; d < N; d++) {
+          let key = '';
+          for (let i = 0; i < n; i++) key += va[d * n + i];
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        let unique = 0;
+        const setSizes = [];
+        counts.forEach((c) => {
+          if (c === 1) unique++;
+          for (let k = 0; k < c; k++) setSizes.push(c);
+        });
+        setSizes.sort((a, b) => a - b);
+
+        // Empirical collision entropy, using the unbiased estimator of the collision
+        // probability. With no collisions at all the estimate is 0, which means the
+        // measurement has saturated: the population is too small to resolve H2, and
+        // all that can be said is H2 > log2(N(N-1)).
+        let pairsColliding = 0;
+        counts.forEach((c) => {
+          pairsColliding += c * (c - 1);
+        });
+        const collision = pairsColliding / (N * (N - 1));
+        const saturated = collision === 0;
+
+        return {
+          auc,
+          tprAt,
+          effFpr,
+          rank1: rank1 / queries,
+          galleryUsed: G,
+          uniqueFrac: unique / N,
+          medianAnonSet: setSizes[Math.floor(setSizes.length / 2)] || 1,
+          empiricalH2: saturated ? log2(N * (N - 1)) : -log2(collision),
+          empiricalSaturated: saturated,
+          roc,
+          genuineMean: mean(genuine),
+          impostorMean: mean(impostor),
+          carrierFrac: carriers.length / G,
+          carrierCount: carriers.length,
+          medianSurprisal: surprisal.length
+            ? surprisal[Math.floor(surprisal.length / 2)]
+            : 0,
+          maxSurprisal: surprisal.length ? surprisal[surprisal.length - 1] : 0,
+          targetedRank1: targetedQueries ? targetedRank1 / targetedQueries : 0,
+          targetedQueries,
+        };
+      }
+
+      function mean(arr) {
+        let s = 0;
+        for (let i = 0; i < arr.length; i++) s += arr[i];
+        return s / arr.length;
+      }
+
+      function upperBound(sorted, v) {
+        let lo = 0;
+        let hi = sorted.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (sorted[mid] <= v) lo = mid + 1;
+          else hi = mid;
+        }
+        return lo;
+      }
+
+      function lowerBound(sorted, v) {
+        let lo = 0;
+        let hi = sorted.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (sorted[mid] < v) lo = mid + 1;
+          else hi = mid;
+        }
+        return lo;
+      }
+
+      // The k most prevalent members of each cohort: the probe set an attacker would
+      // use to test cohort membership, independent of the linking probe set.
+      function selectCohortProbes(u, cfg) {
+        const k = cfg.cohortProbes;
+        const best = new Map();
+        for (let i = 0; i < u.n; i++) {
+          const c = u.tiers[u.tierOf[i]].cohort;
+          let arr = best.get(c);
+          if (!arr) {
+            arr = [];
+            best.set(c, arr);
+          }
+          if (arr.length < k) {
+            arr.push(i);
+            if (arr.length === k) arr.sort((x, y) => u.p[x] - u.p[y]);
+          } else if (u.p[i] > u.p[arr[0]]) {
+            arr[0] = i;
+            arr.sort((x, y) => u.p[x] - u.p[y]);
+          }
+        }
+        const cols = [];
+        const cohortOf = [];
+        best.forEach((arr, cohort) => {
+          arr.forEach((i) => {
+            cols.push(i);
+            cohortOf.push(cohort);
+          });
+        });
+        return { cols, cohortOf };
+      }
+
+      // Precision and recall of "flag the device if any cohort probe answers 1",
+      // scored against the simulated latent cohort membership.
+      function cohortMetrics(simC, cp, cfg) {
+        const rows = [];
+        const n = cp.cols.length;
+        if (n === 0) return rows;
+        const cohorts = Array.from(new Set(cp.cohortOf));
+        cohorts.forEach((cohort) => {
+          const truth = simC.cohortTruth[cohort];
+          if (!truth) return;
+          const slots = [];
+          cp.cohortOf.forEach((c, k) => {
+            if (c === cohort) slots.push(k);
+          });
+          let tp = 0;
+          let fp = 0;
+          let fn = 0;
+          for (let d = 0; d < simC.N; d++) {
+            let flagged = false;
+            for (let s = 0; s < slots.length; s++) {
+              if (simC.va[d * n + slots[s]]) {
+                flagged = true;
+                break;
+              }
+            }
+            const member = truth[d] === 1;
+            if (member && flagged) tp++;
+            else if (member) fn++;
+            else if (flagged) fp++;
+          }
+          rows.push({
+            cohort,
+            base: (tp + fn) / simC.N,
+            precision: tp + fp > 0 ? tp / (tp + fp) : 0,
+            recall: tp + fn > 0 ? tp / (tp + fn) : 0,
+            probes: slots.length,
+          });
+        });
+        return rows;
+      }
+
+      // History inference. Observing two resources at once licenses the conjunction
+      // "visited some site serving A" and "visited some site serving B", and the
+      // posterior collapses onto a single site only when explaining both by one
+      // shared site beats explaining them by two separate visits. A small
+      // intersection is not on its own evidence: between two resources that are
+      // each on thousands of sites, a singleton intersection arises by chance and
+      // means nothing, which is why this scores the likelihood ratio.
+      function historyMetrics(sim, u, probes, cfg, graph) {
+        if (!sim.visits || !sim.probeOriginSets) return null;
+        const { va, n, visits } = sim;
+        const MAX_ONES = 20;
+        const MAX_SET = 3000;
+        const MIN_ODDS = 10;
+        const D = Math.min(visits.length, 1500);
+
+        // Sorted site arrays for two-pointer intersection, and the marginals.
+        const sites = probes.map((i) => {
+          const arr = Int32Array.from(graph.clusterSites[u.cluster[i]]);
+          arr.sort();
+          return arr;
+        });
+        const pArr = probes.map((i) => u.p[i]);
+
+        let multiHit = 0;
+        let confident = 0;
+        let correct = 0;
+        const interSizes = [];
+
+        for (let d = 0; d < D; d++) {
+          const ones = [];
+          for (let i = 0; i < n; i++) if (va[d * n + i]) ones.push(i);
+          if (ones.length >= 2) multiHit++;
+          // The rarest hits carry the most narrowing power, and bounding the list
+          // keeps this quadratic step tractable.
+          ones.sort((x, y) => pArr[x] - pArr[y]);
+          const use = ones
+            .slice(0, MAX_ONES)
+            .filter((i) => sites[i].length <= MAX_SET);
+
+          let bestOdds = 0;
+          let bestSize = 0;
+          let bestSite = -1;
+          for (let x = 0; x < use.length; x++) {
+            for (let y = x + 1; y < use.length; y++) {
+              const A = sites[use[x]];
+              const B = sites[use[y]];
+              let ia = 0;
+              let ib = 0;
+              let shared = 0;
+              let mass = 0;
+              let pick = -1;
+              let pickQ = -1;
+              while (ia < A.length && ib < B.length) {
+                if (A[ia] === B[ib]) {
+                  const q = graph.q[A[ia]] * cfg.meanVisits;
+                  mass += q;
+                  if (q > pickQ) {
+                    pickQ = q;
+                    pick = A[ia];
+                  }
+                  shared++;
+                  ia++;
+                  ib++;
+                } else if (A[ia] < B[ib]) ia++;
+                else ib++;
+              }
+              if (shared === 0 || shared > cfg.interC) continue;
+              // One shared visit explaining both, against two independent visits.
+              const odds = mass / Math.max(1e-12, pArr[use[x]] * pArr[use[y]]);
+              if (odds > bestOdds) {
+                bestOdds = odds;
+                bestSize = shared;
+                bestSite = pick;
+              }
+            }
+          }
+          if (bestOdds >= MIN_ODDS) {
+            confident++;
+            interSizes.push(bestSize);
+            if (visits[d].has(bestSite)) correct++;
+          }
+        }
+        interSizes.sort((a, b) => a - b);
+        return {
+          devices: D,
+          multiHitFrac: multiHit / D,
+          narrowedCount: confident,
+          narrowedFrac: confident / D,
+          correctFrac: confident ? correct / confident : 0,
+          medianSmallest: interSizes.length
+            ? interSizes[Math.floor(interSizes.length / 2)]
+            : null,
+          minOdds: MIN_ODDS,
+        };
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Charts
+       * ------------------------------------------------------------------ */
+
+      function makeCanvas(title, w = 420, h = 260) {
+        const wrap = document.createElement('div');
+        const h3 = document.createElement('h3');
+        h3.textContent = title;
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        wrap.appendChild(h3);
+        wrap.appendChild(c);
+        $('charts').appendChild(wrap);
+        return c;
+      }
+
+      function plot(canvas, series, opts) {
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        const m = { l: 48, r: 10, t: 10, b: 30 };
+        ctx.clearRect(0, 0, W, H);
+        const xs = series.flatMap((s) => s.points.map((p) => p[0]));
+        const ys = series.flatMap((s) => s.points.map((p) => p[1]));
+        const xMin = opts.xMin ?? Math.min(...xs);
+        const xMax = opts.xMax ?? Math.max(...xs);
+        const yMin = opts.yMin ?? 0;
+        const yMax = opts.yMax ?? (Math.max(...ys) * 1.05 || 1);
+        const px = (x) =>
+          m.l + ((x - xMin) / (xMax - xMin || 1)) * (W - m.l - m.r);
+        const py = (y) =>
+          H - m.b - ((y - yMin) / (yMax - yMin || 1)) * (H - m.t - m.b);
+
+        ctx.strokeStyle = '#999';
+        ctx.fillStyle = '#333';
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.beginPath();
+        ctx.moveTo(m.l, m.t);
+        ctx.lineTo(m.l, H - m.b);
+        ctx.lineTo(W - m.r, H - m.b);
+        ctx.stroke();
+        for (let k = 0; k <= 4; k++) {
+          const yv = yMin + ((yMax - yMin) * k) / 4;
+          const y = py(yv);
+          ctx.strokeStyle = '#eee';
+          ctx.beginPath();
+          ctx.moveTo(m.l, y);
+          ctx.lineTo(W - m.r, y);
+          ctx.stroke();
+          ctx.fillText(opts.yFmt ? opts.yFmt(yv) : yv.toFixed(1), 4, y + 3);
+          const xv = xMin + ((xMax - xMin) * k) / 4;
+          ctx.fillText(
+            opts.xFmt ? opts.xFmt(xv) : xv.toFixed(1),
+            px(xv) - 10,
+            H - m.b + 12,
+          );
+        }
+        ctx.fillText(opts.xLabel || '', W / 2 - 20, H - 4);
+
+        const colors = ['#0b6', '#06c', '#c30', '#909', '#a60', '#099'];
+        series.forEach((s, i) => {
+          ctx.strokeStyle = s.color || colors[i % colors.length];
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          s.points.forEach((p, k) => {
+            const X = px(p[0]);
+            const Y = py(p[1]);
+            if (k === 0) ctx.moveTo(X, Y);
+            else ctx.lineTo(X, Y);
+          });
+          if (s.bars) {
+            s.points.forEach((p) => {
+              ctx.fillRect(px(p[0]) - 1, py(p[1]), 3, py(yMin) - py(p[1]));
+            });
+          } else {
+            ctx.stroke();
+          }
+          if (s.label) {
+            ctx.textAlign = 'right';
+            ctx.fillText(s.label, W - m.r - 4, m.t + 12 + i * 12);
+            ctx.textAlign = 'left';
+          }
+        });
+        if (opts.hline !== undefined) {
+          ctx.strokeStyle = '#c00';
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(m.l, py(opts.hline));
+          ctx.lineTo(W - m.r, py(opts.hline));
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Presets
+       * ------------------------------------------------------------------ */
+
+      const PRESETS = {
+        naive: {
+          strategy: 'random',
+          nProbes: 256,
+          grease: 0,
+          repeats: 1,
+          keying: 'K2',
+          universeMode: 'parametric',
+          numDevices: 20000,
+        },
+        strategic: {
+          strategy: 'linkage',
+          nProbes: 16,
+          grease: 0,
+          repeats: 1,
+          keying: 'K2',
+          universeMode: 'parametric',
+          numDevices: 20000,
+        },
+        'grease-k1': {
+          strategy: 'linkage',
+          nProbes: 64,
+          grease: 0.8,
+          keying: 'K1',
+          repeats: 1,
+          sizeLimit: 10.4,
+          budget: 4096,
+          universeMode: 'parametric',
+        },
+        'grease-k2': {
+          strategy: 'linkage',
+          nProbes: 64,
+          grease: 0.5,
+          keying: 'K2',
+          repeats: 1,
+          sizeLimit: 10.4,
+          context: 'iframe',
+          universeMode: 'parametric',
+        },
+        'grease-k3': {
+          strategy: 'linkage',
+          nProbes: 64,
+          grease: 0.5,
+          keying: 'K3',
+          repeats: 1,
+          sizeLimit: 10.4,
+          context: 'iframe',
+          sameEpoch: false,
+          universeMode: 'parametric',
+        },
+        sizeexempt: {
+          strategy: 'linkage',
+          nProbes: 64,
+          grease: 0.8,
+          keying: 'K1',
+          repeats: 1,
+          sizeLimit: 7,
+          includeHF: true,
+          universeMode: 'parametric',
+        },
+        targeted: {
+          strategy: 'rarest',
+          nProbes: 64,
+          grease: 0.9,
+          keying: 'K1',
+          repeats: 1,
+          sizeLimit: 7,
+          includeHF: true,
+          scorer: 'llr',
+          universeMode: 'parametric',
+        },
+        budget: {
+          strategy: 'linkage',
+          nProbes: 16,
+          repeats: 1,
+          budget: 16,
+          grease: 0.3,
+          keying: 'K1',
+          sizeLimit: 10.4,
+          universeMode: 'parametric',
+        },
+        sitemode: {
+          universeMode: 'sites',
+          strategy: 'nearFloorGated',
+          nProbes: 2048,
+          budget: 4096,
+          numDevices: 4000,
+          grease: 0,
+          repeats: 1,
+          universeScale: 0.5,
+          numSites: 60000,
+          meanVisits: 180,
+          kAnon: 100,
+        },
+        'sitemode-weak-gate': {
+          universeMode: 'sites',
+          strategy: 'nearFloorGated',
+          nProbes: 2048,
+          budget: 4096,
+          numDevices: 4000,
+          grease: 0,
+          repeats: 1,
+          universeScale: 0.5,
+          numSites: 60000,
+          meanVisits: 180,
+          kAnon: 5,
+        },
+      };
+
+      $('preset').addEventListener('change', () => {
+        const p = PRESETS[$('preset').value];
+        if (!p) return;
+        Object.entries(p).forEach(([k, v]) => {
+          const el = $(k);
+          if (!el) return;
+          if (el.type === 'checkbox') el.checked = !!v;
+          else el.value = v;
+        });
+        syncOutputs();
+      });
+
+      $('reset').addEventListener('click', () => {
+        tiers = JSON.parse(JSON.stringify(DEFAULT_TIERS));
+        buildTierTable();
+        location.hash = '';
+        location.reload();
+      });
+
+      /* ------------------------------------------------------------------ *
+       * CSV import
+       * ------------------------------------------------------------------ */
+
+      $('csvFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        $('csvStatus').textContent = 'reading…';
+        const text = await file.text();
+        const lines = text.split('\n');
+        const header = lines[0]
+          .split(',')
+          .map((s) => s.trim().replace(/"/g, ''));
+        const scoreCol = header.indexOf('traffic_weighted_score');
+        const typeCol = header.indexOf('type');
+        if (scoreCol < 0) {
+          $('csvStatus').textContent = 'no traffic_weighted_score column found';
+          return;
+        }
+        const lambda = [];
+        const types = [];
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i]) continue;
+          const parts = lines[i].split(',');
+          const v = parseFloat(parts[scoreCol]);
+          if (isFinite(v)) {
+            lambda.push(v);
+            if (typeCol >= 0) types.push(parts[typeCol]);
+          }
+        }
+        csvData = { lambda: Float64Array.from(lambda), types };
+        $('csvStatus').textContent =
+          `${lambda.length.toLocaleString()} rows loaded; core tiers will use measured scores`;
+      });
+
+      /* ------------------------------------------------------------------ *
+       * Run
+       * ------------------------------------------------------------------ */
+
+      function readConfig() {
+        return {
+          universeMode: $('universeMode').value,
+          universeScale: +$('universeScale').value,
+          intensity: +$('intensity').value,
+          includeHF: $('includeHF').checked,
+          corr: +$('corr').value,
+          kappa: +$('kappa').value,
+          numSites: Math.round(+$('numSites').value),
+          zipf: +$('zipf').value,
+          meanVisits: +$('meanVisits').value,
+          kAnon: Math.round(+$('kAnon').value),
+          communitySize: Math.max(1, Math.round(+$('communitySize').value)),
+          siteClustering: +$('siteClustering').value,
+          strategy: $('strategy').value,
+          repeats: Math.round(+$('repeats').value),
+          nProbes: Math.round(+$('nProbes').value),
+          budget: Math.round(+$('budget').value),
+          context: $('context').value,
+          estNoise: +$('estNoise').value,
+          scorer: $('scorer').value,
+          grease: +$('grease').value,
+          sizeLimit: Math.pow(10, +$('sizeLimit').value),
+          keying: $('keying').value,
+          sameEpoch: $('sameEpoch').checked,
+          falsePos: +$('falsePos').value,
+          numDevices: Math.round(+$('numDevices').value),
+          gallery: Math.round(+$('gallery').value),
+          attackerScale: +$('attackerScale').value,
+          rhoMul: +$('rhoMul').value,
+          seed: Math.round(+$('seed').value),
+          cohortProbes: Math.round(+$('cohortProbes').value),
+          interC: Math.round(+$('interC').value),
+        };
+      }
+
+      function setStatus(s) {
+        $('status').textContent = s;
+      }
+
+      const nextFrame = () => new Promise((r) => setTimeout(r, 0));
+
+      async function run() {
+        const cfg = readConfig();
+        const rng = mulberry32(cfg.seed);
+        $('charts').innerHTML = '';
+        const warnings = [];
+
+        // The probe budget caps n * r.
+        const affordable = Math.floor(cfg.budget / cfg.repeats);
+        if (cfg.nProbes > affordable) {
+          warnings.push(
+            `Probe budget B=${cfg.budget} with r=${cfg.repeats} allows only ${affordable} distinct resources; n reduced from ${cfg.nProbes}.`,
+          );
+          cfg.nProbes = Math.max(1, affordable);
+        }
+        if (cfg.keying !== 'K1' && cfg.repeats > 1) {
+          warnings.push(
+            `Keying ${cfg.keying} is deterministic per probe, so r=${cfg.repeats} repeats buy nothing and only consume budget.`,
+          );
+        }
+
+        setStatus('building universe…');
+        await nextFrame();
+        const u = buildUniverse(cfg, rng);
+        if (csvData) applyCsv(u, cfg);
+
+        let graph = null;
+        if (cfg.universeMode === 'sites') {
+          setStatus('building site graph…');
+          await nextFrame();
+          graph = buildSiteGraph(u, cfg, rng);
+          // In site mode, prevalence is a consequence of the graph:
+          // lambda is the expected number of visited sites that embed the resource.
+          const clusterP = new Float64Array(u.numClusters);
+          for (let c = 0; c < u.numClusters; c++) {
+            const sites = graph.clusterSites[c];
+            let lam = 0;
+            for (let k = 0; k < sites.length; k++)
+              lam += graph.q[sites[k]] * cfg.meanVisits;
+            clusterP[c] = Math.min(0.999, 1 - Math.exp(-lam));
+          }
+          const siteCount = new Int32Array(u.n);
+          for (let i = 0; i < u.n; i++) {
+            u.p[i] = clusterP[u.cluster[i]];
+            siteCount[i] = graph.clusterSites[u.cluster[i]].length;
+          }
+          u.siteCount = siteCount;
+          const cmax = u.clusterMaxP;
+          cmax.fill(0);
+          for (let i = 0; i < u.n; i++) {
+            const c = u.cluster[i];
+            if (u.p[i] > cmax[c]) cmax[c] = u.p[i];
+          }
+          // Resources below the gate are not on the PHL and cannot be probed.
+          const admissible = [];
+          for (let i = 0; i < u.n; i++)
+            if (graph.onPhl[u.cluster[i]]) admissible.push(i);
+          u.admissibleShare = admissible.length / u.n;
+          if (admissible.length === 0) {
+            warnings.push(
+              'No cluster cleared the k-anonymity gate; lower it or raise the origin count.',
+            );
+          } else {
+            u.admissible = admissible;
+          }
+        }
+
+        setStatus('selecting probes…');
+        await nextFrame();
+        let probes;
+        if (cfg.universeMode === 'sites' && u.admissible) {
+          // Restrict selection to hashes the PHL would actually admit.
+          const sub = {
+            n: u.admissible.length,
+            p: Float64Array.from(u.admissible, (i) => u.p[i]),
+            size: Float64Array.from(u.admissible, (i) => u.size[i]),
+            rho: Float64Array.from(u.admissible, (i) => u.rho[i]),
+            tierOf: Uint8Array.from(u.admissible, (i) => u.tierOf[i]),
+            cluster: Int32Array.from(u.admissible, (i) => u.cluster[i]),
+            siteCount: Int32Array.from(u.admissible, (i) => u.siteCount[i]),
+            tiers: u.tiers,
+          };
+          probes = selectProbes(sub, cfg, rng).map((k) => u.admissible[k]);
+        } else {
+          probes = selectProbes(u, cfg, rng);
+        }
+        if (probes.length === 0) {
+          warnings.push(
+            'The strategy selected no resources (try lowering the GREASE size limit).',
+          );
+          setStatus('');
+          render(cfg, u, [], null, null, null, null, warnings);
+          return;
+        }
+
+        setStatus(`simulating ${cfg.numDevices.toLocaleString()} devices…`);
+        await nextFrame();
+        const sim =
+          cfg.universeMode === 'sites'
+            ? simulateSites(u, probes, cfg, rng, graph)
+            : simulateParametric(u, probes, cfg, rng);
+
+        setStatus('scoring…');
+        await nextFrame();
+        const analytic = analyticMetrics(u, probes, cfg);
+        const linking = linkingMetrics(sim, u, probes, cfg, rng);
+        const history =
+          cfg.universeMode === 'sites'
+            ? historyMetrics(sim, u, probes, cfg, graph)
+            : null;
+
+        let cohorts = [];
+        if (cfg.cohortProbes > 0) {
+          const cp = selectCohortProbes(u, cfg);
+          if (cp.cols.length) {
+            const simC =
+              cfg.universeMode === 'sites'
+                ? simulateSites(u, cp.cols, cfg, rng, graph)
+                : simulateParametric(u, cp.cols, cfg, rng);
+            cohorts = cohortMetrics(simC, cp, cfg);
+          }
+        }
+
+        setStatus('');
+        render(
+          cfg,
+          u,
+          probes,
+          analytic,
+          linking,
+          cohorts,
+          history,
+          warnings,
+          graph,
+        );
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Rendering
+       * ------------------------------------------------------------------ */
+
+      function render(
+        cfg,
+        u,
+        probes,
+        analytic,
+        linking,
+        cohorts,
+        history,
+        warnings,
+        graph,
+      ) {
+        const need = log2(cfg.attackerScale);
+        const out = [];
+        if (warnings.length) {
+          out.push(`<p class="warn">${warnings.join('<br>')}</p>`);
+        }
+        if (!analytic) {
+          $('out').innerHTML = out.join('');
+          return;
+        }
+
+        out.push('<h2>Probe set</h2>');
+        out.push(
+          `<p>${probes.length} distinct resources &times; r=${cfg.repeats} repeats = <b>${
+            probes.length * cfg.repeats
+          }</b> probes per site visit (budget ${cfg.budget}). ` +
+            `${analytic.greaseFree} of them (${(
+              (100 * analytic.greaseFree) /
+              probes.length
+            ).toFixed(0)}%) are above the GREASE size limit of ${fmtBytes(
+              cfg.sizeLimit,
+            )} and are therefore never GREASEd. ` +
+            `Mean |a &minus; &frac12;| of the probe set is ${fmt(
+              analytic.detectability,
+            )} (0 = maximally informative and maximally anomalous).</p>`,
+        );
+
+        out.push('<h2>Identifying information</h2>');
+        out.push(
+          '<table><tr><th>quantity</th><th>bits</th><th>meaning</th></tr>',
+        );
+        out.push(
+          `<tr><td>H&#8321; Shannon</td><td>${fmt(analytic.h1, 1)}</td><td>average surprisal; the usual "bits of identifying information"</td></tr>`,
+        );
+        out.push(
+          `<tr><td>H&#8322; collision</td><td>${fmt(analytic.h2, 1)}</td><td>governs linking: two random devices collide with probability 2<sup>&minus;H&#8322;</sup></td></tr>`,
+        );
+        out.push(
+          `<tr><td>H&#8322; measured</td><td>${
+            linking.empiricalSaturated ? '&gt; ' : ''
+          }${fmt(linking.empiricalH2, 1)}</td><td>${
+            linking.empiricalSaturated
+              ? 'no two devices collided, so the population cannot resolve it further'
+              : 'from the simulated population, so correlation between resources is included'
+          }</td></tr>`,
+        );
+        out.push(
+          `<tr><td>H&#8734; min-entropy</td><td>${fmt(analytic.hinf, 1)}</td><td>anonymity of the most common vector</td></tr>`,
+        );
+        out.push(
+          `<tr><td>B linking margin</td><td>${fmt(
+            analytic.bhat,
+            1,
+          )}</td><td>Bhattacharyya distance between the same-device and different-device hypotheses; the link error rate is bounded by 2<sup>&minus;B</sup>, and it accounts for GREASE noise and for state drift, which the entropies leave out</td></tr>`,
+        );
+        out.push(
+          `<tr><td>needed for M=${Number(cfg.attackerScale).toExponential(0)}</td><td>${fmt(
+            need,
+            1,
+          )}</td><td>log&#8322;M, the Bayes threshold for 1:M identification</td></tr>`,
+        );
+        out.push('</table>');
+        const measuredFloor = linking.empiricalSaturated
+          ? Math.min(analytic.h2, linking.empiricalH2)
+          : linking.empiricalH2;
+        const verdict =
+          measuredFloor >= need
+            ? '<b>The probe set carries enough collision entropy to single out a device at this attacker scale.</b>'
+            : analytic.h2 >= need
+              ? `The analytic bound clears the ${fmt(
+                  need,
+                  1,
+                )}-bit threshold, but the simulated population of ${cfg.numDevices.toLocaleString()} devices is too small to confirm it; raise N, or read the analytic row.`
+              : 'The probe set falls short of the 1:M threshold at this attacker scale; it still links within smaller populations.';
+        out.push(`<p>${verdict}</p>`);
+
+        out.push('<h2>Cross-site linking</h2>');
+        out.push('<table><tr><th>metric</th><th>value</th></tr>');
+        out.push(
+          `<tr><td>AUC (verification)</td><td>${fmt(linking.auc, 4)}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>TPR at FPR = ${linking.effFpr.toExponential(1)}</td><td>${fmt(
+            linking.tprAt,
+            3,
+          )}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>rank-1 accuracy, gallery of ${linking.galleryUsed.toLocaleString()}</td><td>${fmt(
+            linking.rank1,
+            3,
+          )}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>devices with a unique vector</td><td>${(
+            100 * linking.uniqueFrac
+          ).toFixed(1)}%</td></tr>`,
+        );
+        out.push(
+          `<tr><td>median anonymity set (N=${cfg.numDevices.toLocaleString()})</td><td>${
+            linking.medianAnonSet
+          }</td></tr>`,
+        );
+        out.push(
+          `<tr><td>mean score, same device / different device</td><td>${fmt(
+            linking.genuineMean,
+            1,
+          )} / ${fmt(linking.impostorMean, 1)}</td></tr>`,
+        );
+        out.push('</table>');
+        out.push(
+          `<p class="note">Uniqueness and anonymity sets are relative to the simulated population of ${cfg.numDevices.toLocaleString()} devices, which is a lower bound on what a real population would show: a bigger population makes collisions more likely, but also raises the bar M.</p>`,
+        );
+        out.push('<h2>Targeted re-identification</h2>');
+        out.push(
+          `<p>Restricted to the ${linking.carrierCount.toLocaleString()} devices (${(
+            100 * linking.carrierFrac
+          ).toFixed(
+            1,
+          )}% of the gallery) that carry at least one probed resource. This is the population a targeted attacker cares about: it already saw the victim hold these artifacts, so the average device is irrelevant.</p>`,
+        );
+        out.push('<table><tr><th>metric</th><th>value</th></tr>');
+        out.push(
+          `<tr><td>median self-information of a carrier's vector</td><td>${fmt(
+            linking.medianSurprisal,
+            1,
+          )} bits</td></tr>`,
+        );
+        out.push(
+          `<tr><td>most identifying carrier seen</td><td>${fmt(
+            linking.maxSurprisal,
+            1,
+          )} bits</td></tr>`,
+        );
+        out.push(
+          `<tr><td>rank-1 accuracy among carriers (${linking.targetedQueries} queries)</td><td>${fmt(
+            linking.targetedRank1,
+            3,
+          )}</td></tr>`,
+        );
+        out.push('</table>');
+        out.push(
+          `<p class="note">A probe set can be useless on average and decisive for carriers at the same time: that is the difference between threat model A and threat model B, and it is why a probe set of rare AI weights scores near chance on the linking table above while singling out the devices that hold them.</p>`,
+        );
+
+        if (cohorts && cohorts.length) {
+          out.push('<h2>Cohort inference</h2>');
+          out.push(
+            '<table><tr><th>cohort</th><th>base rate</th><th>probes</th><th>precision</th><th>recall</th></tr>',
+          );
+          cohorts.forEach((c) => {
+            out.push(
+              `<tr><td>${c.cohort}</td><td>${fmt(c.base, 3)}</td><td>${c.probes}</td><td>${fmt(
+                c.precision,
+                3,
+              )}</td><td>${fmt(c.recall, 3)}</td></tr>`,
+            );
+          });
+          out.push('</table>');
+          out.push(
+            '<p class="note">A device is flagged as a cohort member if any of its cohort probes answers 1, using a probe set separate from the linking one. With the hypothetical false-positive rate f at 0, precision is 1 by construction: a positive answer is always ground truth, because COS never reports a file it does not have. Recall is what the attacker buys with probes.</p>',
+          );
+        }
+
+        if (history) {
+          out.push('<h2>History inference (intersection attack)</h2>');
+          out.push('<table><tr><th>metric</th><th>value</th></tr>');
+          out.push(
+            `<tr><td>devices analyzed</td><td>${history.devices.toLocaleString()}</td></tr>`,
+          );
+          out.push(
+            `<tr><td>with at least two probes answering 1 (the attack needs two)</td><td>${(
+              100 * history.multiHitFrac
+            ).toFixed(2)}%</td></tr>`,
+          );
+          out.push(
+            `<tr><td>with a site pinned at odds &ge; ${history.minOdds}:1, intersection &le; ${cfg.interC}</td><td>${(
+              100 * history.narrowedFrac
+            ).toFixed(
+              2,
+            )}% (${history.narrowedCount.toLocaleString()} devices)</td></tr>`,
+          );
+          out.push(
+            `<tr><td>of those, the narrowed site was actually visited</td><td>${(
+              100 * history.correctFrac
+            ).toFixed(1)}%</td></tr>`,
+          );
+          out.push(
+            `<tr><td>median smallest pairwise site-set intersection</td><td>${history.medianSmallest}</td></tr>`,
+          );
+          out.push('</table>');
+          out.push(
+            `<p class="note">Every probed hash that came from the HTTP Archive tier individually cleared a k-anonymity gate of ${cfg.kAnon} serving hosts. This table is the cost of composing two of them: when the attack fires it is nearly always right, and what limits it is how often a device holds two probed resources at once.</p>`,
+          );
+        }
+
+        $('out').innerHTML = out.join('');
+
+        drawCharts(cfg, u, probes, analytic, linking);
+      }
+
+      function drawCharts(cfg, u, probes, analytic, linking) {
+        // 1. Prevalence distribution of the universe and of the probe set.
+        const bins = 40;
+        const histAll = new Float64Array(bins);
+        const histProbe = new Float64Array(bins);
+        const toBin = (p) => {
+          const l = Math.log10(Math.max(1e-7, p));
+          return Math.min(
+            bins - 1,
+            Math.max(0, Math.round(((l + 7) / 7) * (bins - 1))),
+          );
+        };
+        for (let i = 0; i < u.n; i++) histAll[toBin(u.p[i])]++;
+        probes.forEach((i) => histProbe[toBin(u.p[i])]++);
+        const maxAll = Math.max(...histAll);
+        const maxProbe = Math.max(...histProbe, 1);
+        plot(
+          makeCanvas('Prevalence: whole list vs probe set'),
+          [
+            {
+              label: 'PHL (normalized)',
+              points: Array.from(histAll, (v, k) => [
+                (k / (bins - 1)) * 7 - 7,
+                v / maxAll,
+              ]),
+            },
+            {
+              label: 'probe set (normalized)',
+              points: Array.from(histProbe, (v, k) => [
+                (k / (bins - 1)) * 7 - 7,
+                v / maxProbe,
+              ]),
+            },
+          ],
+          {
+            xLabel: 'log10 prevalence p',
+            xMin: -7,
+            xMax: 0,
+            yMin: 0,
+            yMax: 1.05,
+            xFmt: (v) => v.toFixed(1),
+            yFmt: (v) => v.toFixed(1),
+          },
+        );
+
+        // 2. Bits vs number of probes, for this strategy and for random selection.
+        const sortedB = probes
+          .map((i) => bhattacharyya(cfg, u.p[i], u.rho[i], u.size[i]))
+          .sort((a, b) => b - a);
+        let cum = 0;
+        const strat = sortedB.map((v, k) => {
+          cum += v;
+          return [k + 1, cum];
+        });
+        let meanRandom = 0;
+        const step = Math.max(1, Math.floor(u.n / 20000));
+        let counted = 0;
+        for (let i = 0; i < u.n; i += step) {
+          meanRandom += bhattacharyya(cfg, u.p[i], u.rho[i], u.size[i]);
+          counted++;
+        }
+        meanRandom /= counted;
+        const randomLine = strat.map((pt) => [pt[0], pt[0] * meanRandom]);
+        plot(
+          makeCanvas('Linking margin B vs probe count'),
+          [
+            { label: cfg.strategy, points: strat },
+            { label: 'random selection', points: randomLine },
+          ],
+          {
+            xLabel: 'distinct resources probed (n)',
+            yMin: 0,
+            hline: log2(cfg.attackerScale),
+            yFmt: (v) => v.toFixed(0),
+            xFmt: (v) => v.toFixed(0),
+          },
+        );
+
+        // 3. ROC.
+        plot(
+          makeCanvas('Linking ROC'),
+          [{ label: `AUC ${fmt(linking.auc, 4)}`, points: linking.roc }],
+          {
+            xLabel: 'false positive rate',
+            xMin: 0,
+            xMax: 1,
+            yMin: 0,
+            yMax: 1,
+            xFmt: (v) => v.toFixed(2),
+            yFmt: (v) => v.toFixed(2),
+          },
+        );
+
+        // 4. GREASE probability sweep under K1, for several repeat counts.
+        const gSeries = [1, 2, 4, 8].map((r) => {
+          const pts = [];
+          for (let g = 0; g <= 0.95; g += 0.05) {
+            const cfg2 = Object.assign({}, cfg, {
+              grease: g,
+              repeats: r,
+              keying: 'K1',
+            });
+            let bits = 0;
+            const affordable = Math.min(
+              probes.length,
+              Math.floor(cfg.budget / r),
+            );
+            for (let k = 0; k < affordable; k++) {
+              const i = probes[k];
+              bits += bhattacharyya(cfg2, u.p[i], u.rho[i], u.size[i]);
+            }
+            pts.push([g, bits]);
+          }
+          return { label: `r = ${r}`, points: pts };
+        });
+        plot(
+          makeCanvas('K1 GREASE: linking margin vs g, by repeat count'),
+          gSeries,
+          {
+            xLabel: 'GREASE probability g',
+            xMin: 0,
+            xMax: 0.95,
+            yMin: 0,
+            hline: log2(cfg.attackerScale),
+            xFmt: (v) => v.toFixed(2),
+            yFmt: (v) => v.toFixed(0),
+          },
+        );
+
+        // 5. GREASE size limit sweep: how much of the probe set stays noise-free.
+        const limitPts = [];
+        const bitsPts = [];
+        for (let e = 3; e <= 10.4; e += 0.2) {
+          const cfg2 = Object.assign({}, cfg, { sizeLimit: Math.pow(10, e) });
+          let exempt = 0;
+          let bits = 0;
+          probes.forEach((i) => {
+            if (u.size[i] > cfg2.sizeLimit) exempt++;
+            bits += bhattacharyya(cfg2, u.p[i], u.rho[i], u.size[i]);
+          });
+          limitPts.push([e, exempt / probes.length]);
+          bitsPts.push([e, bits]);
+        }
+        const maxBits = Math.max(...bitsPts.map((p) => p[1]), 1);
+        plot(
+          makeCanvas('Size-proportionate rule: exempt share and bits'),
+          [
+            { label: 'fraction exempt from GREASE', points: limitPts },
+            {
+              label: 'linking margin (normalized)',
+              points: bitsPts.map((p) => [p[0], p[1] / maxBits]),
+            },
+          ],
+          {
+            xLabel: 'log10 GREASE size limit L (bytes)',
+            xMin: 3,
+            xMax: 10.4,
+            yMin: 0,
+            yMax: 1.05,
+            xFmt: (v) => v.toFixed(1),
+            yFmt: (v) => v.toFixed(1),
+          },
+        );
+      }
+
+      buildTierTable();
+      syncOutputs();
+      $('run').addEventListener('click', () => {
+        run().catch((err) => {
+          setStatus('');
+          $('out').innerHTML =
+            `<p class="warn">Error: ${err && err.message}</p>`;
+          throw err;
+        });
+      });
+    </script>
+  </body>
+</html>
