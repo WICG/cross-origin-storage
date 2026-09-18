@@ -19,7 +19,8 @@ is a change to the COS specification today.
 
 Four rules. The first two carry the weight.
 
-1. **Count the reads that cross a site boundary**, and give each site a small budget.
+1. **Count the reads that cross a site boundary**, with one budget shared by every frame on
+   the page.
 2. **Wait for a user gesture before a write takes effect.** The page can use the file
    immediately; only the sharing waits.
 3. **Keep the count per site, per time window, and keep counting across page reloads.**
@@ -56,11 +57,15 @@ guesswork involved.** That is what makes it a better control than trying to dete
 
 ## Rule 1: Count the reads that cross a site boundary
 
-Give each requesting origin a budget of cross-site lookups, per website the user is on, per time
-window. Something in the range of 8 to 16.
+Give each page a budget of cross-site lookups, per time window, in the range of 8 to 16. The
+budget belongs to **the website the user is on**, and every frame on that page draws from the
+same pot, whatever origin it comes from.
 
-The important detail is *which* lookups count. Only count a lookup when it could reveal something
-about a **different** website. Concretely:
+That last part matters more than it sounds, and getting it wrong undoes the whole rule. See
+*Why the budget belongs to the page* below.
+
+The other important detail is *which* lookups count. Only count a lookup when it could reveal
+something about a **different** website. Concretely:
 
 | Lookup | Counts against the budget? |
 | --- | --- |
@@ -81,6 +86,31 @@ budget after 8, and it learns 8 bits.
 
 This is the rule that separates the two cases. A simple "limit all lookups" rule cannot do it,
 because the honest build-tool case makes far more lookups than the attack does.
+
+### Why the budget belongs to the page
+
+Suppose the budget belonged to each requesting origin. A tracker running as first-party script
+on `news.example` can create iframes pointing at origins it controls, and hand each one COS
+access with `allow="cross-origin-storage"`. Each frame does its own 8 lookups on a different
+slice of the file set, then reports its answers to the parent with `postMessage`.
+
+With a budget of 8, **four such frames collect 32 bits in a single page view**, which is a
+complete identifier, and the rule has achieved nothing. The origins are free: one wildcard DNS
+record gives a tracker `a.tracker.example`, `b.tracker.example`, and as many more as it wants.
+Independent trackers on the same page can pool their budgets the same way.
+
+Keying the budget to the requesting *site* (the registrable domain) stops the subdomain version
+of this, since all those subdomains share one budget. It still falls to a tracker that buys
+sixteen cheap domains, or to sixteen trackers that agree to cooperate.
+
+Keying the budget to the **top-level site** is what actually holds. One page view, one budget,
+however many frames and whoever they belong to. The attacker cannot mint the thing the budget is
+keyed to, because that thing is the website the user chose to visit.
+
+The cost is real and worth stating: independent embeds on a page now compete for one pot. A page
+carrying a map widget, a video player, and an ad frame shares 8 to 16 cross-site lookups between
+them. That is the right trade, because the quantity being limited is how much cross-site
+information leaves this page view, and that total is what the user's privacy depends on.
 
 ---
 
@@ -116,8 +146,8 @@ The counter has to survive page reloads and navigations. If it resets every page
 reload loop that Rule 2 blocks for writes would work for reads, and reads are the step that
 actually extracts the identifier.
 
-So the counter is keyed to the combination of (requesting origin, website the user is on), and it
-persists for a chosen window of time.
+So the counter is keyed to the website the user is on, shared by every frame as Rule 1 requires,
+and it persists for a chosen window of time.
 
 **Example.** A per-page-load budget of 8 gives a tracker 8 bits per reload. Reloading four times
 takes about a second and yields 32 bits, which is a complete identifier. A budget of 8 per day
@@ -235,6 +265,13 @@ These come out of the same analysis and are largely independent of the rules abo
   how long it survives with no refresh. Neither one stops it. A full 32-bit identifier fits in
   48 KB, far under any realistic quota, and a tracker rewrites it on every visit, which resets
   the clock. They bound the size and the lifetime while leaving the channel open.
+- **Limit how deep `allow="cross-origin-storage"` can be delegated.** Capping delegation at one
+  level stops a chain of nested frames from passing COS access down indefinitely, which is
+  reasonable hygiene: a site that grants COS to one embed probably did not mean to grant it to
+  whatever that embed loads next. It does not solve the budget problem, because the attacker
+  does not need depth. Sixteen sibling frames at one level multiply an origin-keyed budget
+  exactly as well as sixteen nested ones, and browsers have no general depth limit for
+  Permissions Policy delegation to borrow.
 - **Rely on detection alone.** Worth doing, and evadable. A tracker can load the files it stores
   so they look used, and can blend them into a plausible set of resources. Detection raises the
   cost and catches careless implementations, and it cannot give a guarantee.

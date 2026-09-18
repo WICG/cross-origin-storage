@@ -16,7 +16,7 @@ The work is in two parts, plus the simulator behind both.
 | --- | --- | --- |
 | **Part one: the problem** | [`probing-attack-model.md`](probing-attack-model.md) | The models, the calibration against the real published list, and the results. |
 | **Part two: the proposed solution** | [`proposed-solution.md`](proposed-solution.md) | Four rules that bound the attack, in plain terms, with what each one costs. **Start here** for the conclusions. |
-| The simulator | [`probing-simulator.html`](probing-simulator.html) | What both parts draw on. Open it in a browser; no build step, no dependencies, no network access. |
+| The simulator | [`probing-simulator.html`](probing-simulator.html) | What both parts draw on. Three channels: the read attack, the write attack, and a budget model that checks whether the proposed rules hold. Open it in a browser; no build step, no dependencies, no network access. |
 
 ## The attack
 
@@ -79,8 +79,10 @@ ten bits. Picking one device out of a billion needs about 30. So metering the lo
 a site boundary puts a hard ceiling on what a tracker can learn, and a site's lookups of files it
 stored itself can stay free, which is what keeps the build-tool and AI cases working. Pair that
 with a user gesture before a stored file becomes shareable, so a silently reloading page cannot
-accumulate, and a counter that survives reloads. Part two works through the rules, the examples,
-the costs, and what stays unsolved.
+accumulate, and a counter that survives reloads. The budget has to belong to the page: keyed on
+the requesting origin, a tracker defeats it in one page view by putting four collaborating
+iframes on origins it controls. Part two works through the rules, the examples, the costs, and
+what stays unsolved.
 
 ## Reproducing
 

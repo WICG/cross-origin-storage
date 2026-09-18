@@ -537,10 +537,15 @@ constraint. Two observations:
 * **The bar is tens of probes.** §12 reaches rank-1 1.000 with 64 probes and 0.718 with 16. A
   budget of 100 probes per visit leaves linking fully available and only limits exhaustive
   history enumeration.
-* **Budgets must be per requesting origin and must count every surface.** The explainer already
-  says this (the fetch, Service Worker, and preload integrations all count). The models add
-  that a budget resetting per top-level site is no budget at all against the iframe attacker,
-  who gets a fresh allocation on every site it is embedded in.
+* **Budgets must be keyed on the top-level site and must count every surface.** The explainer
+  already says the count spans surfaces (the fetch, Service Worker, and preload integrations all
+  count). The keying is the part that decides whether the budget exists at all. A budget keyed on
+  the requesting origin is multiplied by however many origins an attacker brings to the page, and
+  a first-party tracker can inject frames on origins it controls and delegate COS to each with
+  `allow="cross-origin-storage"`, collecting their answers by `postMessage`. Wildcard DNS makes
+  those origins free. One budget per top-level site, shared by every frame, is the only keying
+  the attacker cannot inflate, since it cannot mint top-level sites the user chooses to visit.
+  F12 measures the multiplication.
 
 ---
 
@@ -887,6 +892,27 @@ sees no request when the fetch is skipped. So cross-site download elision and th
 existence oracle are the same observable. Any mitigation that fully preserves the first fully
 preserves the second, and any mitigation that fully removes the second removes the first. Every
 option in part two is a point on that tradeoff curve.
+
+### F12. Budget keying decides whether a probe budget exists at all
+
+*(Channel → budget)* A budget of 8 cross-site reads per window holds at 8 bits while the attacker
+brings one origin. Keyed on the **requesting origin**, the ceiling scales with the number of
+origins the attacker marshals on the page: 2 origins give 16 bits, 3 give 24, and **4 give 32
+bits, which completes a whole-web identifier inside a single page view**. Keyed on the requesting
+**site**, sixteen subdomains of one domain still share one budget and the ceiling holds at 8, and
+sixteen separately registered domains restore the multiplication to 16 and defeat it again. Keyed
+on the **top-level site**, the multiplier stays at 1 for any number of collaborating origins or
+domains, and the ceiling holds.
+
+The attack needs no nesting. Sibling frames at one level multiply the budget exactly as well as a
+chain does, so capping how deep `allow="cross-origin-storage"` may be delegated addresses depth
+where the problem is breadth. Browsers also have no general depth limit in Permissions Policy
+delegation to reuse.
+
+With the top-level keying and the gesture gate both in force, and no gesture in a window, the
+write side never completes and linkage never happens. With one gesture per window, 8 reads and 8
+writes per 24-hour window, and partial results carried between windows, first linkage takes
+8 days.
 
 ---
 

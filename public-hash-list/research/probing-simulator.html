@@ -147,6 +147,9 @@
             <select id="channel">
               <option value="read">read (probe what is already cached)</option>
               <option value="write">write (plant a chosen identifier)</option>
+              <option value="budget">
+                budget (do the proposed rules hold?)
+              </option>
             </select>
           </label>
           <p class="note">
@@ -224,6 +227,96 @@
           </p>
         </fieldset>
 
+        <fieldset class="budget-only hidden">
+          <legend>Proposed budget rules</legend>
+          <label
+            ><span>Budget keyed on</span>
+            <select id="budgetKey">
+              <option value="origin">requesting origin</option>
+              <option value="site">requesting site (eTLD+1)</option>
+              <option value="toplevel">
+                top-level site (all frames share)
+              </option>
+            </select>
+          </label>
+          <label
+            ><span>Reads per budget per window</span>
+            <input
+              type="number"
+              id="readBudget"
+              value="8"
+              min="1"
+              max="4096"
+              step="1"
+          /></label>
+          <label
+            ><span>Writes per budget per window</span>
+            <input
+              type="number"
+              id="writeBudget"
+              value="8"
+              min="0"
+              max="4096"
+              step="1"
+          /></label>
+          <label
+            ><span>Collaborating origins in one page</span>
+            <input
+              type="number"
+              id="collabOrigins"
+              value="1"
+              min="1"
+              max="256"
+              step="1"
+          /></label>
+          <label
+            ><span>Distinct sites among them (eTLD+1)</span>
+            <input
+              type="number"
+              id="collabSites"
+              value="1"
+              min="1"
+              max="256"
+              step="1"
+          /></label>
+          <label
+            ><span>Writes need a user gesture</span>
+            <input type="checkbox" id="gestureGate" checked
+          /></label>
+          <label
+            ><span>Gestures per window</span>
+            <input
+              type="number"
+              id="gesturesPerWindow"
+              value="1"
+              min="0"
+              max="100"
+              step="1"
+          /></label>
+          <label
+            ><span>Window length (hours)</span>
+            <input
+              type="number"
+              id="windowHours"
+              value="24"
+              min="0.01"
+              step="1"
+          /></label>
+          <label
+            ><span>Partial results accumulate across windows</span>
+            <input type="checkbox" id="accumulate" checked
+          /></label>
+          <p class="note">
+            A tracker running as first-party script can inject iframes on
+            origins it controls and delegate COS to each with
+            <code>allow="cross-origin-storage"</code>, then collect their
+            answers by <code>postMessage</code>. Every distinct origin carries
+            its own budget when the budget is keyed on the requesting origin, so
+            the collaborating-origins count multiplies it. Wildcard DNS makes
+            those origins free.
+          </p>
+        </fieldset>
+
         <fieldset>
           <legend>Preset</legend>
           <label
@@ -268,7 +361,7 @@
           </label>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="sim-only">
           <legend>Resource universe</legend>
           <label
             ><span>Cache model</span>
@@ -505,7 +598,7 @@
           </label>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="sim-only">
           <legend>Defenses</legend>
           <label
             ><span>GREASE probability g</span>
@@ -937,13 +1030,17 @@
       );
 
       function toggleChannel() {
-        const write = $('channel').value === 'write';
-        document
-          .querySelectorAll('.write-only')
-          .forEach((e) => e.classList.toggle('hidden', !write));
-        document
-          .querySelectorAll('.read-only')
-          .forEach((e) => e.classList.toggle('hidden', write));
+        const v = $('channel').value;
+        const show = (sel, on) =>
+          document
+            .querySelectorAll(sel)
+            .forEach((e) => e.classList.toggle('hidden', !on));
+        show('.read-only', v === 'read');
+        show('.write-only', v === 'write');
+        show('.budget-only', v === 'budget');
+        // The budget model is arithmetic over the proposed rules, so it needs no
+        // resource universe and no GREASE settings.
+        show('.sim-only', v !== 'budget');
       }
       $('channel').addEventListener('change', toggleChannel);
 
@@ -2319,6 +2416,18 @@
           nCarriers: Math.round(+$('nCarriers').value),
           quota: Math.max(1, +$('quotaMB').value) * 1e6,
           writeInterval: +$('writeInterval').value,
+          budgetKey: $('budgetKey').value,
+          readBudget: Math.max(1, Math.round(+$('readBudget').value)),
+          writeBudget: Math.max(0, Math.round(+$('writeBudget').value)),
+          collabOrigins: Math.max(1, Math.round(+$('collabOrigins').value)),
+          collabSites: Math.max(1, Math.round(+$('collabSites').value)),
+          gestureGate: $('gestureGate').checked,
+          gesturesPerWindow: Math.max(
+            0,
+            Math.round(+$('gesturesPerWindow').value),
+          ),
+          windowHours: Math.max(0.01, +$('windowHours').value),
+          accumulate: $('accumulate').checked,
         };
       }
 
@@ -2336,6 +2445,12 @@
 
         if (cfg.channel === 'write') {
           await runWrite(cfg, rng, warnings);
+          return;
+        }
+
+        if (cfg.channel === 'budget') {
+          runBudget(cfg, warnings);
+          setStatus('');
           return;
         }
 
@@ -2849,6 +2964,230 @@
             yMin: 0,
             hline: log2(cfg.attackerScale),
             xFmt: (v) => v.toFixed(1),
+            yFmt: (v) => v.toFixed(0),
+          },
+        );
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Budget model for the proposed rules
+       * ------------------------------------------------------------------ */
+
+      // How many independent budgets the attacker can bring to one page view. A
+      // tracker running as first-party script can inject iframes on origins it
+      // controls and delegate COS to each, so a budget keyed on the requesting
+      // origin is multiplied by the number of origins it marshals. Wildcard DNS
+      // makes those origins free, so the multiplier is bounded only by how many
+      // frames the page will carry.
+      function budgetMultiplier(cfg) {
+        if (cfg.budgetKey === 'origin') return cfg.collabOrigins;
+        if (cfg.budgetKey === 'site')
+          return Math.min(cfg.collabSites, cfg.collabOrigins);
+        return 1; // keyed on the top-level site: every frame shares one budget
+      }
+
+      function budgetModel(cfg) {
+        const need = log2(cfg.attackerScale);
+        const mult = budgetMultiplier(cfg);
+        const readsPerWindow = cfg.readBudget * mult;
+        const gestureBlocked = cfg.gestureGate && cfg.gesturesPerWindow === 0;
+        const writesPerWindow = gestureBlocked ? 0 : cfg.writeBudget * mult;
+
+        // One COS lookup returns one bit, so the bits available per window equal
+        // the reads available per window.
+        const bitsPerWindow = readsPerWindow;
+
+        let windowsToPlant;
+        let windowsToRead;
+        let linkable = true;
+        if (cfg.accumulate) {
+          windowsToPlant =
+            writesPerWindow > 0 ? Math.ceil(need / writesPerWindow) : Infinity;
+          windowsToRead = Math.ceil(need / bitsPerWindow);
+        } else {
+          // With no carry-over, the whole identifier has to fit in one window.
+          windowsToPlant = writesPerWindow >= need ? 1 : Infinity;
+          windowsToRead = bitsPerWindow >= need ? 1 : Infinity;
+        }
+        linkable = isFinite(windowsToPlant) && isFinite(windowsToRead);
+        const totalWindows = linkable
+          ? windowsToPlant + windowsToRead
+          : Infinity;
+
+        return {
+          need,
+          mult,
+          readsPerWindow,
+          writesPerWindow,
+          bitsPerWindow,
+          windowsToPlant,
+          windowsToRead,
+          totalWindows,
+          linkable,
+          gestureBlocked,
+          hours: linkable ? totalWindows * cfg.windowHours : Infinity,
+          onePageView: bitsPerWindow >= need && writesPerWindow >= need,
+        };
+      }
+
+      function fmtWindows(v) {
+        return isFinite(v) ? String(v) : 'never';
+      }
+
+      function fmtDuration(hours) {
+        if (!isFinite(hours)) return 'never';
+        if (hours < 1) return `${(hours * 60).toFixed(0)} min`;
+        if (hours < 48) return `${hours.toFixed(1)} h`;
+        return `${(hours / 24).toFixed(1)} days`;
+      }
+
+      function runBudget(cfg, warnings) {
+        const m = budgetModel(cfg);
+        if (cfg.collabSites > cfg.collabOrigins) {
+          warnings.push(
+            'Distinct sites cannot exceed collaborating origins; the smaller value is used.',
+          );
+        }
+        const out = [];
+        if (warnings.length)
+          out.push(`<p class="warn">${warnings.join('<br>')}</p>`);
+
+        out.push('<h2>Do the proposed rules hold?</h2>');
+        out.push(
+          `<p>Budget keyed on <b>${cfg.budgetKey}</b>, ${cfg.readBudget} reads and ` +
+            `${cfg.writeBudget} writes per budget per ${cfg.windowHours} h window, with ` +
+            `${cfg.collabOrigins} collaborating origin(s) across ${cfg.collabSites} site(s). ` +
+            `Identifying one device among ${Number(cfg.attackerScale).toExponential(0)} needs ` +
+            `<b>${fmt(m.need, 1)} bits</b>.</p>`,
+        );
+
+        out.push('<table><tr><th>quantity</th><th>value</th></tr>');
+        out.push(
+          `<tr><td>independent budgets the attacker gets</td><td><b>&times;${m.mult}</b></td></tr>`,
+        );
+        out.push(
+          `<tr><td>reads per window, so bits per window</td><td><b>${m.bitsPerWindow}</b></td></tr>`,
+        );
+        out.push(
+          `<tr><td>writes per window</td><td>${m.writesPerWindow}${
+            m.gestureBlocked ? ' (gesture gate holds every write)' : ''
+          }</td></tr>`,
+        );
+        out.push(
+          `<tr><td>windows to plant the identifier</td><td>${fmtWindows(m.windowsToPlant)}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>windows to read it back</td><td>${fmtWindows(m.windowsToRead)}</td></tr>`,
+        );
+        out.push(
+          `<tr><td>time to first linkage</td><td><b>${fmtDuration(m.hours)}</b></td></tr>`,
+        );
+        out.push('</table>');
+
+        if (m.onePageView) {
+          out.push(
+            '<p class="warn"><b>The budget is defeated within a single page view.</b> The ' +
+              'attacker assembles the whole identifier before the window ever rolls over, so the ' +
+              'rule has no effect at these settings.</p>',
+          );
+        } else if (!m.linkable) {
+          out.push(
+            '<p><b>Linkage never completes at these settings.</b> Either the gesture gate ' +
+              'blocks every write, or the identifier cannot fit without carry-over between ' +
+              'windows.</p>',
+          );
+        } else {
+          out.push(
+            `<p>Linkage takes <b>${fmtDuration(m.hours)}</b> of repeat visits to both sites. ` +
+              'The budget sets the rate, and carry-over between windows is what lets a patient ' +
+              'tracker finish.</p>',
+          );
+        }
+
+        out.push(
+          '<p class="note">One COS lookup answers yes or no, so it yields at most one bit. ' +
+            'Bits per window therefore equal reads per window, whatever the encoding. That is ' +
+            'why the budget is a ceiling and the keying question decides whether the ceiling ' +
+            'holds.</p>',
+        );
+
+        $('out').innerHTML = out.join('');
+        drawBudgetCharts(cfg);
+      }
+
+      function drawBudgetCharts(cfg) {
+        const need = log2(cfg.attackerScale);
+        const keys = [
+          { k: 'origin', label: 'keyed on origin' },
+          { k: 'site', label: 'keyed on site' },
+          { k: 'toplevel', label: 'keyed on top-level site' },
+        ];
+
+        // 1. Bits available in one page view as collaborating origins grow.
+        plot(
+          makeCanvas('Bits per window vs collaborating origins'),
+          keys.map((s) => {
+            const c3 = Object.assign({}, cfg, { budgetKey: s.k });
+            const pts = [];
+            for (let k = 1; k <= 32; k++) {
+              const c2 = Object.assign({}, c3, { collabOrigins: k });
+              pts.push([k, budgetModel(c2).bitsPerWindow]);
+            }
+            return { label: s.label, points: pts };
+          }),
+          {
+            xLabel: 'collaborating origins on the page',
+            xMin: 1,
+            xMax: 32,
+            yMin: 0,
+            hline: need,
+            xFmt: (v) => v.toFixed(0),
+            yFmt: (v) => v.toFixed(0),
+          },
+        );
+
+        // 2. Time to first linkage as collaborating origins grow.
+        plot(
+          makeCanvas('Time to linkage vs collaborating origins'),
+          keys.map((s) => {
+            const c3 = Object.assign({}, cfg, { budgetKey: s.k });
+            const pts = [];
+            for (let k = 1; k <= 32; k++) {
+              const c2 = Object.assign({}, c3, { collabOrigins: k });
+              const m = budgetModel(c2);
+              pts.push([k, isFinite(m.hours) ? Math.min(m.hours, 2000) : 2000]);
+            }
+            return { label: s.label, points: pts };
+          }),
+          {
+            xLabel: 'collaborating origins on the page',
+            xMin: 1,
+            xMax: 32,
+            yMin: 0,
+            xFmt: (v) => v.toFixed(0),
+            yFmt: (v) => v.toFixed(0),
+          },
+        );
+
+        // 3. Bits per window against the read budget, at the configured collaboration.
+        plot(
+          makeCanvas('Bits per window vs read budget'),
+          keys.map((s) => {
+            const c3 = Object.assign({}, cfg, { budgetKey: s.k });
+            const pts = [];
+            for (let b = 1; b <= 64; b++) {
+              const c2 = Object.assign({}, c3, { readBudget: b });
+              pts.push([b, budgetModel(c2).bitsPerWindow]);
+            }
+            return { label: s.label, points: pts };
+          }),
+          {
+            xLabel: 'reads allowed per budget per window',
+            xMin: 1,
+            xMax: 64,
+            yMin: 0,
+            hline: need,
+            xFmt: (v) => v.toFixed(0),
             yFmt: (v) => v.toFixed(0),
           },
         );
