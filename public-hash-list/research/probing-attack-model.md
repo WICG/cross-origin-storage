@@ -868,22 +868,39 @@ Four things bound it, with a fifth that looks like a bound and is weak.
 
 The prompt's attack succeeds because a first-party script can unilaterally make a chosen set of
 PHL resources both present and globally disclosable on site A, and a second origin can read that
-exact set on site B. The mitigations below attack that chain. They are candidates for discussion,
-and the simulator prices the first two.
+exact set on site B. First, a limit that frames every option below.
 
-1. **Partition the existence disclosure by top-level site, keeping byte-level dedup cross-site.**
-   This is the strongest option and it closes both routes at once. The cache stays global for
-   *bytes*, so the download-once benefit survives, and only the *disclosure* of what a given
-   top-level site wrote is partitioned. Site B, on a different top-level site, sees a cache miss
-   for A's planted subset and falls through to the network. It costs one extra miss per new site,
-   and it aligns COS with the double-keyed model the rest of the platform's storage already uses.
+**The feature and the leak are one bit.** COS's value over a partitioned HTTP cache plus
+internal single-instance storage is exactly one thing: letting site B skip a download because
+site A already fetched the bytes. Storage dedup needs no disclosure and no API, since a browser
+can content-address its own cache internally, keep one physical blob keyed by hash, track which
+top-level-site partitions may see it, and collapse a duplicate the moment B fetches the bytes on
+its own. Download elision is the only added capability, and it is observable to B, whose server
+sees no request when the fetch is skipped. So cross-site download elision and the cross-site
+existence oracle are the same observable. Any mitigation that fully preserves the first fully
+preserves the second, and any mitigation that fully removes the second removes the first. The
+mitigations below are points on that tradeoff curve, and the simulator prices the cardinality
+budget and the storing-origin gate.
+
+1. **Budget the number of distinct cross-site-disclosed hashes per origin.** This is the lever
+   that separates the AI use case from the tracking channel, because the two differ in
+   cardinality. Serving one large model, or choosing among the handful of interchangeable
+   variants a model family ships, touches O(1) to O(10) hashes; a whole-web identifier needs
+   O(30) or more (F11 uses 64 carriers for ~30 bits, and the read channel needs ~33 bits in
+   F1). A per-origin budget of, say, 16 distinct cross-site-disclosed hashes lets a site dedup a
+   big model and pick a variant, and caps a planted or probed identifier at 16 bits, which
+   distinguishes about 65,000 devices where the whole web needs 30. It is the write-path analogue
+   of the read-path probe budget (F7), and it bounds the channel's bit rate at a cost only to how
+   many resources a site may share cross-site.
 2. **Require runtime storing-origin diversity before the global grant discloses.** Make a
    `'*'` resource cross-origin readable only after some threshold `k` of independent origins have
    stored it, a runtime echo of the PHL's own k-anonymity gate. A lone tracker writing a rare
    long-tail resource on site A is one origin, so its chosen subset stays undisclosable until
    `k` unrelated sites independently store the same bytes, which no attacker can arrange for an
-   obscure resource. This preserves organic sharing of genuinely popular resources and neuters
-   the unilateral chosen-subset write.
+   obscure resource. This preserves cross-site download elision for genuinely popular resources
+   and neuters the unilateral chosen-subset write. Its cost falls on the rare-but-large model,
+   the headline AI case, which reaches `k` slowly or never, so it pairs best with the budget in
+   mitigation 1.
 3. **Tie global disclosability to the byte-serving origin's authorization.** Extend the
    [`Cross-Origin-Storage-Allow-Origin` header](../../README.md#the-cross-origin-storage-allow-origin-header)
    from the list-scoped grant to the global one, so a `'*'` write discloses cross-origin only
@@ -897,9 +914,13 @@ and the simulator prices the first two.
    long-lived an identifier is (F10), and they force periodic rewriting, but on their own they
    leave a whole-web identifier comfortably within reach.
 
-The storing-origin supercookie (W1) is closed only by mitigation 1, because it never touches the
-PHL or the global grant. Partitioning the existence disclosure by top-level site is therefore the
-one change that addresses the write channel in full.
+**Partitioning the existence disclosure by top-level site** is the endpoint of the curve, and it
+is worth naming because it closes both routes at once, including the storing-origin supercookie
+(W1) that touches neither the PHL nor the global grant. It also collapses COS's download elision
+to once per top-level site, which is the partitioned HTTP cache's behavior today, so it removes
+the feature along with the channel and leaves only the internal storage dedup that needs no API.
+It is the right reference point for what full closure costs, and the budget of mitigation 1 is
+the interior point that keeps the AI use case.
 
 ---
 
@@ -946,9 +967,11 @@ fingerprinting it is worse in kind: fingerprinting reads what the device already
 writes a chosen identifier the tracker controls, which is the capability the platform spent years
 removing when it partitioned storage and dropped third-party cookies.
 
-Its saving graces are the bounds of §13.4: it decays with the cache, it sits behind a quota, the
-storing-origin route needs a Permissions-Policy grant, and, decisively, a single mitigation
-(partition the disclosure by top-level site) closes it while keeping the dedup benefit.
+Its saving graces are the bounds of §13.4: it decays with the cache, it sits behind a quota, and
+the storing-origin route needs a Permissions-Policy grant. Full closure by partitioning the
+disclosure exists, and it costs the feature, since cross-site download elision and the tracking
+oracle are the same bit (§13.5); the interior fix that keeps the AI use case is a per-origin
+budget on distinct cross-site-disclosed hashes.
 
 ### 14.3 Verdict
 
@@ -957,9 +980,13 @@ reintroduces globally readable cross-site state at the moment the platform has f
 it, and the read channel adds a history-derived signal orthogonal to the configuration
 fingerprint and strongest where that fingerprint is weakest. Better, because every part of it has
 a chokepoint the rest of the fingerprinting surface lacks: one API, countable and rate-limitable,
-reading from a public list, with a clear structural fix for the write channel. Fingerprinting is
-a surface the platform can only erode. COS is a surface the platform can actually close, provided
-the write channel gets the attention the read channel has already had.
+reading from a public list, with levers the fingerprinting surface has never offered.
+Fingerprinting is a surface the platform can only erode. COS gives it a dial: cross-site download
+elision and cross-site tracking are the same bit, so the design chooses a point on one curve,
+from full sharing with the oracle open to full partitioning with the feature gone. A per-origin
+budget on distinct cross-site-disclosed hashes is the interior setting that keeps the AI use case
+while holding the identifier to a handful of bits. The write channel deserves that dial set
+deliberately, with the attention the read channel has already had.
 
 [^gb]: Gómez-Boix, Laperdrix, Baudry, *Hiding in the Crowd: an Analysis of the Effectiveness of
 Browser Fingerprinting at Large Scale*, WWW 2018,

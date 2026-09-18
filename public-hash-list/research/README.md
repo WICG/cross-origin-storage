@@ -65,8 +65,9 @@ simulated device was pinned to a site.
 
 The write channel (§13) is the sharper concern: a storing-origin write plants 143 bits of
 chosen, cross-site, GREASE-immune state in 275 KB, and the global-grant write of the prompt's
-attack plants a whole-web identifier in 48 KB. A single mitigation, partitioning the existence
-disclosure by top-level site, closes it while keeping the download-once benefit.
+attack plants a whole-web identifier in 48 KB. Cross-site download elision and the tracking
+oracle are the same bit, so closing the channel fully costs the feature; a per-origin budget on
+distinct cross-site-disclosed hashes is the interior fix that keeps the AI use case.
 
 ## Reproducing
 
