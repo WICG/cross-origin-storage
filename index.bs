@@ -490,23 +490,9 @@ To <dfn>complete a create request</dfn> given [=a new promise|a promise=] |resul
 
 1. Let |requestedOrigins| be the result of running [=normalize requested origins=] given
    |options|["{{CrossOriginStorageRequestFileHandleOptions/origins}}"].
-1. If |requestedOrigins| is a [=list=]:
-   1. Let |ceiling| be the result of running [=obtain the COS scope ceiling=] given |global|.
-   1. [=list/Remove=] from |requestedOrigins| each [=/origin=] that |ceiling| does not
-      [=set/contain=].
-
-      Note: This is the [=set/intersection=] with the [=COS scope ceiling=] that
-      [[#allow-origin-header]] describes: a recipient the disclosing origin's
-      `Cross-Origin-Storage-Allow-Origin` header did not authorize is dropped rather than failing
-      the write, matching how an over-length upgrade drops its excess in
-      [=upgrade resource visibility=]. The user agent is expected to log a console warning naming
-      each dropped [=/origin=].
-   1. If |requestedOrigins| [=list/is empty=], set |requestedOrigins| to null.
-
-      Note: A [=list=] every one of whose members was dropped leaves the write with no authorized
-      cross-origin recipient, so it falls back to the same-site default rather than to the
-      strictly-narrower empty [=list=] (which would exclude even same-site readers). The bytes are
-      still stored; only the unauthorized disclosure is withheld.
+1. If |requestedOrigins| is a [=list=], set |requestedOrigins| to the result of running
+   [=apply a COS scope ceiling=] given |requestedOrigins| and the result of running
+   [=obtain the COS scope ceiling=] given |global|.
 1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
    [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
 1. If |entry| is null:
@@ -651,6 +637,76 @@ Issue: The File System Standard [[FS]] does not yet define an extension point fo
 specification to hook additional per-write validation into {{FileSystemWritableFileStream}}'s
 closing steps. Until such a hook exists, this section describes the required behavior directly; a
 future revision is expected to formally integrate with [[FS]].
+
+## Storing fetched resources ## {#storing-fetched-resources}
+
+The host integrations listed in [[#integration-with-other-specifications]] store a resource they
+fetched without going through a {{FileSystemFileHandle}}. Their host specifications are expected
+to run the following algorithm once the fetched bytes have passed the integrity check that the
+integration requires.
+
+<div algorithm>
+To <dfn export>store a fetched resource in Cross-Origin Storage</dfn> given a [=/response=]
+|response|, a [=byte sequence=] |bytes|, a [=COS hash=] |hash|, "`*`", a [=list=] of [=strings=],
+or null |origins|, and an [=environment settings object=] |settings|:
+
+1. If the result of running [=check Cross-Origin Storage permission=] given |settings|'s
+   [=environment settings object/global object=] is false, return.
+1. Let |options| be «[ "{{CrossOriginStorageRequestFileHandleOptions/origins}}" → |origins| ]» if
+   |origins| is not null, or «[ ]» otherwise.
+1. If the result of running [=validate a COS request=] given |hash| and |options| is not null,
+   return.
+1. Let |computedValue| be the lowercase hexadecimal digest of |bytes|, computed using the
+   algorithm named by |hash|'s [=COS hash/algorithm=], per [[WEBCRYPTO]].
+1. If |computedValue| is not exactly equal to |hash|'s [=COS hash/value=], return.
+
+   Note: The integration's own integrity metadata can list several digests, and a match against
+   any one of them satisfies it. This step makes sure the entry is keyed by a hash that these
+   exact bytes produce.
+1. Let |requestedOrigins| be the result of running [=normalize requested origins=] given
+   |options|["{{CrossOriginStorageRequestFileHandleOptions/origins}}"].
+1. If |requestedOrigins| is a [=list=]:
+   1. Let |internalResponse| be |response|'s [=filtered response/internal response=] if
+      |response| is a [=filtered response=], or |response| otherwise.
+   1. Set |requestedOrigins| to the result of running [=apply a COS scope ceiling=] given
+      |requestedOrigins| and the result of running [=parse a COS scope ceiling=] given
+      |internalResponse|'s [=response/header list=].
+
+   Note: The ceiling comes from the fetched resource's own [=/response=], so the server that
+   supplies the bytes decides which origins they can be disclosed to. The loading {{Document}}'s
+   [=Document/COS scope ceiling=] plays no part: its operator does not control the resource, and
+   letting it authorize recipients would let any site declare another site's asset shareable
+   with origins of its choosing. The user agent reads the header from the internal
+   [=/response=], so this works for an opaque [=filtered response=] as well, and the header is
+   never exposed to the page.
+1. Let |origin| be |settings|'s [=environment settings object/origin=].
+1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
+   [=Cross-Origin Storage queue=]:
+   1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
+      [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
+   1. If |entry| is null:
+      1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
+         [=COS entry/bytes=] is null, [=COS entry/state=] is "`pending`", [=COS entry/origins=] is
+         an empty [=list=], [=COS entry/globally disclosable=] is false, and
+         [=COS entry/storing origins=] is an empty [=set=].
+      1. [=map/Set=] the [=COS registry=][|hash|] to |entry|.
+   1. If |entry|'s [=COS entry/state=] is "`pending`":
+      1. Set |entry|'s [=COS entry/bytes=] to |bytes|.
+      1. Set |entry|'s [=COS entry/state=] to "`written`".
+
+      Note: An entry can be "`pending`" here because a {{CrossOriginStorageManager/requestFileHandle()}}
+      writer for the same hash is still in flight. Its [=COS entry/pending writer count=] is left
+      untouched, so that writer's own [=verify and store=] still settles normally; its bytes
+      hash to the same value, so storing them again changes nothing.
+   1. [=set/Append=] |origin| to |entry|'s [=COS entry/storing origins=], if not already present.
+   1. Run [=upgrade resource visibility=] given |entry| and |requestedOrigins|.
+
+</div>
+
+Note: As with [=verify and store=], a store always requires the complete bytes, including when the
+entry is already "`written`", so it reveals nothing about prior presence. The integration's lookup
+before its network fetch is a read, subject to [[#availability-gating|availability gating]] and to
+the probing considerations in [[#cross-site-probing]].
 
 ## Resource visibility upgrades ## {#resource-visibility-upgrades}
 
@@ -1066,12 +1122,29 @@ operator of the origin whose bytes are being disclosed rather than to injected c
 specification defines a response header that bounds which origins such a declaration may name.
 
 The <dfn export http-header>`Cross-Origin-Storage-Allow-Origin`</dfn> response header carries a
-<dfn>COS scope ceiling</dfn>: a [=set=] of [=/origins=] that an
-{{CrossOriginStorageManager/requestFileHandle()}} write from, or a host integration loading
-into, the disclosing environment may name in a non-same-site [=COS entry/origins=] [=list=]. A
-declared [=list=] is not honored as given; it is [=set/intersection|intersected=] with the ceiling
-(see [=complete a create request=]), so the ceiling can only ever narrow a declaration, never
-widen or create one.
+<dfn>COS scope ceiling</dfn>: a [=set=] of [=/origins=] that a write may name in a non-same-site
+[=COS entry/origins=] [=list=]. The header is read from the [=/response=] that supplies the bytes
+being disclosed:
+
+* For a {{CrossOriginStorageManager/requestFileHandle()}} write, whose bytes may be generated in
+  script and have no originating [=/response=] of their own, it is the [=/response=] used to
+  create the calling [=global object=]'s {{Document}}, or, for a worker, those of the
+  {{Document}}s that own it (see [=obtain the COS scope ceiling=]).
+* For a host integration, it is the [=/response=] of the fetched resource whose bytes are stored
+  (see [=store a fetched resource in Cross-Origin Storage=]). This is the resource's server, which
+  need not be the server of the {{Document}} that loads it.
+
+A declared [=list=] is not honored as given; it is [=set/intersection|intersected=] with the
+ceiling (see [=apply a COS scope ceiling=]), so the ceiling can only ever narrow a declaration,
+never widen or create one.
+
+Note: The header is an authorization by the side that supplies the bytes. The origins it names,
+the eventual readers, are not consulted and send nothing: a listed origin takes part only later,
+by calling {{CrossOriginStorageManager/requestFileHandle()}} for the [=COS hash=] like any other
+reader. This runs in the opposite direction from `Access-Control-Allow-Origin` [[FETCH]], where the
+server holding a resource opts in to a given origin reading it. Here the supplier of the bytes
+bounds who can later read them from Cross-Origin Storage, and injected content on the writing
+page cannot extend that bound, because it cannot set the supplier's response headers.
 
 Note: The header applies only to the [=list=] form. The same-site default names no cross-origin
 recipients and so needs no authorization, and the "`*`" form is governed at the read path by
@@ -1139,6 +1212,27 @@ To <dfn>obtain the COS scope ceiling</dfn> given a [=global object=] |global|, r
 
 </div>
 
+<div algorithm>
+To <dfn>apply a COS scope ceiling</dfn> given a [=list=] of [=/origins=] |requestedOrigins| and a
+[=set=] of [=/origins=] |ceiling|, return a [=list=] of [=/origins=] or null:
+
+1. [=list/Remove=] from |requestedOrigins| each [=/origin=] that |ceiling| does not
+   [=set/contain=].
+
+   Note: A recipient missing from the [=COS scope ceiling=] is dropped rather than failing the
+   write, matching how an over-length upgrade drops its excess in
+   [=upgrade resource visibility=]. The user agent is expected to log a console warning naming
+   each dropped [=/origin=].
+1. If |requestedOrigins| [=list/is empty=], return null.
+
+   Note: A [=list=] every one of whose members was dropped leaves the write with no authorized
+   cross-origin recipient, so it falls back to the same-site default rather than to the
+   strictly-narrower empty [=list=] (which would exclude even same-site readers). The bytes are
+   still stored; only the unauthorized disclosure is withheld.
+1. Return |requestedOrigins|.
+
+</div>
+
 Every {{Document}} has a <dfn for="Document">COS scope ceiling</dfn>, a [=set=] of [=/origins=],
 set when the document is created to the result of running [=parse a COS scope ceiling=] given the
 [=/header list=] of the [=/response=] used to create it.
@@ -1153,12 +1247,13 @@ would be empty for every worker, and moving a list-scoped write into
 page's authorization; intersecting the owners' ceilings preserves it without letting any single
 owner widen it.
 
-Issue: Populating a {{Document}}'s [=Document/COS scope ceiling=] from its [=/response=], and
-establishing the equivalent ceiling for each host integration from the [=/response=] whose
-bytes are stored, requires hooks in the host specifications, the same way
-[[permissions-policy]] and [[CSP]] are populated at response processing time. Until those hooks
-exist, this section describes the required behavior directly; a future revision is expected to
-integrate it formally, alongside the [[FS]] hook noted in [[#creating-and-writing-files]].
+Issue: Populating a {{Document}}'s [=Document/COS scope ceiling=] from its [=/response=] requires
+a hook in [[HTML]]'s document creation steps, the same way [[permissions-policy]] and [[CSP]] are
+populated at response processing time. Until that hook exists, this section describes the
+required behavior directly; a future revision is expected to integrate it formally, alongside the
+[[FS]] hook noted in [[#creating-and-writing-files]]. Host integrations need no such hook: they
+pass the fetched [=/response=] to [=store a fetched resource in Cross-Origin Storage=], which reads
+the ceiling from it.
 
 # Privacy and security considerations # {#privacy-and-security-considerations}
 
@@ -1344,7 +1439,11 @@ import attribute value, and a CSS modifier argument can only carry text.
 All four forms are expected to share the processing model of first consulting the [=COS
 registry=] for a matching, disclosable entry before falling back to a network fetch, and of
 storing a successfully fetched and integrity-verified resource into the [=COS registry=] for reuse
-by other origins, exactly as {{CrossOriginStorageManager/requestFileHandle()}} does. Discussion of
+by other origins, exactly as {{CrossOriginStorageManager/requestFileHandle()}} does. The store step
+is [=store a fetched resource in Cross-Origin Storage=], which each integration runs with the
+fetched [=/response=]. A restricted origins value is therefore bounded by the
+`Cross-Origin-Storage-Allow-Origin` header on that resource's response, sent by the server that
+supplies the bytes (see [[#allow-origin-header]]). Discussion of
 these integrations belongs in the tracker of the host specification that would carry them,
 not in this repository's issue tracker.
 
