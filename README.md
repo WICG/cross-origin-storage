@@ -47,7 +47,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
   - [Use case 4: Game engines](#use-case-4-game-engines)
   - [Use case 5: Large web fonts](#use-case-5-large-web-fonts)
 - [Potential solution](#potential-solution)
-  - [File Storage Process](#file-storage-process)
+  - [The imperative API](#the-imperative-api)
     - [COS entry](#cos-entry)
     - [Storing files](#storing-files)
     - [Resource visibility upgrades](#resource-visibility-upgrades)
@@ -203,7 +203,7 @@ Web fonts—especially large icon fonts, emoji fonts, and fonts with extensive U
 
 ## Potential solution
 
-### File Storage Process
+### The imperative API
 
 The **COS** API will be available through the `navigator.crossOriginStorage` interface. Files will be stored and retrieved based on their hashes, ensuring that each file is uniquely identified.
 
