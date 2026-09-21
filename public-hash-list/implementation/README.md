@@ -218,7 +218,7 @@ plenty of server-only repos.
 | [Transformers.js](https://huggingface.co/docs/transformers.js) | `transformers.js` | `.onnx` | `tokenizer.json` |
 | [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) | `onnx` | `.onnx` | `tokenizer.json` |
 | [WebLLM](https://webllm.mlc.ai/) | `mlc-llm` | `params_shard_<n>.bin` | `tokenizer.json` |
-| [LiteRT.js](https://ai.google.dev/edge/litert) / [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/guide) | `litert`, `tflite` | `.tflite`, `.task`, `.litertlm` | — |
+| [LiteRT.js](https://developers.google.com/edge/litert) / [MediaPipe](https://developers.google.com/edge/mediapipe/solutions/guide) | `litert`, `tflite` | `.tflite`, `.task`, `.litertlm` | — |
 | [wllama](https://github.com/ngxson/wllama) / llama.cpp-WASM | `gguf` | `.gguf` (≤ 20 GiB) | — |
 
 Two of those patterns are deliberately narrow. A bare `.bin` is far too generic
