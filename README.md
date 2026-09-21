@@ -34,7 +34,6 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
 <!-- Table of Contents -->
 
 - [Introduction](#introduction)
-- [Risk awareness](#risk-awareness)
 - [Goals](#goals)
 - [Non-goals](#non-goals)
 - [User research](#user-research)
@@ -126,11 +125,6 @@ try {
 }
 ```
 
-## Risk awareness
-
-> [!CAUTION]
-> The authors acknowledge that storage is usually isolated by origin to safeguard user security and privacy. Storing large resources such as AI models separately for each origin, as required by new [use cases](#use-cases), presents a significant scalability and efficiency challenge. For instance, if both `example.com` and `example.org` each require the same 8&nbsp;GB AI model, this would result in 16&nbsp;GB of downloaded data and a total allocation of 16&nbsp;GB on the user's device. This proposal introduces mechanisms that uphold protection standards while addressing the inefficiencies of duplicated downloads and storage.
-
 ## Goals
 
 COS aims to:
@@ -180,7 +174,7 @@ In their [standards position](https://github.com/mozilla/standards-positions/iss
 
 ### Use case 1: Large AI models
 
-Developers working with large AI models can store these models once and access them across multiple web applications. By using the COS API, models can be stored and retrieved based on their hashes, minimizing repeated downloads and storage, ensuring file integrity. An example is Google's [Gemma 2](https://huggingface.co/google/gemma-2-2b/tree/main) model [`g-2b-it-gpu-int4.bin`](https://storage.googleapis.com/jmstore/kaggleweb/grader/g-2b-it-gpu-int4.bin) (1.35&nbsp;GB). Another example is Google's [Gemma 1.1 7B](https://huggingface.co/google/gemma-1.1-7b-it) model `gemma-1.1-7b-it` (8.60&nbsp;GB), which can be [run in the browser](https://research.google/blog/unlocking-7b-language-models-in-your-browser-a-deep-dive-with-google-ai-edges-mediapipe/). Yet another example is the [`Llama-3.1-70B-Instruct-q3f16_1-MLC`](https://huggingface.co/mlc-ai/Llama-3.1-70B-Instruct-q3f16_1-MLC/tree/main) model (33&nbsp;GB), which [likewise runs in the browser](https://chat.webllm.ai/) (choose the "Llama 3.1 70B Instruct" model in the picker).
+Developers working with large AI models can store these models once and access them across multiple web applications. By using the COS API, models can be stored and retrieved based on their hashes, minimizing repeated downloads and storage, while ensuring file integrity. For examples of web-runnable models, see the [WebLLM Chat](https://chat.webllm.ai/) app.
 
 ### Use case 2: Large Wasm modules
 
@@ -217,9 +211,9 @@ The **COS** API will be available through the `navigator.crossOriginStorage` int
 
 Each resource stored in COS is conceptually represented as an entry with the following fields:
 
-- **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
+- **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
 - **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError`.
-- **`origins`**: the declared sharing scope. Internally this is two independent, additive grants, not a single value: an **explicit origins list** (a possibly-empty list of origins granted PHL-independent access) and a **globally disclosable** boolean (whether the entry was written with `'*'`, granting access to any origin whose request clears the PHL). A write requests one of `'*'`, a list of origin strings, or nothing (same-site only), and that request is merged into the grants; every entry additionally always grants access to its storing origins and their same-site origins. Both grants only ever grow, never shrink, which is what makes visibility "upgradeable but never downgradeable" literally true: a later `'*'` write adds the global grant *on top of* an existing list rather than replacing it, so an origin already on the list keeps its access. A list of origin strings has an implementation-defined maximum length, so it can't be used as an undeclared substitute for `'*'` (see [Storing files](#storing-files) and [Cross-site probing](#cross-site-probing)), and the list form is additionally bounded by a `Cross-Origin-Storage-Allow-Origin` response header, so injected script cannot disclose an origin's data to an origin the operator never authorized (see [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header)). See [Resource visibility upgrades](#resource-visibility-upgrades).
+- **`origins`**: the declared sharing scope. Internally this is two independent, additive grants: an **explicit origins list** (a possibly-empty list of origins granted PHL-independent access) and a **globally disclosable** boolean (whether the entry was written with `'*'`, granting access to any origin whose request clears the PHL). A write requests one of `'*'`, a list of origin strings, or nothing (same-site only), and that request is merged into the grants; every entry additionally always grants access to its storing origins and their same-site origins. Both grants only ever grow, never shrink, which is what makes visibility "upgradeable but never downgradeable": a later `'*'` write adds the global grant *on top of* an existing list rather than replacing it, so an origin already on the list keeps its access. See [Resource visibility upgrades](#resource-visibility-upgrades). A list of origin strings has an implementation-defined maximum length, so it can't be used as an undeclared substitute for `'*'` (see [Storing files](#storing-files) and [Cross-site probing](#cross-site-probing)), and the list form is additionally bounded by a `Cross-Origin-Storage-Allow-Origin` response header, so injected script cannot disclose an origin's data to an origin the operator never authorized (see [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header)).
 - **`storing origins`**: the set of origins that have successfully written this entry. An origin in `storing origins` may always retrieve the entry via `requestFileHandle()`, regardless of the `origins` field value or whether the hash is on the PHL.
 
 `storing origins` is persisted across page loads and grows each time a new origin successfully writes the entry; it is never shrunk. If origin A writes a file restricted to `['https://a.example']` and origin B later writes the same hash with `origins: '*'`, both A and B are in `storing origins`, the entry becomes globally disclosable, **and it keeps its explicit list**: `https://a.example` still reads it without the hash needing to be on the PHL, exactly as before B's write, while other origins now reach it only if the hash is on the PHL. Because the global grant is stored separately from the list rather than overwriting it, B cannot revoke the access A granted. Each writer must supply the full file bytes regardless of whether the entry already exists, which prevents any origin from using a write operation to detect prior presence.
