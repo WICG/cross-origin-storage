@@ -145,17 +145,22 @@
           <label
             ><span>Attack channel</span>
             <select id="channel">
-              <option value="read">read (probe what is already cached)</option>
               <option value="write">write (plant a chosen identifier)</option>
+              <option value="read" selected>
+                read (probe what is already cached)
+              </option>
               <option value="budget">
                 budget (do the proposed rules hold?)
               </option>
             </select>
           </label>
           <p class="note">
-            Read is the probing attack of &sect;&sect;1&ndash;12. Write turns
-            COS into a store: the tracker writes a chosen pattern on site A and
-            reads it back on site B. See &sect;13 of
+            Write turns COS into a store: the tracker writes a chosen pattern on
+            site A and reads it back on site B (&sect;13). Read is the probing
+            attack of &sect;&sect;1&ndash;12. Budget checks whether the rules
+            proposed in
+            <a href="proposed-solution.md">proposed-solution.md</a> hold. The
+            models are in
             <a href="probing-attack-model.md">probing-attack-model.md</a>.
           </p>
         </fieldset>

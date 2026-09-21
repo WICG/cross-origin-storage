@@ -878,9 +878,10 @@ Four things bound it, with a fifth that looks like a bound and is weak.
 
 The mitigations are developed in part two,
 [`proposed-solution.md`](proposed-solution.md), which digests them into four rules and works
-through what each one costs. In outline: a per-origin budget on the lookups that cross a site
-boundary, a user-gesture gate on the step that makes a written file shareable, a counter that
-survives page reloads, and a write limit that counts small files and weighs large ones by size.
+through what each one costs. In outline: a budget on the lookups that cross a site boundary,
+keyed on the top-level site so every frame shares one pot (F12), a user-gesture gate on the step
+that makes a written file shareable, a counter that survives page reloads, and a write limit that
+counts small files and weighs large ones by size.
 
 One limit frames all of them. COS's value over a partitioned HTTP cache plus internal
 single-instance storage is exactly one thing: letting site B skip a download because site A

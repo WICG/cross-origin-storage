@@ -16,7 +16,7 @@ The work is in two parts, plus the simulator behind both.
 | --- | --- | --- |
 | **Part one: the problem** | [`probing-attack-model.md`](probing-attack-model.md) | The models, the calibration against the real published list, and the results. |
 | **Part two: the proposed solution** | [`proposed-solution.md`](proposed-solution.md) | Four rules that bound the attack, in plain terms, with what each one costs. **Start here** for the conclusions. |
-| The simulator | [`probing-simulator.html`](probing-simulator.html) | What both parts draw on. Three channels: the read attack, the write attack, and a budget model that checks whether the proposed rules hold. Open it in a browser; no build step, no dependencies, no network access. |
+| The simulator | [`probing-simulator.html`](probing-simulator.html) | What both parts draw on. Three channels: the write attack, the read attack, and a budget model that checks whether the proposed rules hold. Open it in a browser; no build step, no dependencies, no network access. |
 
 ## The attack
 
@@ -59,19 +59,20 @@ Presets in the scenario dropdown reproduce each result in §12 of the model docu
 ## Headline results
 
 The [Results](probing-attack-model.md#12-results) section of part one has the numbers and the
-caveats. In short: the k-anonymity gate does the job it was designed for, and does it with margin, but
-it only governs one tier of the list and only one of the four threat models; strategic probe
-selection is worth about 50× the probe budget over random selection; and GREASE'ing's value
-depends almost entirely on a keying choice the specification does not currently make.
+caveats.
 
-Composing two gated resources leaves the gate intact: at the real threshold of 100 hosts, no
-simulated device was pinned to a site.
+The write channel (§13) is the sharper concern: a storing-origin write plants 143 bits of chosen,
+cross-site, GREASE-immune state in 275 KB, and a global-grant write plants a whole-web identifier
+in 48 KB. Cross-site download elision and the tracking oracle are the same bit, so closing the
+channel fully costs the feature; a budget keyed on the top-level site is the interior fix that
+keeps the AI use case.
 
-The write channel (§13) is the sharper concern: a storing-origin write plants 143 bits of
-chosen, cross-site, GREASE-immune state in 275 KB, and the global-grant write of the prompt's
-attack plants a whole-web identifier in 48 KB. Cross-site download elision and the tracking
-oracle are the same bit, so closing the channel fully costs the feature; a per-origin budget on
-distinct cross-site-disclosed hashes is the interior fix that keeps the AI use case.
+On the read channel, the k-anonymity gate does the job it was designed for, and does it with
+margin, though it governs only one tier of the list and only one of the four threat models.
+Strategic probe selection is worth about 50× the probe budget over random selection, and
+GREASE'ing's value depends almost entirely on a keying choice the specification does not
+currently make. Composing two gated resources leaves the gate intact: at the real threshold of
+100 hosts, no simulated device was pinned to a site.
 
 ## The proposal in one paragraph
 
