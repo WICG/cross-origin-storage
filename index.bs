@@ -438,6 +438,12 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
       disclosed to an origin that qualifies through this grant alone; an origin that also appears
       among [=COS entry/storing origins=], their same-site set, or the explicit
       [=COS entry/origins=] [=list=] has already returned above.
+   1. If the user agent elects to apply [[#greasing|GREASE'ing]] to this request, return null.
+
+      Note: GREASE'ing also applies only to the global grant. The grants checked above never
+      reach this step: storing origins and their same-site origins are one trust unit, and an
+      origin on the explicit [=COS entry/origins=] [=list=] was named on purpose by a writer whose
+      `Cross-Origin-Storage-Allow-Origin` header authorized it.
    1. Return |entry|.
 1. Return null.
 
@@ -447,12 +453,7 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
 To <dfn>apply availability gating</dfn> given a [=COS entry=] or null |entry|, and an
 [=/origin=] |origin|, return a [=COS entry=] or null:
 
-1. Let |disclosable| be the result of running [=determine COS disclosure=] given |entry| and
-   |origin|.
-1. If |disclosable| is null, return null.
-1. If |origin| is in |disclosable|'s [=COS entry/storing origins=], return |disclosable|.
-1. If the user agent elects to apply [[#greasing|GREASE'ing]] to this request, return null.
-1. Return |disclosable|.
+1. Return the result of running [=determine COS disclosure=] given |entry| and |origin|.
 
 </div>
 
@@ -1329,9 +1330,8 @@ Whether a {{CrossOriginStorageManager/requestFileHandle()}} read from an origin 
 *allowed* to read the entry, governed by [=COS entry/origins=]. For a "`*`"-scoped entry, a second,
 independent question also applies: whether the user agent is willing to *disclose that the entry
 exists at all*, governed by [=on the PHL|PHL membership=] and [[#greasing|GREASE'ing]]. Both must
-hold for such an entry; for a list- or same-site-scoped entry, only the first question applies,
-though GREASE'ing may still suppress a disclosure that [=COS entry/origins=] would otherwise
-permit. See [[#reading-files]] for the normative algorithm. A "{{NotFoundError}}" is therefore not
+hold for such an entry; for a list- or same-site-scoped entry, only the first question applies.
+See [[#reading-files]] for the normative algorithm. A "{{NotFoundError}}" is therefore not
 proof that a resource is absent: it may mean the resource does not exist, that the requesting
 origin is out of scope, that a "`*`"-scoped resource's hash is not (yet, or ever) on the PHL, or
 that GREASE'ing suppressed a true positive. Developers must not treat "{{NotFoundError}}" as
@@ -1354,6 +1354,11 @@ a disclosable entry were absent, even though [[#availability-gating]] would othe
 permit disclosure. This adds noise that makes it harder for a site to distinguish a true absence
 from a privacy-motivated false negative, similar to the technique applied by
 [[ua-client-hints|UA Client Hints]].
+
+GREASE'ing applies only to an origin that qualifies through the [=COS entry/globally disclosable=]
+grant alone, the same case the [=Public Hash List=] gates (see [=determine COS disclosure=]). A
+user agent must not apply it to [=COS entry/storing origins=], to origins [=same site=] with them,
+or to origins on the explicit [=COS entry/origins=] [=list=].
 
 A user agent applying GREASE'ing must do so with judgement proportionate to the size of the entry
 in question. For small entries, where falling back to a network fetch is inexpensive, an occasional

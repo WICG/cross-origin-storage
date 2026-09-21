@@ -206,7 +206,7 @@ Web fonts—especially large icon fonts, emoji fonts, and fonts with extensive U
 
 The **COS** API will be available through the `navigator.crossOriginStorage` interface. Files will be stored and retrieved based on their hashes, ensuring that each file is uniquely identified.
 
-Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of widespread resources  on the web that having one of them cached reveals nothing about which sites the user visited. Even when all of that holds, the user agent may occasionally answer as if the file were absent, a technique called [GREASE'ing](#greaseing), so a "not found" result never proves the file is missing. [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
+Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of widespread resources  on the web that having one of them cached reveals nothing about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing), so a "not found" result never proves the file is missing. [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
 
 #### COS entry
 
@@ -1160,6 +1160,8 @@ Developers must NOT rely on a `NotFoundError` as definitive proof that a file is
 
 As an additional privacy mitigation, user agents may employ **GREASE'ing** ([Generate Random Extensions And Sustain Extensibility](https://tools.ietf.org/html/draft-ietf-tls-grease)): occasionally returning a `NotFoundError` `DOMException` even when a file is present in COS. This introduces noise that makes it harder for sites to distinguish a true absence from a privacy-motivated false negative. A similar technique is applied in [UA Client Hints](https://wicg.github.io/ua-client-hints/#grease).
 
+GREASE'ing applies only to origins that reach an entry through `origins: '*'`, the same case the PHL gates. Storing origins, their same-site origins, and origins on an explicit `origins` list are never GREASEd: same-site origins are one trust unit, and a listed origin was named on purpose by the storing site and authorized by its `Cross-Origin-Storage-Allow-Origin` header, so withholding the file from them would only cost a re-download.
+
 However, user agents must exercise size-proportionate judgment when applying GREASE'ing. For small files, where a fallback to a network fetch is inexpensive, occasional false negatives are a reasonable privacy trade-off. For very large files—such as gigabyte-scale AI model weights—a false negative would force the caller to perform a full re-download, imposing a significant and observable bandwidth and latency cost on the user. User agents must NOT GREASE responses for files whose size makes a spurious re-download clearly disproportionate to the privacy benefit.
 
 #### API response reference
@@ -1174,17 +1176,15 @@ The rows are keyed by *how the requesting origin qualifies*, and the grants are 
 | -- | -- | -- | -- |
 | (entry created, not yet written) | — | — | `NotAllowedError` |
 | Storing origin | — | — | Success |
-| Same-site of a storing origin | — | No | Success |
-| Same-site of a storing origin | — | Yes | `NotFoundError` |
-| On the explicit `origins` list | — | No | Success |
-| On the explicit `origins` list | — | Yes | `NotFoundError` |
+| Same-site of a storing origin | — | — | Success |
+| On the explicit `origins` list | — | — | Success |
 | Global grant only (`origins: '*'`) | Yes | No | Success |
 | Global grant only (`origins: '*'`) | Yes | Yes | `NotFoundError` |
 | Global grant only (`origins: '*'`) | No | — | `NotFoundError` |
 | No qualifying grant (out of scope) | — | — | `NotFoundError` |
 | Not in COS | — | — | `NotFoundError` |
 
-The PHL is consulted only for an origin that qualifies *solely* through the global grant; the storing-origin, same-site, and explicit-list rows never consult it, which is why their "On PHL?" cells show "—". A storing origin always succeeds, independent of PHL, `origins`, or GREASE'ing — see [Original storer access](#resource-visibility-upgrades). GREASE'ing can turn any non-storing success into a `NotFoundError`.
+The PHL is consulted only for an origin that qualifies *solely* through the global grant; the storing-origin, same-site, and explicit-list rows never consult it, which is why their "On PHL?" cells show "—". The same holds for GREASE'ing: it can turn only a success through the global grant into a `NotFoundError`, so those rows show "—" under "GREASEd?" too. A storing origin always succeeds, independent of PHL, `origins`, or GREASE'ing — see [Original storer access](#resource-visibility-upgrades).
 
 The "Created, not yet written" row applies both to a fresh `requestFileHandle()` call for that hash and to calling `getFile()` on a `FileSystemFileHandle` that was itself obtained from a still-pending `create: true` request; see [Concurrent writes](#concurrent-writes).
 
