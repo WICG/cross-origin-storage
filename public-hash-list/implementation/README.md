@@ -6,17 +6,17 @@
 # Public Hash List
 
 Scrapes popular CDN catalogs and npm popularity rankings, downloads web-relevant
-files (`.js`, `.css`, `.wasm`, web fonts, `.json`, `.svg`, pre-compressed `.gz`),
-and computes each file's SHA-256 hash. The output is the **Public Hash List
-(PHL)** — a [Public Suffix List](https://github.com/publicsuffix/list)-style flat
-file that serves as the availability-gating allowlist for the
-[Cross-Origin Storage (COS) API](https://wicg.github.io/cross-origin-storage/),
-a content-addressable cache for the web.
+files (`.js`, `.css`, `.wasm`, web fonts, `.json`, `.svg`, pre-compressed
+`.gz`), and computes each file's SHA-256 hash. The output is the **Public Hash
+List (PHL)**: a [Public Suffix List](https://github.com/publicsuffix/list)-style
+flat file that serves as the availability-gating allowlist for the [Cross-Origin
+Storage (COS) API](https://wicg.github.io/cross-origin-storage/), a
+content-addressable cache for the web.
 
 The hash algorithm is currently **SHA-256** (matching COS's requirement that a
 hash value be a 64-character lowercase hex string), but the format carries the
-algorithm explicitly so it can migrate later without a redesign — see
-[Output format](#output-format).
+algorithm explicitly so it can migrate later without a redesign; see [Output
+format](#output-format).
 
 ## Relationship to the official PHL proposal
 
@@ -25,16 +25,16 @@ formally written up in the [PHL explainer](../phl-explainer.md), the
 companion document to the Cross-Origin Storage explainer/spec this repository
 publishes. This directory is the proposal's **early implementation**.
 
-The explainer's [Governance](../phl-explainer.md#governance) section describes
-a target end state — a dedicated repository hosted under the WHATWG, with
-editors from at least two browser vendors and a file signed with WHATWG
-infrastructure keys — that this repository does not implement. Housing the
-implementation here, alongside the spec and the explainer, is a pragmatic
-interim step, not the destination: a single-vendor repository is exactly the
-kind of arrangement the target governance model exists to move away from.
-Until a dedicated, cross-vendor repository materializes, this directory is
-maintained informally, following the explainer's methodology (source
-selection, inclusion criteria, data format) as closely as practical.
+The explainer's [Governance](../phl-explainer.md#governance) section describes a
+target end state that this repository does not implement: a dedicated repository
+hosted under the WHATWG, with editors from at least two browser vendors and a
+file signed with WHATWG infrastructure keys. Housing the implementation here,
+alongside the spec and the explainer, is a pragmatic interim step, since a
+single-vendor repository is exactly the kind of arrangement the target
+governance model exists to move away from. Until a dedicated, cross-vendor
+repository materializes, this directory is maintained informally, following the
+explainer's methodology (source selection, inclusion criteria, data format) as
+closely as practical.
 
 ## Why this matters for Cross-Origin Storage
 
@@ -45,7 +45,7 @@ act as a cross-site tracking signal: if a file is rare or unique to a small
 number of sites, its presence in the cache reveals which sites a user has
 visited.
 
-The mitigation is an allowlist of _well-known_ resources — files so widely
+The mitigation is an allowlist of _well-known_ resources: files so widely
 deployed that their presence in the cache tells an attacker nothing specific
 about a user's browsing history. This project generates that allowlist by
 gathering SHA-256 hashes from hand-curated CDNs and ranking candidates by
@@ -56,21 +56,23 @@ set of sites to act as a cross-site identifier.
 
 ## This works today
 
-The [vite-plugin-cross-origin-storage](https://github.com/tomayac/vite-plugin-cross-origin-storage)
+The
+[vite-plugin-cross-origin-storage](https://github.com/tomayac/vite-plugin-cross-origin-storage)
 plugin demonstrates the full pipeline in practice: it splits bundled
 `node_modules` dependencies into per-package vendor chunks at build time,
 computes their SHA-256 hashes, and uses COS at runtime to serve those chunks
 from a shared cross-origin cache. Sites built with the plugin that share common
 dependencies (React, lodash, etc.) will find those chunks already cached across
-visits — no repeated downloads.
+visits, with no repeated downloads.
 
-[`danielroe/cross-origin-storage`](https://github.com/danielroe/cross-origin-storage)
-— the `nuxt-cos` Nuxt module and the Vite plugin it wraps — makes those chunks
+[`danielroe/cross-origin-storage`](https://github.com/danielroe/cross-origin-storage),
+the `nuxt-cos` Nuxt module and the Vite plugin it wraps, makes those chunks
 *reproducible*: the filename and inter-chunk references derive from a SHA-256 of
 the contents under a pinned build recipe, so two independent sites building the
-same dependency at the same version emit the same chunk with no central registry.
-That is what the [`nuxt-cos` source](#build-tool-source-nuxt-cos--vite-plugin-cross-origin-storage)
-covers — the one source here whose hashes are regenerated rather than downloaded.
+same dependency at the same version emit the same chunk with no central
+registry. That is what the [`nuxt-cos`
+source](#build-tool-source-nuxt-cos--vite-plugin-cross-origin-storage) covers:
+the one source here whose hashes are regenerated from a build recipe.
 
 The allowlist this project generates is otherwise the complement: it covers files
 loaded directly from public CDNs (as opposed to build-tool-generated chunks), and
@@ -90,41 +92,41 @@ COS sharing regardless of how they are currently loaded.
 | [YouTube Player](https://www.youtube.com/iframe_api) _(extends Chromium)_ | Discovers all historical player IDs from [nadeko.net](https://youtube-player-ids.nadeko.net/) in addition to the current one; hashes the same five file types per version that Chromium tracks (see below) | [`data/youtube-player-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/youtube-player-hashes.csv) |
 | [Google Maps JavaScript API](https://developers.google.com/maps/documentation/javascript) _(extends Chromium)_ | Probes all currently available quarterly versions (3.NN) via their versioned bootstrap URLs; hashes 34 JS files per version (23 on `maps.googleapis.com`, 11 on the `maps.google.com` mirror) including the files Chromium tracks plus additional API modules (see below) | [`data/google-maps-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/google-maps-hashes.csv) |
 | [Google Fonts](https://fonts.google.com) | Fetches all font families from the Google Fonts catalog (sorted by popularity); for each family, requests the CSS2 API with all weights and styles to discover versioned `fonts.gstatic.com` woff2 URLs; hashes every unique file. Requires `GOOGLE_FONTS_API_KEY` env var (free key from Google Cloud Console). | [`data/google-fonts-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/google-fonts-hashes.csv) |
-| [HTTP Archive](https://httparchive.org) | Reads the HTTP Archive's published query results (see [`queries/http-archive.sql`](queries/http-archive.sql)) directly from a stable HTTP Archive URL; takes hashes present on ≥100 independent origins (the k-anonymity gate is enforced in the query). No network downloads — the HTTP Archive crawl already provides the SHA-256 of every response body. | [`data/http-archive-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/http-archive-hashes.csv) |
+| [HTTP Archive](https://httparchive.org) | Reads the HTTP Archive's published query results (see [`queries/http-archive.sql`](queries/http-archive.sql)) directly from a stable HTTP Archive URL; takes hashes present on ≥100 independent origins (the k-anonymity gate is enforced in the query). No network downloads: the HTTP Archive crawl already provides the SHA-256 of every response body. | [`data/http-archive-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/http-archive-hashes.csv) |
 | [nuxt-cos / vite-plugin-cross-origin-storage](https://github.com/danielroe/cross-origin-storage) | Reproduces the content-addressed COS chunks the Nuxt/Vite integration emits, by running the real published plugin over a matrix of plugin releases × `vue` releases. No download: these bytes exist only in site builds, and are regenerated here from the pinned build recipe; see [Build-tool source](#build-tool-source-nuxt-cos--vite-plugin-cross-origin-storage) | [`data/nuxt-cos-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/nuxt-cos-hashes.csv) |
-| [Hugging Face Hub](https://huggingface.co) _(hand-curated, optional)_ | Lists the most-downloaded **web-runnable** models — those tagged for an in-browser runtime (Transformers.js, ONNX Runtime Web, WebLLM, LiteRT.js/MediaPipe, wllama) — and hashes only the file formats those runtimes load (`.onnx`, `.gguf`, `.tflite`, `.task`, `.litertlm`, MLC `params_shard_*.bin`) plus the `tokenizer.json` those runtimes fetch alongside them; see [Model-hub source](#model-hub-source-hugging-face) | [`data/huggingface-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/huggingface-hashes.csv) |
+| [Hugging Face Hub](https://huggingface.co) _(hand-curated, optional)_ | Lists the most-downloaded **web-runnable** models (those tagged for an in-browser runtime: Transformers.js, ONNX Runtime Web, WebLLM, LiteRT.js/MediaPipe, wllama) and hashes only the file formats those runtimes load (`.onnx`, `.gguf`, `.tflite`, `.task`, `.litertlm`, MLC `params_shard_*.bin`) plus the `tokenizer.json` those runtimes fetch alongside them; see [Model-hub source](#model-hub-source-hugging-face) | [`data/huggingface-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/huggingface-hashes.csv) |
 | Manual additions | Hand-curated entries proposed via pull request and reviewed against the ubiquity criteria; see [`manual-additions.json`](manual-additions.json) and [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | [`data/manual-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/manual-hashes.csv) |
 
 The first ten sources are **objective**: a resource qualifies mechanically, with
-no per-entry judgement — nine through a real-world popularity signal (CDN request
-volume, npm downloads, cross-CDN byte-identity, or browser-vendor vetting), and
-the tenth (`nuxt-cos`) through byte-for-byte reproducibility from a public,
-pinned build recipe. The Hugging Face and manual sources
-are different — **hand-curated** — and each land in their own section of the
-output; see [Model-hub source](#model-hub-source-hugging-face) and
-[Manual additions](#manual-additions). This source set is not fixed: unpkg and
+no per-entry judgment. Nine qualify through a real-world popularity signal (CDN
+request volume, npm downloads, cross-CDN byte-identity, or browser-vendor
+vetting), and the tenth (`nuxt-cos`) through byte-for-byte reproducibility from
+a public, pinned build recipe. The Hugging Face and manual sources are
+**hand-curated**, and each lands in its own section of the output; see
+[Model-hub source](#model-hub-source-hugging-face) and [Manual
+additions](#manual-additions). This source set is not fixed: unpkg and
 additional web-font providers are obvious future additions, and adding one is a
-governance action, not a format change.
+governance action that needs no format change.
 
 ## Output format
 
 The canonical, continuously updated output is the Public Hash List at
 [`data/public-hash-list.dat`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/public-hash-list.dat),
-a flat text file modeled on the Public Suffix List. Everything under `data/`
-is stored with [Git LFS](https://git-lfs.com/), so `raw.githubusercontent.com`
-links resolve to an LFS pointer, not the file content; fetch the real bytes from
+a flat text file modeled on the Public Suffix List. Everything under `data/` is
+stored with [Git LFS](https://git-lfs.com/), so `raw.githubusercontent.com`
+links resolve only to an LFS pointer; fetch the real bytes from
 `media.githubusercontent.com` instead, e.g.
 [`media.githubusercontent.com/media/WICG/cross-origin-storage/refs/heads/main/public-hash-list/implementation/data/public-hash-list.dat`](https://media.githubusercontent.com/media/WICG/cross-origin-storage/refs/heads/main/public-hash-list/implementation/data/public-hash-list.dat).
 
-The design rationale: a user
-agent needs exactly one thing at runtime — _given a hash, is it on the list?_ —
-so the machine-readable payload is just bare lowercase SHA-256 digests, one per
-line. Everything else (which source vouched for an entry, a representative URL)
-is provenance for humans and auditors, carried in `//` comment lines that parsers
-ignore. This is the same split the PSL uses, it diffs cleanly line-by-line, and
-it deliberately drops the `sources`, `mirror_count`, and `first_seen` columns an
-earlier CSV used: the first two are build-time inputs, and `first_seen` is
-effectively unknowable from a snapshot scrape.
+The design rationale: a user agent needs exactly one thing at runtime (_given a
+hash, is it on the list?_), so the machine-readable payload is just bare
+lowercase SHA-256 digests, one per line. Everything else (which source vouched
+for an entry, a representative URL) is provenance for humans and auditors,
+carried in `//` comment lines that parsers ignore. This is the same split the
+PSL uses, it diffs cleanly line-by-line, and it deliberately drops the
+`sources`, `mirror_count`, and `first_seen` columns an earlier CSV used: the
+first two are build-time inputs, and `first_seen` is effectively unknowable from
+a snapshot scrape.
 
 ```
 // Public Hash List (PHL)
@@ -156,40 +158,39 @@ effectively unknowable from a snapshot scrape.
 Entries are sorted by hash, so all mirrors of one file collapse to a single
 entry whose comment lists every source that vouched for it (the jQuery example
 above is byte-identical across four independent catalogs). Keying by **content
-hash rather than URL** is deliberate and is why those four mirrors are one row,
-not four.
+hash** is deliberate and is why those four mirrors are one row.
 
-**Algorithm agility.** The algorithm is declared by the section delimiter
-(`===BEGIN SHA-256===`) rather than per line, so a future migration is additive:
-a parallel `===BEGIN SHA-384===` section can coexist during a transition and one
-file serves both old and new user agents.
+**Algorithm agility.** The algorithm is declared once by the section delimiter
+(`===BEGIN SHA-256===`), so a future migration is additive: a parallel `===BEGIN
+SHA-384===` section can coexist during a transition and one file serves both old
+and new user agents.
 
-The per-source `*-hashes.csv` files are intermediate inputs to the combined list;
-they remain CSV (`sha256,url`, sorted by hash) and are regenerated by running
-each source. Fields are escaped per [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180)
-§2 — quoted when the value contains a comma, a double quote, CR, or LF, with
-embedded quotes doubled — because the `url` column carries whatever the upstream
-publisher named the file, and real URLs do contain commas (query strings that
-list bundled modules, `it,en/` locale directories). Records are LF-terminated
-rather than the RFC's CRLF: every parser accepts LF, and these files are read
-and diffed in git. All sources share one writer, `writeHashCsv` in
-[`shared.js`](shared.js).
+The per-source `*-hashes.csv` files are intermediate inputs to the combined
+list; they remain CSV (`sha256,url`, sorted by hash) and are regenerated by
+running each source. Fields are escaped per [RFC
+4180](https://www.rfc-editor.org/rfc/rfc4180) §2 (quoted when the value contains
+a comma, a double quote, CR, or LF, with embedded quotes doubled), because the
+`url` column carries whatever the upstream publisher named the file, and real
+URLs do contain commas (query strings that list bundled modules, `it,en/` locale
+directories). Records are LF-terminated, where the RFC specifies CRLF: every
+parser accepts LF, and these files are read and diffed in git. All sources share
+one writer, `writeHashCsv` in [`shared.js`](shared.js).
 
 ### Model-hub source (Hugging Face)
 
 The objective sources all rest on a measurable popularity signal. AI model
-weights — COS's headline use case — do not fit that mold: a specific model build
+weights, COS's headline use case, do not fit that mold: a specific model build
 may be hugely valuable to deduplicate yet appear on only a handful of sites, so
 it would never clear a popularity threshold. The model-hub source therefore
-qualifies entries on a different basis — _published on a recognized public model
-hub_ — and places them in a separate, optional `===BEGIN SHA-256 HUGGING-FACE===`
+qualifies entries on a different basis, _published on a recognized public model
+hub_, and places them in a separate, optional `===BEGIN SHA-256 HUGGING-FACE===`
 section. The disclosure such an entry permits is coarse interest inference
-("this user runs in-browser AI models"), not identification of a specific site,
-because the artifacts are public hub downloads rather than site-unique secrets.
+("this user runs in-browser AI models"), because the artifacts are public hub
+downloads that identify no specific site.
 
 Because it departs from the objective bar, this section is **optional but
 strongly encouraged**: user agents **SHOULD** include it and **MAY** omit it.
-The catch is that the AI use case only pays off under uniform adoption — a user
+The catch is that the AI use case only pays off under uniform adoption: a user
 agent that includes the section lets multi-gigabyte weights be downloaded once
 and shared across origins, while one that omits it forces those downloads to
 repeat per origin. Uneven adoption therefore hands a real performance advantage
@@ -228,18 +229,18 @@ is matched, and in LiteRT/TFLite repos a `.bin` is overwhelmingly CoreML
 so `.bin` is not accepted for those runtimes at all.
 
 GGUF carries the one size gate. It is the only format here that is not
-web-exclusive — overwhelmingly a desktop llama.cpp / Ollama format, and its tag
-alone spans roughly 200,000 models — but the llama.cpp WebAssembly builds do run
+web-exclusive (overwhelmingly a desktop llama.cpp / Ollama format, and its tag
+alone spans roughly 200,000 models), but the llama.cpp WebAssembly builds do run
 it in a browser, so it is in scope. A **20 GiB per-file ceiling** keeps the
-section to shards a browser could plausibly fetch and cache, rather than the
-datacenter-scale quantizations that share the tag. The ceiling is per file, not
-per model: large GGUF models ship as numbered shards.
+section to shards a browser could plausibly fetch and cache, excluding the
+datacenter-scale quantizations that share the tag. The ceiling applies per file:
+large GGUF models ship as numbered shards.
 
 Candidates are paged **within each runtime tag** (top 2,000 by downloads each,
-unioned and capped at 10,000 models overall) rather than filtered out of a global
-most-downloaded list. That ordering matters: the Hub's global top is dominated by
-server-side models, so filtering after the fact would surface only a few hundred
-web-runnable models instead of the long tail that actually runs in a browser.
+unioned and capped at 10,000 models overall). That ordering matters: the Hub's
+global top is dominated by server-side models, so filtering a global
+most-downloaded list after the fact would surface only a few hundred
+web-runnable models and miss the long tail that actually runs in a browser.
 
 #### Sidecars: the tokenizer, and nothing else
 
@@ -247,28 +248,27 @@ Weights are not the only bytes a runtime fetches from the Hub. Transformers.js,
 the ONNX Runtime Web model wrappers, and WebLLM all fetch `tokenizer.json` at
 load time, and it is routinely megabytes: a **2.4 MiB median** across the ONNX
 repos already in this list, with a long tail past 16 MiB. Those are exactly the
-bytes COS exists to dedupe, and they repeat across repos — every derivative of a
-base model ships the same tokenizer — so the sidecar is hashed alongside the
+bytes COS exists to dedupe, and they repeat across repos (every derivative of a
+base model ships the same tokenizer), so the sidecar is hashed alongside the
 weights for the three runtimes that fetch it separately. GGUF files and LiteRT
 `.task` bundles embed their tokenizer in the container, so those two runtimes
 declare no sidecar.
 
-The rest of the JSON that sits next to a model — `config.json`,
-`tokenizer_config.json`, `preprocessor_config.json`, `generation_config.json` —
+The rest of the JSON that sits next to a model (`config.json`,
+`tokenizer_config.json`, `preprocessor_config.json`, `generation_config.json`)
 is deliberately excluded. Those are a couple of kilobytes apiece, where deduping
 saves nothing measurable and each digest still costs list size.
 
-A sidecar is only emitted for a repo whose weights actually reached the list —
-not merely a repo that had eligible weight files. A lone tokenizer has nothing
-to be loaded with, so a repo whose weights were all lost to the GGUF size cap or
-an unhashable fetch drops out entirely, and the rule also keeps
-`.safetensors`-only repos that happen to carry a web runtime's tag from entering
-through the side door.
+A sidecar is only emitted for a repo whose weights actually reached the list. A
+lone tokenizer has nothing to be loaded with, so a repo whose weights were all
+lost to the GGUF size cap or an unhashable fetch drops out entirely, and the
+rule also keeps `.safetensors`-only repos that happen to carry a web runtime's
+tag from entering through the side door.
 
 #### Hashing, and the download cache
 
 Hashes come from the Hub's repo-tree API, which returns each file's Git LFS
-`oid` — that `oid` **is** the file's SHA-256 — along with its size, one request
+`oid` (that `oid` **is** the file's SHA-256) along with its size, one request
 per model and no weights downloaded. Files below the Hub's LFS threshold are
 stored inline in git instead and carry no such digest (their bare `oid` is a git
 blob SHA-1), so those are hashed by fetching the bytes. That is where tokenizers
@@ -278,21 +278,21 @@ Those downloads go through the [download cache](#download-cache) every
 downloading source shares. This is the one source that cannot key its cache on
 the URL: `/resolve/main/` is a moving ref, so the same URL returns different
 bytes as a repo is updated. It keys on the git blob `oid` from the tree listing
-instead, which is a better key anyway — a pure function of the file's bytes, so
-a cached digest stays valid until the file actually changes and a changed file
-misses by construction rather than by expiry. The file's `size` rides along as
-the cache's tag and is checked on read.
+instead, which is a better key anyway: a pure function of the file's bytes, so a
+cached digest stays valid until the file actually changes, and a changed file
+misses by construction. The file's `size` rides along as the cache's tag and is
+checked on read.
 
 ### Manual additions
 
-Unlike the pipeline sources, manual additions are proposed by contributors,
-reviewed in a pull request against the same ubiquity bar the objective sources
-use, and merged by a maintainer. Once merged, `manual.js` reads
+Manual additions are proposed by contributors, reviewed in a pull request
+against the same ubiquity bar the objective sources use, and merged by a
+maintainer. Once merged, `manual.js` reads
 [`manual-additions.json`](manual-additions.json) and writes
 `data/manual-hashes.csv`; that CSV is woven into `public-hash-list.dat` by the
-main pipeline under the `===BEGIN SHA-256 MANUAL===` section. User agents **MUST**
-treat entries in this section as eligible — they carry the same semantics as the
-core section.
+main pipeline under the `===BEGIN SHA-256 MANUAL===` section. User agents
+**MUST** treat entries in this section as eligible, with the same semantics as
+the core section.
 
 Each entry in `manual-additions.json` follows this schema:
 
@@ -308,16 +308,16 @@ Each entry in `manual-additions.json` follows this schema:
 ```
 
 The `sha256` is the hash **of the file bytes at `url`** at time of submission.
-It is **not re-verified at build time** — the hash _is_ the identity, and a
+It is **not re-verified at build time**: the hash _is_ the identity, and a
 server changing the served bytes would produce a different hash that UAs would
 reject anyway. The `pr` field is the GitHub PR number that introduced the entry,
 or `null` before merge.
 
-**Inclusion bar**: the resource must be deployed across so many independent sites
-that its presence in a shared cache reveals nothing specific about a user's
-browsing history — the same bar the objective sources apply. Concrete signals
-help: estimated embedding count, CDN hit statistics, references in well-known
-open-source projects.
+**Inclusion bar**: the resource must be deployed across so many independent
+sites that its presence in a shared cache reveals nothing specific about a
+user's browsing history, the same bar the objective sources apply. Concrete
+signals help: estimated embedding count, CDN hit statistics, references in
+well-known open-source projects.
 
 To propose a new entry, open a pull request using the template at
 [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md), which
@@ -328,7 +328,7 @@ reviewers use to confirm ubiquity.
 
 ### jsDelivr (CDN hit count)
 
-jsDelivr's stats API ranks packages by actual CDN hit count — real browser
+jsDelivr's stats API ranks packages by actual CDN hit count: real browser
 requests to `cdn.jsdelivr.net`. A file that gets billions of CDN hits per month
 is loaded cross-origin by so many unrelated sites that its presence in cache
 reveals nothing about a user's browsing history, which is the core COS fitness
@@ -337,22 +337,23 @@ today.
 
 The pipeline uses three API calls per package:
 
-1. **Top packages** — `GET /v1/stats/packages?by=hits&type=npm&period=month&limit=200`
-   returns the top npm packages by CDN hit count. GitHub-type packages are
-   excluded (they don't follow stable semver CDN URL patterns).
-2. **Version resolution** — `GET /v1/packages/npm/:pkg/resolved` returns the
+1. **Top packages**:
+   `GET /v1/stats/packages?by=hits&type=npm&period=month&limit=200` returns the
+   top npm packages by CDN hit count. GitHub-type packages are excluded (they don't
+   follow stable semver CDN URL patterns).
+2. **Version resolution**: `GET /v1/packages/npm/:pkg/resolved` returns the
    latest stable version, used to construct the pinned CDN URL.
-3. **Entrypoints** — `GET /v1/packages/npm/:pkg@:version/entrypoints` returns
-   the canonical JS and CSS file for the package, determined by jsDelivr's
+3. **Entrypoints**: `GET /v1/packages/npm/:pkg@:version/entrypoints` returns the
+   canonical JS and CSS file for the package, determined by jsDelivr's
    heuristics over package metadata and real usage patterns.
 
 ### npm popularity (forward-looking)
 
 The npm pipeline is forward-looking: it seeds the allowlist with packages that
 are universally used across the JS ecosystem today, whether or not they are
-currently loaded from a CDN. The goal is to help shape a future where
-frameworks and libraries that are today bundled into every app are instead
-shared via COS — either loaded from public CDN URLs or, as the
+currently loaded from a CDN. The goal is to help shape a future where frameworks
+and libraries that are today bundled into every app are instead shared via COS,
+either loaded from public CDN URLs or, as the
 [vite-plugin-cross-origin-storage](https://github.com/tomayac/vite-plugin-cross-origin-storage)
 already demonstrates, via build-tool-generated vendor chunks whose hashes are
 registered in the allowlist.
@@ -365,48 +366,48 @@ would benefit immediately from an allowlist that already contains its hashes.
 
 The pipeline uses three steps:
 
-1. **Seed** — fetch the top 1,000 packages from the
-   [cdnjs API](https://api.cdnjs.com/libraries?fields=name&limit=1000).
-   This constrains candidates to packages that already have a stable
-   CDN-hosted artifact, which is the prerequisite for public CDN sharing.
-2. **Name resolution** — for each cdnjs library, fetch its package config from
+1. **Seed**: fetch the top 1,000 packages from the [cdnjs
+   API](https://api.cdnjs.com/libraries?fields=name&limit=1000). This constrains
+   candidates to packages that already have a stable CDN-hosted artifact, which
+   is the prerequisite for public CDN sharing.
+2. **Name resolution**: for each cdnjs library, fetch its package config from
    the [cdnjs/packages](https://github.com/cdnjs/packages) repo and read
    `autoupdate.target` to get the canonical npm package name. Many cdnjs names
    differ from their npm equivalents (e.g. `three.js` → `three`, `moment.js` →
    `moment`); this step corrects ~140 of the 1,000 entries.
-3. **Ranking** — batch-query the
-   [npm downloads API](https://api.npmjs.org/downloads/point/last-month/) with
-   the resolved npm names, sort descending, take the top 100, and hash all
-   web-relevant files for each package's latest cdnjs version.
+3. **Ranking**: batch-query the [npm downloads
+   API](https://api.npmjs.org/downloads/point/last-month/) with the resolved npm
+   names, sort descending, take the top 100, and hash all web-relevant files for
+   each package's latest cdnjs version.
 
 "Web-relevant" is decided by `isWebAsset` in [`shared.js`](shared.js), shared
 with the cdnjs source: scripts, styles, fonts, images, wasm, and the data files
-pages fetch at runtime. `package.json` is excluded by name rather than by
-dropping the `json` extension — cdnjs does serve it, but it is npm packaging
-metadata that describes the package rather than forming part of it, while
-locale bundles, map styles, and tokenizer configs are JSON that real pages do
-load. `package-lock.json` is excluded on the same grounds.
+pages fetch at runtime. `package.json` is excluded by name, and the `json`
+extension stays in: cdnjs does serve `package.json`, but it is npm packaging
+metadata that describes the package without forming part of it, while locale
+bundles, map styles, and tokenizer configs are JSON that real pages do load.
+`package-lock.json` is excluded on the same grounds.
 
 ### Google Fonts
 
 Google Fonts is the dominant public web-font CDN, serving fonts from
-`fonts.gstatic.com` across a vast fraction of the Web. Font files are
-versioned (e.g. `/s/roboto/v32/…`), so the same bytes are delivered to
-every browser that requests a given family/weight/style/subset combination
-— exactly the property that makes them safe COS candidates.
+`fonts.gstatic.com` across a vast fraction of the Web. Font files are versioned
+(e.g. `/s/roboto/v32/…`), so the same bytes are delivered to every browser that
+requests a given family/weight/style/subset combination, exactly the property
+that makes them safe COS candidates.
 
-The pipeline has two stages:
+The pipeline has three stages:
 
-1. **Catalog** — `GET /webfonts/v1/webfonts?key=…&sort=popularity` returns all
+1. **Catalog**: `GET /webfonts/v1/webfonts?key=…&sort=popularity` returns all
    ~1,500 font families with their variant lists (weights and italic flags).
-2. **woff2 discovery** — families are batched (10 per request) into CSS2 API
+2. **woff2 discovery**: families are batched (10 per request) into CSS2 API
    calls (`fonts.googleapis.com/css2?family=…`) with a modern Chrome
    `User-Agent`, which causes Google to return woff2 `@font-face` blocks.
-   Without a `text=` parameter, all Unicode subsets (latin, latin-ext,
-   cyrillic, greek, …) are included, one `@font-face` block each.
-   The `fonts.gstatic.com/…woff2` URLs are extracted from the CSS.
-3. **Hashing** — the discovered woff2 URLs are hashed concurrently (20
-   parallel downloads).
+   Without a `text=` parameter, all Unicode subsets (latin, latin-ext, cyrillic,
+   greek, …) are included, one `@font-face` block each. The
+   `fonts.gstatic.com/…woff2` URLs are extracted from the CSS.
+3. **Hashing**: the discovered woff2 URLs are hashed concurrently (20 parallel
+   downloads).
 
 The result is the SHA-256 of every woff2 file that a browser would download
 when loading any Google Font in any weight, style, or script. Requires a
@@ -423,10 +424,11 @@ pipeline requires no network downloads of its own.
 
 The eligibility criterion mirrors the rest of the PHL: a resource qualifies if
 its hash appears across **≥100 independent origins** (`NET.HOST(url)`) in the
-crawl data. This is the k-anonymity privacy gate — a file that widespread cannot
-serve as a cross-site identifier. The query also applies a traffic-weighted score
-(`SUM(100_000 / min_rank)`) so that resources carried by high-traffic pages rank
-highest. Only `script`, `css`, `font`, and `wasm` response types are included.
+crawl data. This is the k-anonymity privacy gate: a file that widespread cannot
+serve as a cross-site identifier. The query also applies a traffic-weighted
+score (`SUM(100_000 / min_rank)`) so that resources carried by high-traffic
+pages rank highest. Only `script`, `css`, `font`, and `wasm` response types are
+included.
 
 The BigQuery query is stored in [`queries/http-archive.sql`](queries/http-archive.sql)
 and is run monthly against `httparchive.crawl.requests` at
@@ -450,7 +452,7 @@ and the Vite plugin it wraps, and no CDN hosts them. `nuxt-cos.js` therefore
 That works because the plugin's output is a pure function of its inputs. It
 extracts each managed package into a standalone chunk, rewrites every dependency
 import to `cos1:<dependency hash>`, and names the file after the SHA-256 of the
-result — hashing bottom-up over the dependency graph. Nothing from the host
+result, hashing bottom-up over the dependency graph. Nothing from the host
 application enters a chunk: not the app's code, not its config, not the build
 directory. That is precisely what makes the chunk shareable across origins, and
 it is also what lets this pipeline regenerate it. Two unrelated sites building
@@ -465,37 +467,36 @@ pins rolldown to an exact version (`"rolldown": "1.2.0"`, no range), which makes
 
     (plugin version, package version) → chunk hash
 
-a total, reproducible function. The pipeline enumerates published plugin releases
-from the npm registry rather than hard-coding them, so a new release is picked up
-on the next run — and skips any release whose rolldown dependency is a *range*,
-since such a release produces bytes that depend on when a site happened to
-install and cannot be enumerated at all.
+a total, reproducible function. The pipeline enumerates published plugin
+releases from the npm registry, so a new release is picked up on the next run,
+and it skips any release whose rolldown dependency is a *range*, since such a
+release produces bytes that depend on when a site happened to install and cannot
+be enumerated at all.
 
 **Which releases are in scope.** Releases from 2.0.3 onwards. That is the first
 one whose COS manifest records which npm package emitted each chunk; attributing
 earlier chunks means scraping the license banner out of the chunk bytes instead,
 which is worth neither the code nor the fragility. Releases before 2.0.0 are not
-candidates at all — they bundled with esbuild and emitted no `cos1:` chunks, a
-different artifact rather than an older recipe for the same one. Of the two
-releases in between, 2.0.1 peers `vite@^5 || ^6 || ^7` and so emits nothing under
-a current Vite, and 2.0.2 pins the same rolldown as 2.0.1 and produces chunks
-byte-identical to it.
+candidates at all: they bundled with esbuild and emitted no `cos1:` chunks, a
+different artifact altogether. Of the two releases in between, 2.0.1 peers
+`vite@^5 || ^6 || ^7` and so emits nothing under a current Vite, and 2.0.2 pins
+the same rolldown as 2.0.1 and produces chunks byte-identical to it.
 
-**Coverage.** The managed set is the module's default, `[/^(?:vue$|@vue\/)/]` —
-what every `nuxt-cos` site emits unless it opts into more. Widening it here would
-produce hashes almost no site ships. Because Vue releases the whole `@vue/*`
-family in lockstep with exact interdependency pins, installing `vue@X` pins the
-entire managed subgraph to `X`, so the matrix stays linear in the number of
-versions instead of combinatorial. Defaults cover the 4 most recent plugin
-releases × 15 most recent `vue` releases; see [Environment variables](#environment-variables).
+**Coverage.** The managed set is the module's default, `[/^(?:vue$|@vue\/)/]`:
+what every `nuxt-cos` site emits unless it opts into more. Widening it here
+would produce hashes almost no site ships. Because Vue releases the whole
+`@vue/*` family in lockstep with exact interdependency pins, installing `vue@X`
+pins the entire managed subgraph to `X`, so the matrix grows linearly with the
+number of versions. Defaults cover the 4 most recent plugin releases × 15 most
+recent `vue` releases; see [Environment variables](#environment-variables).
 
-**Verification.** The Nuxt module contributes nothing to chunk *content* — it is
-a thin wrapper that passes `packages` and `base` through — so the matrix is built
-with plain Vite, which is an order of magnitude cheaper than a Nuxt build. Set
-`NUXT_COS_NUXT_CHECK=1` to prove that: it builds a real Nuxt app with the actual
-`nuxt-cos` module and reports whether every chunk it emits is already covered.
-Each chunk is also re-hashed from its bytes rather than trusting the plugin's
-filename, and a mismatch is fatal.
+**Verification.** The Nuxt module contributes nothing to chunk *content* (it is
+a thin wrapper that passes `packages` and `base` through), so the matrix is
+built with plain Vite, which is an order of magnitude cheaper than a Nuxt build.
+Set `NUXT_COS_NUXT_CHECK=1` to prove that: it builds a real Nuxt app with the
+actual `nuxt-cos` module and reports whether every chunk it emits is already
+covered. Each chunk is also re-hashed from its bytes, independent of the
+plugin's filename, and a mismatch is fatal.
 
 Running that check confirms the equivalence: a real Nuxt build with
 `nuxt-cos@2.0.3` emits 5 chunks, all 5 already covered. Running it against
@@ -504,38 +505,37 @@ a current Nuxt.
 
 **Representative URLs.** Since no URL serves these bytes, the `url` column
 identifies the *source package version* the chunk was built from
-(`https://www.npmjs.com/package/@vue/shared/v/3.5.39`) rather than a download
-location. That is enough to reproduce an entry: install the named package version
-alongside one of the recipes in
-[`nuxt-cos-releases.json`](nuxt-cos-releases.json) and run a
-one-file Vite build. That file records the *inputs* a run used — the recipes and
-the source versions — rather than a per-hash table, since the CSV already names
-each chunk's package and version and there are few enough recipes to just try
-them. It is kept out of `data/` deliberately: that directory is the generated hash
-payload and is stored with Git LFS, whereas this is a small build record that
-wants a plain, legible diff — and it has to survive `index.js` clearing `data/`,
-because the automation below reads it.
+(`https://www.npmjs.com/package/@vue/shared/v/3.5.39`). That is enough to
+reproduce an entry: install the named package version alongside one of the
+recipes in [`nuxt-cos-releases.json`](nuxt-cos-releases.json) and run a one-file
+Vite build. That file records the *inputs* a run used (the recipes and the
+source versions); a per-hash table would add nothing, since the CSV already
+names each chunk's package and version and there are few enough recipes to just
+try them. It is kept out of `data/` deliberately: that directory is the
+generated hash payload and is stored with Git LFS, whereas this is a small build
+record that wants a plain, legible diff, and it has to survive `index.js`
+clearing `data/`, because the automation below reads it.
 
-**Automation.** This source has no schedule of its own — it runs with the weekly
+**Automation.** This source has no schedule of its own: it runs with the weekly
 [`.github/workflows/public-hash-list.yml`](../../.github/workflows/public-hash-list.yml)
-pipeline, since checking more often than the PHL is published would not get a new
-hash onto the list any sooner. A new plugin release invalidates every hash the
-previous one produced, so the pipeline runs `node nuxt-cos.js --check-recipes`
-first (two registry requests, before the rebuild overwrites the file it compares
-against) and names any new release in the run summary. The commit is the
-notification; `nuxt-cos-releases.json` is committed next to the CSV so that
-change is legible, which an LFS-stored CSV would not be.
+pipeline, since checking more often than the PHL is published would not get a
+new hash onto the list any sooner. A new plugin release invalidates every hash
+the previous one produced, so the pipeline runs `node nuxt-cos.js
+--check-recipes` first (two registry requests, before the rebuild overwrites the
+file it compares against) and names any new release in the run summary. The
+commit is the notification; `nuxt-cos-releases.json` is committed next to the
+CSV so that change is legible, which an LFS-stored CSV would not be.
 
-**Caveat: ubiquity.** These entries are objectively derived but, unlike the
-popularity-ranked sources, they carry no evidence of *deployment* — the
-integration is experimental and adoption today is minimal, so a chunk's presence
-in a cache is not yet the non-signal the k-anonymity bar asks for. They are
-included in the core section as a deliberate seeding decision: the artifacts are
-deterministically reproducible by anyone from public inputs, they are exactly the
-resources COS sharing is meant to cover, and the integration's own roadmap has
-gating chunk sharing on this list as an open item — which cannot happen while the
-list is empty of them. If that trade is judged wrong, moving them out is a
-one-line change to `CORE_SOURCES` in [`index.js`](index.js).
+**Caveat: ubiquity.** These entries are objectively derived, but they carry no
+evidence of *deployment*, which sets them apart from the popularity-ranked
+sources: the integration is experimental and adoption today is minimal, so a
+chunk's presence in a cache is not yet the non-signal the k-anonymity bar asks
+for. They are included in the core section as a deliberate seeding decision: the
+artifacts are deterministically reproducible by anyone from public inputs, they
+are exactly the resources COS sharing is meant to cover, and the integration's
+own roadmap has gating chunk sharing on this list as an open item, which cannot
+happen while the list is empty of them. If that trade is judged wrong, moving
+them out is a one-line change to `CORE_SOURCES` in [`index.js`](index.js).
 
 ### Chromium-extended pipelines
 
@@ -556,7 +556,7 @@ files for each. The current version's URLs appear in both outputs and are
 deduplicated in `public-hash-list.dat`.
 
 **Google Maps JavaScript API** (`google-maps.js`): The pipeline probes 34 JS
-files per Maps version — 23 on `maps.googleapis.com` (the 14 files Chromium
+files per Maps version: 23 on `maps.googleapis.com` (the 14 files Chromium
 tracks: `common.js`, `controls.js`, `geocoder.js`, `geometry.js`,
 `infowindow.js`, `log.js`, `main.js`, `map.js`, `marker.js`, `onion.js`,
 `places_impl.js`, `search.js`, `search_impl.js`, `util.js`; plus 9 additional
@@ -572,13 +572,13 @@ as new versions ship.
 ### URL pattern resolution: excluded hosts
 
 Some hosts in the Chromium pervasive list are excluded from URL pattern
-resolution. This is not a COS fitness judgment — ubiquitous files from any
-domain are valid COS candidates. The exclusion exists because resolving a
-versioned `:v` pattern for a tracking or ad domain and adding it to the
-allowlist could undermine per-request tracking protections by allowing those
-files to persist in a shared cross-origin cache. Concrete versioned URLs from
-those hosts that appear directly in the Chromium list (without `:v` placeholders)
-are not blocked — they are stable, widely cached, and appropriate COS candidates.
+resolution. This is not a COS fitness judgment: ubiquitous files from any domain
+are valid COS candidates. The exclusion exists because resolving a versioned
+`:v` pattern for a tracking or ad domain and adding it to the allowlist could
+undermine per-request tracking protections by allowing those files to persist in
+a shared cross-origin cache. Concrete versioned URLs from those hosts that
+appear directly in the Chromium list (without `:v` placeholders) are not
+blocked: they are stable, widely cached, and appropriate COS candidates.
 
 **reCAPTCHA** (`recaptcha/releases/:v/...`) is also excluded, for a different
 reason: the release token rotates frequently and opaquely with no public version
@@ -592,18 +592,18 @@ how short-lived each token is.
 
 Ten of the sources hash a file by downloading it in full, and week after week
 the same bytes come back from URLs that never changed. Measured across one run,
-that is roughly **43,000 requests and 3 GiB** for the CDN-backed sources —
-`youtube-player` alone accounts for about 2.3 GiB of player bundles and
-`google-fonts` for about 35,000 requests — plus the model hub's tokenizer
+that is roughly **43,000 requests and 3 GiB** for the CDN-backed sources
+(`youtube-player` alone accounts for about 2.3 GiB of player bundles and
+`google-fonts` for about 35,000 requests), plus the model hub's tokenizer
 downloads. None of it changes between most runs.
 
 So each downloading source keeps a cache under [`hash-cache/`](hash-cache), one
 file per source, as `key,tag,sha256,idle` sorted by key. The files are committed
 as plain text, which is what makes them useful: the weekly workflow starts warm
-instead of re-fetching everything, and a rebuilt cache diffs as the rows that
-actually changed rather than as an opaque blob. They sit outside `data/`, which
-the pipeline wipes at the start of every run and which Git LFS tracks. Deleting
-one forces that source to rehash from scratch.
+and skips re-fetching unchanged files, and a rebuilt cache diffs as just the
+rows that actually changed. They sit outside `data/`, which the pipeline wipes
+at the start of every run and which Git LFS tracks. Deleting one forces that
+source to rehash from scratch.
 
 What varies between sources is how much the key alone proves.
 
@@ -613,27 +613,27 @@ What varies between sources is how much the key alone proves.
 | Revalidate first | `google-maps`, `chromium-pervasive` | The URL | `ETag`, else `Last-Modified` |
 | Content key | `huggingface` | Git blob `oid` | File size |
 
-**URL is the key.** These CDNs put the version in the path — `/ajax/libs/d3js/6.2.0/d3.min.js`,
-`dayjs@1.11.23` — and do not rewrite what sits behind a pinned path. Google
-Fonts and the YouTube player go further: their paths carry a content-derived
-token and a player build id respectively, so a changed file is a changed URL by
-construction. A hit costs no request at all.
+**URL is the key.** These CDNs put the version in the path
+(`/ajax/libs/d3js/6.2.0/d3.min.js`, `dayjs@1.11.23`) and do not rewrite what
+sits behind a pinned path. Google Fonts and the YouTube player go further: their
+paths carry a content-derived token and a player build id respectively, so a
+changed file is a changed URL by construction. A hit costs no request at all.
 
 **Revalidate first.** `google-maps` and `chromium-pervasive` fetch versioned
 paths whose publisher could still republish behind them, and
 `chromium-pervasive` in particular pulls from a mixed bag of third-party hosts.
-A cached digest is reused only while the server still reports the same validator,
-so one `HEAD` stands in for a full download and a rewritten file is refetched
-rather than frozen at a digest for bytes that no longer exist. A host offering
-neither `ETag` nor `Last-Modified` is always refetched.
+A cached digest is reused only while the server still reports the same
+validator, so one `HEAD` stands in for a full download, and a rewritten file is
+refetched, so no digest outlives the bytes it describes. A host offering neither
+`ETag` nor `Last-Modified` is always refetched.
 
 **Content key.** The model hub cannot key on its URLs at all; see
 [Hashing, and the download cache](#hashing-and-the-download-cache).
 
 Caches do not grow without bound. Every row records how many consecutive runs it
-went untouched, and rows past four are dropped on write — so a resource that
-leaves a source's list eventually leaves its cache, while a single bad run
-(a rate-limited Hub, a CDN blip) bumps every row by one and evicts nothing.
+went untouched, and rows past four are dropped on write. A resource that leaves
+a source's list therefore eventually leaves its cache, while a single bad run (a
+rate-limited Hub, a CDN blip) bumps every row by one and evicts nothing.
 
 ## Environment variables
 
@@ -657,7 +657,7 @@ message; they do not abort the full pipeline.
 `HF_TOKEN` is the one optional entry: the model-hub source runs without it, but
 the Hub rate-limits anonymous traffic per IP and this source makes one request
 per model, so an unauthenticated run is slower and may drop models to `429`s. It
-warns when that happens rather than quietly shipping a thinner list.
+warns when that happens, so a thinner list never ships quietly.
 
 The `nuxt-cos` source takes no API key, but has three optional knobs. It needs
 `npm` on `PATH` and network access to the registry, since it installs and builds
@@ -677,11 +677,10 @@ committed CSV that a wider one produced.
 ## Usage
 
 Requires [Git LFS](https://git-lfs.com/) (`brew install git-lfs` or see the
-[install docs](https://git-lfs.com/)) — everything under `data/` is stored
-with it, so run `git lfs install` once per machine before cloning, or run
-`git lfs pull` after a clone that predates having it installed. All commands
-below are run from this directory (`public-hash-list/implementation/`), not
-the repository root.
+[install docs](https://git-lfs.com/)). Everything under `data/` is stored with
+it, so run `git lfs install` once per machine before cloning, or run `git lfs
+pull` after a clone that predates having it installed. All commands below run
+from this directory (`public-hash-list/implementation/`).
 
 ```bash
 npm install
@@ -719,23 +718,23 @@ Any URL that returns a non-200 status or times out after 30 seconds is silently
 omitted. For the Google Hosted Libraries CDN, known historical filename changes
 (MooTools, Indefinite Observable) are handled via fallback URL resolution.
 
-## Acknowledgements
+## Acknowledgments
 
 Thanks to [Max Ostapenko](https://github.com/max-ostapenko) for the HTTP Archive
 BigQuery query that powers the `http-archive` pipeline.
 
 ## License
 
-This directory — both the **tooling** (scrapers, `index.js`) and the
-**generated data file** (`data/public-hash-list.dat`) — is licensed under
-**[Apache-2.0](LICENSE)**, via this directory's own `LICENSE` file. This is
-distinct from the rest of the
-[WICG/cross-origin-storage](https://github.com/WICG/cross-origin-storage)
-repository, which is under the
-[W3C Software and Document License](https://www.w3.org/copyright/software-license/)
-(see the repository root [`LICENSE.md`](../../LICENSE.md)) — Apache-2.0 applies
-only to this `public-hash-list/implementation/` subtree, not to the sibling
-[explainer](../phl-explainer.md), which is a report.
+This directory, both the **tooling** (scrapers, `index.js`) and the **generated
+data file** (`data/public-hash-list.dat`), is licensed under
+**[Apache-2.0](LICENSE)**, via this directory's own `LICENSE` file. The rest of
+the [WICG/cross-origin-storage](https://github.com/WICG/cross-origin-storage)
+repository is under the [W3C Software and Document
+License](https://www.w3.org/copyright/software-license/) (see the repository
+root [`LICENSE.md`](../../LICENSE.md)). Apache-2.0 applies only to this
+`public-hash-list/implementation/` subtree; the sibling
+[explainer](../phl-explainer.md) is a report and falls under the repository
+license.
 
 Apache-2.0 is permissive and carries an explicit patent grant. It replaces an
 earlier MPL-2.0 choice made to mirror the Public Suffix List: browsers vendor
@@ -745,9 +744,9 @@ Apache-2.0 is. See the [PHL explainer](../phl-explainer.md) for the full
 reasoning.
 
 A note on what is being licensed: the individual entries are _facts_ (a file has
-a given hash), which attract no copyright in the US, though a curated compilation
-can attract a thin compilation copyright and, in the EU, a separate _sui generis_
-database right. An explicit license places both beyond doubt. The list contains
-**hashes and (in comments) example URLs only — never the resource bytes**, so it
+a given hash), which attract no copyright in the US, though a curated
+compilation can attract a thin compilation copyright and, in the EU, a separate
+_sui generis_ database right. An explicit license places both beyond doubt. The
+list contains **hashes and (in comments) example URLs only**, so it
 redistributes no library, font, or model, and inherits none of those resources'
 own licenses.
