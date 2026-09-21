@@ -20,21 +20,22 @@ The work is in two parts, plus the simulator behind both.
 
 ## The attack
 
-Any origin can ask COS whether a given hash is cached. The COS store is global and
-unpartitioned, so that answer is a read of device-wide state the asking site never wrote. A
-tracker embedded on many sites can probe the same `n` PHL hashes everywhere it runs and use the
-resulting bit vector as a device identifier, with nothing to clear and nothing stored under its
-own name.
+COS lets a site *write*. The store is global and unpartitioned, so a tracker can plant a chosen
+identifier on site A and read it back on site B, which turns COS into a cross-site store: a
+supercookie that survives third-party cookie clearing. That write channel is modeled in §13, and
+it is the sharper of the two concerns.
+
+COS also answers questions. Any origin can ask whether a given hash is cached, and that answer is
+a read of device-wide state the asking site never wrote. A tracker embedded on many sites can
+probe the same `n` PHL hashes everywhere it runs and use the resulting bit vector as a device
+identifier, with nothing to clear and nothing stored under its own name.
 
 The analysis separates four goals that share those mechanics but have different optima: linking
 two visits to one device, recognizing one known device again, inferring which sites a device
 visited, and inferring what kind of user it belongs to. Treating them as one question is the
 main way this analysis goes wrong, and the document keeps them apart throughout.
 
-COS also lets a site *write*, so the tracker can plant a chosen identifier on site A and read it
-back on site B. That write channel, modeled in §13, turns COS into an unpartitioned cross-site
-store: a supercookie that survives third-party cookie clearing. §14 weighs the whole surface,
-read and write, against traditional browser fingerprinting.
+§14 weighs the whole surface, write and read, against traditional browser fingerprinting.
 
 ## What the simulator does
 
