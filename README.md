@@ -53,7 +53,6 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
     - [Resource visibility upgrades](#resource-visibility-upgrades)
     - [Retrieving files](#retrieving-files)
     - [Transferring a handle](#transferring-a-handle)
-    - [Storing and retrieving a file across unrelated sites](#storing-and-retrieving-a-file-across-unrelated-sites)
   - [Additional integration surfaces](#additional-integration-surfaces)
     - [Declarative HTML integration](#declarative-html-integration)
     - [JavaScript import attribute integration](#javascript-import-attribute-integration)
@@ -207,7 +206,7 @@ Web fonts—especially large icon fonts, emoji fonts, and fonts with extensive U
 
 The **COS** API will be available through the `navigator.crossOriginStorage` interface. Files will be stored and retrieved based on their hashes, ensuring that each file is uniquely identified.
 
-Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of widespread resources  on the web that having one of them cached reveals nothing about which sites the user visited. [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
+Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of widespread resources  on the web that having one of them cached reveals nothing about which sites the user visited. Even when all of that holds, the user agent may occasionally answer as if the file were absent, a technique called [GREASE'ing](#greaseing), so a "not found" result never proves the file is missing. [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
 
 #### COS entry
 
@@ -656,106 +655,17 @@ Only `whisper-tiny` carries a URL, because it is the only variant the app will e
 
 A `FileSystemFileHandle` is serializable, so a handle for a COS entry can be passed to another context with `postMessage()`, a `MessagePort`, or a `BroadcastChannel`, the same way any other file handle can. This is a second way to obtain a handle, so the same disclosure rules apply to it:
 
-- **Same-origin only.** Deserializing a COS handle in a context whose origin differs from the one that obtained it throws a `DataCloneError`. A readable handle cleared [availability gating](#availability-gating) for *the origin that asked*; passing it to another origin would hand over the bytes without `origins`, the Public Hash List, or GREASE'ing ever being evaluated for that origin. Transferring between a page and its own worker, or between same-origin documents, works normally.
-- **Readability travels with the handle.** A handle from a `create: true` request that has not been written through is still not readable after being transferred — `getFile()` keeps rejecting until that handle's own write completes. Conversely, a handle from a successful read stays readable without being re-checked, so transferring a handle can't be used to re-roll [GREASE'ing](#greaseing) or otherwise re-probe availability.
+- **Same-origin only.** Deserializing a COS handle in a context whose origin differs from the one that obtained it throws a `DataCloneError`. A readable handle cleared [availability gating](#availability-gating) for *the origin that asked*; passing it to another origin would hand over the bytes without `origins`, the Public Hash List, or [GREASE'ing](#greaseing) ever being evaluated for that origin. Transferring between a page and its own worker, or between same-origin documents, works normally.
+- **Readability travels with the handle.** A handle from a `create: true` request that has not been written through is still not readable after being transferred — `getFile()` keeps rejecting until that handle's own write completes. Conversely, a handle from a successful read stays readable without being re-checked, so transferring a handle can't be used to re-roll GREASE'ing or otherwise re-probe availability.
 
 ```js
 // Same-origin: fine. The worker gets a handle it can read from.
 const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
 worker.postMessage(handle);
 
-// Cross-origin: throws DataCloneError on the receiving side.
+// Cross-origin: throws `DataCloneError` on the receiving side.
 otherOriginFrame.postMessage(handle, 'https://other.example');
 ```
-
-#### Storing and retrieving a file across unrelated sites
-
-To illustrate the capabilities of the COS API, consider the following example where two unrelated sites want to interact with the same common large language model. The first site stores the model in COS and makes it globally available, while the second site retrieves it.
-
-##### Site A: Storing a large language model
-
-On Site A, a web application stores a large language model in COS.
-
-```js
-// The hash of the desired file.
-const hash = {
-  algorithm: 'SHA-256',
-  value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
-};
-
-try {
-  const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
-
-  // Use the file and return.
-  // …
-  return;
-} catch (err) {
-  if (err.name === 'NotFoundError') {
-    // Load the file from the network.
-    const fileBlob = await loadFileFromNetwork();
-    // Compute the control hash using the method in Appendix B.
-    const controlHash = await getBlobHash(fileBlob);
-    // Check if control hash and known hash are the same.
-    if (controlHash !== hash.value) {
-      // Downloaded file and desired file are different.
-      // …
-      return;
-    }
-    try {
-      const handle = await navigator.crossOriginStorage.requestFileHandle(
-        hash,
-        {
-          create: true,
-          origins: '*', // Make the file globally available.
-        },
-      );
-      const writableStream = await handle.createWritable();
-      await writableStream.write(fileBlob);
-      await writableStream.close();
-
-      console.log('File stored.');
-    } catch (err) {
-      // The `write()` failed.
-    }
-    return;
-  }
-  // 'NotAllowedError': Permissions Policy blocks COS in this context.
-  console.log('Cross-Origin Storage is blocked by Permissions Policy.');
-}
-```
-
-##### Site B: Retrieving the same model
-
-On Site B, entirely unrelated to Site A, a different web application retrieves the same popular model from COS.
-
-```js
-// The hash of the desired file.
-const hash = {
-  algorithm: 'SHA-256',
-  value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
-};
-
-try {
-  const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
-  const fileBlob = await handle.getFile();
-  console.log('File retrieved', fileBlob);
-  // Use the fileBlob as needed.
-} catch (err) {
-  if (err.name === 'NotFoundError') {
-    // The file wasn't in COS.
-    console.error(err.name, err.message);
-    return;
-  }
-  // 'NotAllowedError': Permissions Policy blocks COS in this context.
-  console.log('Cross-Origin Storage is blocked by Permissions Policy.');
-}
-```
-
-##### Key points
-
-- **Unrelated sites:** The two sites belong to different origins and do not share any context, ensuring the example demonstrates cross-origin capabilities.
-- **Strictly opt-in:** Site A explicitly opts in to make the file globally available by setting `origins: '*'` when storing the file. This ensures that the file is not accidentally made available to all sites.
-- **Cross-origin sharing:** Despite the different origins, the files are securely identified by their hashes, demonstrating the API's ability to facilitate cross-origin file storage and retrieval.
 
 ### Additional integration surfaces
 
