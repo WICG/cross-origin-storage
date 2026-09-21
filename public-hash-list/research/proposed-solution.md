@@ -74,18 +74,38 @@ something about a **different** website. Concretely:
 | A file that is only visible because some *other* website stored it | **Yes** |
 | A file the requesting origin stored while the user was on a *different* website | **Yes** |
 
-**Example.** `shop.example` uses a build tool that splits its JavaScript into 40 shared chunks.
-On every page load it looks up all 40. Every one of those chunks was stored by `shop.example`
-itself, so none of them count. The budget is untouched, and the site works exactly as it does
-today.
+**Example, first visit.** `shop.example` uses a build tool that splits its JavaScript into 40
+shared chunks. A user arrives for the first time, and 20 of those chunks are already cached
+because other sites use the same libraries. That reuse is the whole point of COS, and it is also
+what the budget meters, because those lookups ask about files other websites stored. With a
+budget of 8, `shop.example` reuses 8 of the 20 and downloads the other 32.
 
-**Example.** `tracker.example` runs on both `news.example` and `shop.example`. On `news.example`
-it stored 64 small files. On `shop.example` it now looks those same files up. Every one of those
-lookups is asking about something a different website stored, so every one counts. It runs out of
-budget after 8, and it learns 8 bits.
+**Example, every visit after.** Having stored all 40 chunks under its own name, `shop.example`
+now looks them up for free, and the page runs at full speed.
 
-This is the rule that separates the two cases. A simple "limit all lookups" rule cannot do it,
-because the honest build-tool case makes far more lookups than the attack does.
+So the carve-out does not make the build-tool case free. It bounds the cost to the first visit.
+
+**Example, the tracker.** `tracker.example` runs on both `news.example` and `shop.example`. On
+`news.example` it stored 64 small files. On `shop.example` it now looks those same files up. Every
+one of those lookups asks about something a different website stored, so every one counts. It runs
+out of budget after 8, and it learns 8 bits.
+
+The carve-out still does real work. It moves the cost from every page load to the first one, and
+it leaves the AI case untouched, since reusing one large model takes a single lookup and never
+approaches the limit. What it cannot do is make cross-site reuse free, because reusing a file
+another site fetched is the same observable as learning that another site fetched it.
+
+### Misses have to count too
+
+The tempting repair is to charge only the lookups that come back "found," leaving the misses free.
+That would break the ceiling.
+
+A tracker would plant a *sparse* identifier: write 8 files chosen from a pool of 1,000. On
+readback it looks up all 1,000, pays for only the 8 that hit, and learns which 8 of the 1,000 are
+present. That is about 64 bits of identifier for a budget of 8.
+
+So every lookup counts, found or not. That is what keeps one lookup worth one bit, and it is why
+the first-visit cost to `shop.example` above cannot be engineered away.
 
 ### Why the budget belongs to the page
 
@@ -203,9 +223,10 @@ days of repeat visits to both sites.
 
 Being straight about the downsides:
 
-- **Sites that legitimately share a lot across origins will hit the budget.** A site that wants
-  to reuse twenty different large files from other sites in one visit will get some misses and
-  fall back to the network. Rule 1's carve-out for a site's own files keeps this rare.
+- **Sites that legitimately share a lot across origins will hit the budget on a first visit.** A
+  site that wants to reuse twenty files other sites stored will get through 8 of them and
+  download the rest. Rule 1's carve-out for a site's own files limits this to the first visit,
+  and it does not remove it.
 - **Users who never interact never contribute to the shared cache.** Their own browsing still
   works; their downloads just do not become shareable.
 - **There is a tuning problem.** The budget size and the window length trade sharing against

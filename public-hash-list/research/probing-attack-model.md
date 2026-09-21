@@ -16,10 +16,6 @@ models say once they are calibrated against the real published list and run.
 [`probing-simulator.html`](probing-simulator.html) is the implementation: every number in
 §12 names the preset that reproduces it.
 
-This is exploratory research. Nothing here is a proposed change to the COS specification or to
-the PHL inclusion criteria, and where a model contradicts a claim in the explainers, the
-contradiction is an open question for discussion.
-
 The attack under study is the one a fingerprinting library would actually run:
 
 > Pick `n` hashes from the PHL, either at random or strategically. On every site that embeds
@@ -102,8 +98,7 @@ between site A and site B is a defense the attacker opts out of by moving into a
 Everything below is measured from the published list, `VERSION: 2026-09-14T09:25:20Z`,
 `COMMIT: d5092c6`, fetched from
 [`data/public-hash-list.dat`](https://media.githubusercontent.com/media/WICG/cross-origin-storage/refs/heads/main/public-hash-list/implementation/data/public-hash-list.dat).
-These numbers are the simulator's default calibration. The explainer's "301,618 distinct
-hashes" is a figure from an earlier run; the list has grown by 45% since.
+These numbers are the simulator's default calibration.
 
 **438,684 digests total.**
 
@@ -963,8 +958,8 @@ removing when it partitioned storage and dropped third-party cookies.
 Its saving graces are the bounds of §13.4: it decays with the cache, it sits behind a quota, and
 the storing-origin route needs a Permissions-Policy grant. Full closure by partitioning the
 disclosure exists, and it costs the feature, since cross-site download elision and the tracking
-oracle are the same bit (§13.5); the interior fix that keeps the AI use case is a per-origin
-budget on distinct cross-site-disclosed hashes.
+oracle are the same bit (§13.5); the interior fix that keeps the AI use case is a budget on
+distinct cross-site-disclosed hashes, keyed on the top-level site (F12).
 
 ### 14.3 Verdict
 
@@ -976,9 +971,9 @@ a chokepoint the rest of the fingerprinting surface lacks: one API, countable an
 reading from a public list, with levers the fingerprinting surface has never offered.
 Fingerprinting is a surface the platform can only erode. COS gives it a dial: cross-site download
 elision and cross-site tracking are the same bit, so the design chooses a point on one curve,
-from full sharing with the oracle open to full partitioning with the feature gone. A per-origin
-budget on distinct cross-site-disclosed hashes is the interior setting that keeps the AI use case
-while holding the identifier to a handful of bits. The write channel deserves that dial set
+from full sharing with the oracle open to full partitioning with the feature gone. A budget on
+distinct cross-site-disclosed hashes, keyed on the top-level site (F12), is the interior setting
+that keeps the AI use case while holding the identifier to a handful of bits. The write channel deserves that dial set
 deliberately, with the attention the read channel has already had.
 
 [^gb]: Gómez-Boix, Laperdrix, Baudry, *Hiding in the Crowd: an Analysis of the Effectiveness of
