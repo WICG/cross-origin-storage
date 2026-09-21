@@ -358,7 +358,7 @@ The same shape works for any consumer that accepts a `ReadableStream`, for examp
 
 ##### Example: Restricting resources to specific origins
 
-The `origins` field is useful for sharing resources between a set of related origins without making them globally available. **This option is recommended for proprietary resources or resources for which global COS cache hits are not anticipated.** For example, if a company has two related sites, `write.example.com` and `calculate.example.com`, that both use the same AI model for proofreading, they can store the model in COS and restrict access to just these two origins. This way, the model is not globally available to all sites that use COS nor to all same-site origins, but _only_ to the two related sites that need it.
+The `origins` field is useful for sharing resources between a set of related origins without making them globally available. **This option is recommended for proprietary resources or resources for which global COS cache hits are not anticipated.** For example, if a company has two related sites, `write.example` and `calculate.example`, that both use the same AI model for proofreading, they can store the model in COS and restrict access to just these two origins. This way, the model is not globally available to all sites that use COS nor to all same-site origins, but _only_ to the two related sites that need it.
 
 ```js
 // The hash of an AI model for proofreading.
@@ -367,22 +367,22 @@ const hash = {
   value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
 };
 
-// Site `write.example.com` stores the model and restricts it to itself and
-// `calculate.example.com`.
+// Site `write.example` stores the model and restricts it to itself and
+// `calculate.example`.
 const handle = await navigator.crossOriginStorage.requestFileHandle(hash, {
   create: true,
-  origins: ['https://calculate.example.com', 'https://write.example.com'],
+  origins: ['https://calculate.example', 'https://write.example'],
 });
 
 // Write the file…
 
-// Now, `calculate.example.com` can request the same hash and it will be found.
+// Now, `calculate.example` can request the same hash and it will be found.
 // Any other origin NOT in the list (e.g., `https://unrelated.com`) will receive
 // a `NotFoundError` when requesting this hash, even if it's stored in COS.
 ```
 
 > [!NOTE]
-> For this restricted sharing to take effect, `write.example.com` must also send a `Cross-Origin-Storage-Allow-Origin: https://calculate.example.com, https://write.example.com` response header for the document making the write. The header is the ceiling; the `origins` array can only narrow it. Any listed origin the header does not authorize is dropped, which stops content injected into the page from redirecting the disclosure to an origin the operator never approved. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
+> For this restricted sharing to take effect, `write.example` must also send a `Cross-Origin-Storage-Allow-Origin: https://calculate.example, https://write.example` response header for the document making the write. The header is the ceiling; the `origins` array can only narrow it. Any listed origin the header does not authorize is dropped, which stops content injected into the page from redirecting the disclosure to an origin the operator never approved. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
 
 ##### Example: Making a resource globally available
 
@@ -821,7 +821,7 @@ To restrict a resource to specific origins instead of making it globally availab
 <script
   src="acme-inc-corporate.js"
   integrity="sha256-def456..."
-  crossoriginstorage="https://acme-inc.example.com https://acme-cdn.example.com"
+  crossoriginstorage="https://acme-inc.example https://acme-cdn.example"
 ></script>
 ```
 
@@ -888,7 +888,7 @@ To restrict the resource to specific origins, `crossOriginStorage` takes a space
 ```js
 import data from "acme-inc-corporate.ext" with {
   integrity: "sha256-def456...",
-  crossOriginStorage: "https://acme-inc.example.com https://acme-cdn.example.com",
+  crossOriginStorage: "https://acme-inc.example https://acme-cdn.example",
 };
 ```
 
@@ -942,7 +942,7 @@ Passing a list of origins limits COS retrieval to only those origins. All other 
   src: url(
     "acme-inc-corporate.woff2"
     integrity("sha256-abc123...")
-    cross-origin-storage("https://acme-inc.example.com", "https://acme-cdn.example.com", "https://acme-inc-marketing-site.example.com")
+    cross-origin-storage("https://acme-inc.example", "https://acme-cdn.example", "https://acme-marketing.example")
   );
 }
 ```
@@ -983,8 +983,8 @@ const global = await fetch('popular-resource.ext', {
 const restricted = await fetch('acme-inc-corporate.ext', {
   integrity: 'sha256-def456...',
   crossOriginStorage: [
-    'https://acme-inc.example.com',
-    'https://acme-cdn.example.com',
+    'https://acme-inc.example',
+    'https://acme-cdn.example',
   ],
 });
 ```
