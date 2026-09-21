@@ -163,6 +163,13 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    shrunk. This is one of three independent, additive grants that decide who may read an entry, the
    other two being its [=COS entry/storing origins=] (always readable, together with origins
    [=same site=] with them) and [=COS entry/globally disclosable=].
+
+   Note: Because the same-site baseline holds for every entry, a write whose
+   {{CrossOriginStorageRequestFileHandleOptions/origins}} is an explicit empty [=list=]
+   (`origins: []`) grants exactly what a write that omits
+   {{CrossOriginStorageRequestFileHandleOptions/origins}} does: its storing origin and origins
+   [=same site=] with it. An explicit [=list=] only ever adds recipients; it never withholds the
+   entry from the writer's own site.
 : <dfn for="COS entry">globally disclosable</dfn>
 :: A [=boolean=], initially false, recording whether the entry has been written with a request for
    global ("`*`") availability. When true, the entry is readable by any origin whose request
@@ -504,9 +511,11 @@ To <dfn>complete a create request</dfn> given [=a new promise|a promise=] |resul
    1. If |requestedOrigins| [=list/is empty=], set |requestedOrigins| to null.
 
       Note: A [=list=] every one of whose members was dropped leaves the write with no authorized
-      cross-origin recipient, so it falls back to the same-site default rather than to the
-      strictly-narrower empty [=list=] (which would exclude even same-site readers). The bytes are
-      still stored; only the unauthorized disclosure is withheld.
+      cross-origin recipient, so it is treated as a write that omitted
+      {{CrossOriginStorageRequestFileHandleOptions/origins}}. The two are equivalent in effect:
+      an empty [=list=] adds nothing to [=COS entry/origins=], and the same-site baseline every
+      entry carries holds either way (see [=determine COS disclosure=]). The bytes are still
+      stored; only the unauthorized disclosure is withheld.
 1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
    [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
 1. If |entry| is null:
