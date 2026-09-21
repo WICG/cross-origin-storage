@@ -57,9 +57,9 @@ urlPrefix: https://html.spec.whatwg.org/multipage/browsers.html#; spec: HTML
 *This section is non-normative.*
 
 Storage is normally partitioned by origin to protect user security and privacy. That is the right
-default, but it is a poor fit for a narrow class of very large, highly popular, publicly-distributed
-resources — AI models, WebAssembly modules, JavaScript libraries, game engines, and large web fonts
-— that are, byte-for-byte, the same file no matter which site requested them. When two
+default, but it is a poor fit for a narrow class of very large, highly popular, publicly distributed
+resources (AI models, WebAssembly modules, JavaScript libraries, game engines, and large web fonts)
+that are, byte-for-byte, the same file no matter which site requested them. When two
 unrelated origins each depend on the same 8&nbsp;GB model, origin-partitioned storage forces the
 user to download and retain that model twice, which is wasteful for the user's bandwidth, storage,
 and battery, and for the network as a whole.
@@ -90,15 +90,15 @@ try {
 </pre>
 
 This specification reuses {{FileSystemFileHandle}}, {{FileSystemWritableFileStream}}, and related
-infrastructure from the File System Standard [[FS]], scoped to a dedicated, cross-origin-shared
-file system rather than to a single origin's private or user-visible file system.
+infrastructure from the File System Standard [[FS]], scoped to a dedicated file system that is
+shared across origins and separate from any origin's private or user-visible one.
 
-This specification defines the imperative JavaScript API only. Related proposals integrate the
-same underlying cache into other host specifications — an HTML `crossoriginstorage` attribute on
-<{link}> and <{script}>, a `crossOriginStorage` JavaScript import attribute, a CSS
-`cross-origin-storage()` `<request-url-modifier>`, and a `crossOriginStorage` {{RequestInit}}
-option for `fetch()` — each defined in its own host specification; see
-[[#integration-with-other-specifications]].
+This specification defines the imperative JavaScript API, plus the shared store step that host
+integrations build on. Related proposals integrate the same underlying cache into other host
+specifications: an HTML `crossoriginstorage` attribute on <{link}> and <{script}>, a
+`crossOriginStorage` JavaScript import attribute, a CSS `cross-origin-storage()`
+`<request-url-modifier>`, and a `crossOriginStorage` {{RequestInit}} option for `fetch()`. Each is
+defined in its own host specification; see [[#integration-with-other-specifications]].
 
 # Concepts # {#concepts}
 
@@ -113,13 +113,12 @@ A <dfn export>COS hash</dfn> is a [=struct=] with the following [=struct/items=]
    [=COS hash/algorithm=]. For "`SHA-256`", this is 64 characters long.
 
 The {{CrossOriginStorageRequestFileHandleHash/algorithm}} dictionary member is typed as a plain
-`DOMString`, not as a {{HashAlgorithmIdentifier}}, even though its value space is exactly the set
-of names accepted by [[WEBCRYPTO]]'s hash algorithms. A {{HashAlgorithmIdentifier}} is
-`(object or DOMString)` — it additionally admits an `object`, normalized by [[WEBCRYPTO]] into an
-{{Algorithm}}-shaped dictionary, so that callers can pass extra parameters to algorithms that need
-them (for example, `{name: "HMAC", hash: "SHA-256"}`). Hash algorithms take no such parameters,
+`DOMString`, even though its value space is exactly the set of names accepted by [[WEBCRYPTO]]'s
+hash algorithms. A {{HashAlgorithmIdentifier}} is `(object or DOMString)`, and its `object` branch,
+normalized by [[WEBCRYPTO]] into an {{Algorithm}}-shaped dictionary, lets callers pass extra
+parameters to algorithms that need them (for example, `{name: "HMAC", hash: "SHA-256"}`). Hash algorithms take no such parameters,
 [=COS hash/algorithm=] is stored, compared, and round-tripped as part of a [=content-addressable=]
-key rather than consumed once by a single operation, and every use in this specification's
+key, and every use in this specification's
 examples is a bare string; admitting arbitrary objects here would add no capability while making
 [=COS hash/equal|equality=] and serialization needlessly complicated. `DOMString` is therefore the
 narrower and more correct type for this field.
@@ -128,12 +127,12 @@ Two [=COS hash=] values are <dfn export for="COS hash">equal</dfn> if their [=CO
 values are an [=ASCII case-insensitive=] match and their [=COS hash/value=] values are exactly
 equal.
 
-Note: Unlike [=COS hash/algorithm=], whose case is not normatively constrained,
-[=COS hash/value=] is already normatively lowercase (see above), so comparing it is a plain
-string comparison rather than an [=ASCII case-insensitive=] one.
+Note: [=COS hash/value=] is already normatively lowercase (see above), so comparing it is a plain
+string comparison. [=COS hash/algorithm=] has no normative case, which is why it is compared
+[=ASCII case-insensitive|ASCII case-insensitively=].
 
 A <dfn export>content-addressable</dfn> store is one whose entries are keyed by the
-[=COS hash/equal|equality=] of a [=COS hash=], rather than by URL or by name: two files with
+[=COS hash/equal|equality=] of a [=COS hash=]: two files with
 identical bytes and the same hash algorithm are the same entry, regardless of how many origins
 stored them or how many URLs they were fetched from.
 
@@ -153,29 +152,28 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
 :: Either "`pending`" or "`written`". An entry starts out "`pending`" and becomes "`written`"
    exactly once, when [=COS entry/bytes=] is first set.
 : <dfn for="COS entry">pending writer count</dfn>
-:: A non-negative integer, initially 0, counting outstanding writers — {{FileSystemFileHandle}}
+:: A non-negative integer, initially 0, counting outstanding writers: {{FileSystemFileHandle}}
    handles returned by [=complete a create request=] whose [=verify and store|closing write=] has
    not yet settled. Used only to decide, in [=verify and store=], whether a failed write is safe to
    clean up; see [[#creating-and-writing-files]].
 : <dfn for="COS entry">origins</dfn>
 :: A [=list=] of [=/origins=] granted explicit, cross-origin read access, independent of the
-   [=Public Hash List=]. Initially empty. Only ever [[#resource-visibility-upgrades|grown]], never
-   shrunk. This is one of three independent, additive grants that decide who may read an entry, the
+   [=Public Hash List=]. Initially empty, it only ever [[#resource-visibility-upgrades|grows]]. This
+   is one of three independent, additive grants that decide who may read an entry, the
    other two being its [=COS entry/storing origins=] (always readable, together with origins
    [=same site=] with them) and [=COS entry/globally disclosable=].
 : <dfn for="COS entry">globally disclosable</dfn>
 :: A [=boolean=], initially false, recording whether the entry has been written with a request for
    global ("`*`") availability. When true, the entry is readable by any origin whose request
-   clears [[#availability-gating]] — that is, whose [=COS entry/hash=] is [=on the PHL=] and which
-   GREASE'ing does not suppress. Only ever [[#resource-visibility-upgrades|set]], never cleared.
+   clears [[#availability-gating]], that is, whose [=COS entry/hash=] is [=on the PHL=] and which
+   GREASE'ing does not suppress. Once [[#resource-visibility-upgrades|set]], it stays true.
 
-   Note: This is a separate [=struct/item=] from [=COS entry/origins=] rather than a sentinel
-   value within it, so that a later global-availability request adds the "`*`" grant on top of an
-   existing explicit [=COS entry/origins=] [=list=] instead of replacing it. Were the two conflated
-   into one field, a writer that supplied the bytes could turn a list-scoped entry into a
-   "`*`"-scoped one, and — because [[#availability-gating]] applies to the "`*`" grant but not to
-   an explicit [=COS entry/origins=] [=list=] — an origin that could previously read the entry off
-   the [=list=] would start receiving a "{{NotFoundError}}" whenever the [=COS entry/hash=] is not
+   Note: This is a separate [=struct/item=] from [=COS entry/origins=], so that a later
+   global-availability request adds the "`*`" grant on top of an existing explicit
+   [=COS entry/origins=] [=list=]. Were the two conflated into one field, a writer that supplied the
+   bytes could turn a list-scoped entry into a "`*`"-scoped one. Because [[#availability-gating]]
+   applies only to the "`*`" grant, an origin that could previously read the entry off the [=list=]
+   would then start receiving a "{{NotFoundError}}" whenever the [=COS entry/hash=] is not
    [=on the PHL=]. Keeping the grants independent makes every visibility change strictly additive,
    which is what [[#resource-visibility-upgrades|upgradeable but never downgradeable]] requires.
 : <dfn for="COS entry">storing origins</dfn>
@@ -195,17 +193,17 @@ A user agent has an associated <dfn>Cross-Origin Storage queue</dfn>, which is t
 ## The Public Hash List ## {#public-hash-list}
 
 Confirming that a hash is present in Cross-Origin Storage can itself leak information about a
-user's browsing history (see [[#cross-site-probing]]). This is a risk specifically for the global grant — an entry's explicit
-[=COS entry/origins=] [=list=], and the same-site baseline every entry carries, have already had
-their disclosure bounded by an explicit choice of the storing origin, but making an entry
-[=COS entry/globally disclosable=] potentially exposes it to any origin on the web. To bound that
+user's browsing history (see [[#cross-site-probing]]). This is a risk specifically for the global
+grant. An entry's explicit [=COS entry/origins=] [=list=], and the same-site baseline every entry
+carries, already have their disclosure bounded by an explicit choice of the storing origin, while
+making an entry [=COS entry/globally disclosable=] potentially exposes it to any origin on the web. To bound that
 specific risk, a [=COS entry/globally disclosable=] resource is only disclosable, through that
 grant, to origins outside its [=COS entry/storing origins=] if its hash clears an additional,
 independent gate: membership on the <dfn export id="dfn-public-hash-list">Public Hash List</dfn>
 (<dfn export>PHL</dfn>), a vendor-neutral, [=implementation-defined=] allowlist of [=COS hash=]
 values. A hash is admitted to the Public Hash List only once it clears a k-anonymity-style
-popularity bar — for example, appearing, byte-identical, across some minimum number of independent
-origins — so that confirming its presence in a shared cache is not informative about any
+popularity bar (for example, appearing, byte-identical, across some minimum number of independent
+origins), so that confirming its presence in a shared cache is not informative about any
 individual user.
 
 A [=COS hash=] |hash| is <dfn export data-lt="on the PHL">on the Public Hash List</dfn> if |hash|
@@ -214,21 +212,18 @@ List=].
 
 Issue: The retrieval protocol, update cadence, data format, popularity thresholds, and governance
 of the Public Hash List are designed in detail as a companion artifact to this specification, in
-the spirit of how the [[URL]] Standard's public suffix list is a companion data file rather than
-normative prose — see the
+the spirit of the public suffix list, a companion data file to the [[URL]] Standard; see the
 [Public Hash List explainer](public-hash-list/phl-explainer.md) in this repository. That design
 proposes governance by the WHATWG, modeled on the Public Suffix List's cross-vendor,
-rolling-release precedent, and admission criteria keyed on independently corroborated ubiquity —
-a concrete instance of the k-anonymity-style bar described above, applied once, offline, as part
-of how a hash is admitted, not as a check the user agent repeats per query. None of this is yet
-established outside this proposal. An early, non-normative code prototype of the list itself is
-maintained in this repository, at
-<a href="public-hash-list/implementation/">public-hash-list/implementation/</a> — a pragmatic
-interim home; a dedicated, cross-vendor repository remains the governance target described in
-the PHL explainer.
-This specification only depends on whether a hash is [=on the PHL=], not on any particular
-retrieval mechanism or governance model, so it remains correct regardless of how that design
-evolves.
+rolling-release precedent, and admission criteria keyed on independently corroborated ubiquity.
+This is a concrete instance of the k-anonymity-style bar described above, applied once, offline,
+as part of how a hash is admitted, so the user agent never repeats it per query. None of this is
+yet established outside this proposal. An early, non-normative code prototype of the list itself
+lives in this repository for now, at
+<a href="public-hash-list/implementation/">public-hash-list/implementation/</a>; a dedicated,
+cross-vendor repository remains the governance target described in the PHL explainer. This
+specification depends only on whether a hash is [=on the PHL=], so it remains correct however the
+list's retrieval mechanism, governance model, or the rest of that design evolves.
 
 # The {{CrossOriginStorageManager}} interface # {#the-crossoriginstoragemanager-interface}
 
@@ -265,16 +260,16 @@ Each {{CrossOriginStorageManager}} object has an associated [=/origin=], set to
 [=this=]'s [=relevant settings object=]'s [=environment settings object/origin=] when the object
 is created.
 
-Note: Taking the origin from the [=relevant settings object=] rather than from anything about
-the script itself has a consequence worth spelling out for workers. A worker created from a
+Note: Taking the origin from the [=relevant settings object=], independent of anything about the
+script itself, has a consequence worth spelling out for workers. A worker created from a
 `blob:` URL has the [=/origin=] of the context that created it, so it shares that origin's
 Cross-Origin Storage view exactly: what such a worker writes, its creating page can read back, and
 what the page stored, the worker can read. The `blob:` URL is not an origin of its own, and
-revoking it does not detach the worker from that view. A worker created from a `data:` URL, by
-contrast, has an [=opaque origin=]. This specification does not currently define what
+revoking it does not detach the worker from that view. A worker created from a `data:` URL
+has an [=opaque origin=]. This specification does not currently define what
 {{CrossOriginStorageManager/requestFileHandle()}} does when the <em>calling</em> origin is opaque;
-the [=opaque origin=] rule in [=validate a COS request=] governs the origins a caller
-<em>names</em>, not the origin it speaks from. An opaque origin has no stable identity to key
+the [=opaque origin=] rule in [=validate a COS request=] governs only the origins a
+caller <em>names</em>. An opaque origin has no stable identity to key
 [=COS entry/storing origins=] or [=same site=] comparisons on, so there is nothing meaningful for
 it to be granted.
 
@@ -412,8 +407,8 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
 1. If |origin| is [=same site=] with some item of |entry|'s [=COS entry/storing origins=], return
    |entry|.
 
-   Note: The same-site baseline every entry carries — the grant a write with no
-   {{CrossOriginStorageRequestFileHandleOptions/origins}} option requests — always holds,
+   Note: The same-site baseline every entry carries (the grant a write with no
+   {{CrossOriginStorageRequestFileHandleOptions/origins}} option requests) always holds,
    regardless of any [=COS entry/origins=] [=list=] or [=COS entry/globally disclosable=] grant
    added later. Because it is checked before the [=Public Hash List=] gate below, a same-site
    origin reads the entry whether or not its [=COS entry/hash=] is [=on the PHL=]. Same-site here
@@ -432,7 +427,7 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
 1. If |entry|'s [=COS entry/globally disclosable=] is true:
    1. If |entry|'s [=COS entry/hash=] is not [=on the PHL=], return null.
 
-      Note: The Public Hash List gate applies only to the global grant — the one case where
+      Note: The Public Hash List gate applies only to the global grant, the one case where
       disclosure could otherwise reach any origin on the web. An entry that is
       [=COS entry/globally disclosable=] but whose [=COS entry/hash=] is not [=on the PHL=] is not
       disclosed to an origin that qualifies through this grant alone; an origin that also appears
@@ -473,7 +468,7 @@ It is true for a handle returned by [=complete a read request=], which has alrea
 [[#availability-gating|availability gating]], and false for a handle returned by
 [=complete a create request=] until [=verify and store=] succeeds for that same handle.
 
-Note: This is deliberately a property of the handle rather than of the entry. A create request
+Note: This is deliberately a property of each handle. A create request
 returns a handle whether or not the entry already exists and is already "`written`" (see
 [=complete a create request=]), so a per-entry rule would let any origin call
 {{CrossOriginStorageManager/requestFileHandle()}} with
@@ -552,8 +547,8 @@ undefined |origins|, return "`*`", a [=list=] of [=/origins=], or null:
       to |list|.
 1. Return |list|.
 
-Note: Deduplicating here, rather than only when later [[#resource-visibility-upgrades|merging]]
-into an existing entry, keeps [=COS entry/origins=] duplicate-free from the moment an entry is
+Note: Deduplicating here, before any later [[#resource-visibility-upgrades|merge]] into an
+existing entry, keeps [=COS entry/origins=] duplicate-free from the moment an entry is
 first created, so every later [=list/clone=] of it stays duplicate-free too.
 
 </div>
@@ -563,7 +558,7 @@ When the {{FileSystemWritableFileStream}} obtained by calling
 addresses a [=COS entry=] is closed [[FS]], the user agent must run the [=verify and store=] steps
 below before that closing operation's promise is fulfilled.
 
-Note: This applies regardless of how closing was triggered — an explicit
+Note: This applies regardless of how closing was triggered: an explicit
 {{WritableStream/close()}} call, or a {{ReadableStream/pipeTo()}} call that reaches the end of its
 source, which by default also closes its destination. [[STREAMS]] does not distinguish the two at
 the point a stream becomes closed, and neither does this algorithm.
@@ -584,11 +579,10 @@ stream's handle, the complete written [=byte sequence=] |bytes|, and the closing
          [=COS entry/pending writer count=] is 0, then [=map/remove=] |entry|'s
          [=COS entry/hash=] from the [=COS registry=].
 
-         Note: This is what makes a failed write clean up after itself instead of leaving a
-         permanently unreachable "`pending`" entry behind: a later
+         Note: This is what makes a failed write clean up after itself: a later
          {{CrossOriginStorageManager/requestFileHandle()}} call for the same hash, once no other
          writer is still outstanding, sees no entry at all and gets an ordinary
-         "{{NotFoundError}}", not an indefinite "{{NotAllowedError}}". The count guards against
+         "{{NotFoundError}}". The count guards against
          deleting an entry that another writer, concurrently in flight for the same hash (for
          example, two tabs that both found the hash absent and independently began writing it),
          might still [=verify and store|successfully write=]: if that writer is still outstanding,
@@ -623,8 +617,8 @@ stream with the existing file's contents. Honoring that here would let a caller 
 origin for bytes it never possessed. A create request returns a handle whether or not the entry
 already exists, so a caller could open a writable for a hash another origin stored, close it
 having written nothing, and have the carried-over bytes hash to the requested value. That would
-grant it read access with [=COS entry/origins=], the [=Public Hash List=] and
-[[#greasing|GREASE'ing]] never consulted — an [[#availability-gating|availability gating]] bypass
+grant it read access with [=COS entry/origins=], the [=Public Hash List=], and
+[[#greasing|GREASE'ing]] never consulted: an [[#availability-gating|availability gating]] bypass
 assembled out of two individually permitted operations. It is the same reasoning that makes
 [=verify and store=] require the complete contents on every create request.
 
@@ -737,28 +731,27 @@ To <dfn>upgrade resource visibility</dfn> given a [=COS entry=] |entry| and "`*`
    1. If |entry|'s [=COS entry/origins=]'s [=list/size=] equals the user agent's
       [=maximum origins list length=], then break.
 
-      Note: Any remaining |candidateOrigin| values are silently dropped from this upgrade rather
-      than failing it — the write itself already succeeded — but the user agent is expected to
-      log a console warning that the entry's origins list is at capacity.
+      Note: Any remaining |candidateOrigin| values are silently dropped from this upgrade, since
+      the write itself already succeeded, and the user agent is expected to log a console warning that the entry's origins list is at capacity.
    1. [=list/Append=] |candidateOrigin| to |entry|'s [=COS entry/origins=].
 
 </div>
 
 Note: An upgrade only ever adds to [=COS entry/origins=] or sets [=COS entry/globally disclosable=]
-to true; neither grant is ever removed or narrowed. A writer that requests a [=list=] widens an
-entry that is already [=COS entry/globally disclosable=] just as it widens one that is not — the
-newly listed origins gain [=on the PHL|PHL=]-independent access even while the "`*`" grant remains
-in force — because the two grants are independent rather than ordered.
+to true. A writer that requests a [=list=] widens an entry that is already
+[=COS entry/globally disclosable=] just as it widens one that is not, because the two grants are
+independent: the newly listed origins gain [=on the PHL|PHL=]-independent access even while the
+"`*`" grant remains in force.
 
-Note: A new site — not only the original storer — can widen an entry's [=COS entry/origins=], as
-long as it also supplies bytes that hash to the entry's [=COS entry/hash=]. This is intentional:
+Note: Any site, including one other than the original storer, can widen an entry's
+[=COS entry/origins=], as long as it also supplies bytes that hash to the entry's [=COS entry/hash=]. This is intentional:
 any site that already possesses the correct bytes for a hash is, by construction, as authoritative
 as the original storer about what that hash denotes.
 
 ### Original storer access ### {#original-storer-access}
 
-An [=/origin=] that has successfully completed [=verify and store|writing=] a [=COS entry=] — that
-is, any [=/origin=] in the entry's [=COS entry/storing origins=] — can always subsequently obtain
+An [=/origin=] that has successfully completed [=verify and store|writing=] a [=COS entry=] (that
+is, any [=/origin=] in the entry's [=COS entry/storing origins=]) can always subsequently obtain
 a handle for it via {{CrossOriginStorageManager/requestFileHandle()}}, independent of the entry's
 [=COS entry/origins=] value and independent of whether its [=COS entry/hash=] is [=on the PHL=].
 This mirrors the Cache API's model, in which an origin always has access to what it stored.
@@ -798,7 +791,7 @@ Calling {{FileSystemFileHandle/getFile()}} on a {{FileSystemFileHandle}} address
 * A handle from a create request for an entry that some *other* origin has already written. The
   entry's [=COS entry/state=] is "`written`", but this caller has not supplied the bytes and has
   not passed [[#availability-gating|availability gating]], so it must learn nothing about the
-  entry — including whether it exists.
+  entry, not even whether it exists.
 
 Once a handle's [=FileSystemFileHandle/may read=] is true, {{FileSystemFileHandle/getFile()}}
 called on it returns a {{File}} whose contents are the addressed entry's [=COS entry/bytes=]; this
@@ -811,8 +804,8 @@ A {{FileSystemFileHandle}} addressing a [=COS entry=] has a [=/file system locat
 [=Cross-Origin Storage file system=].
 
 Note: [[FS]] defines {{FileSystemHandle/name}} as the last path component of the handle's
-locator's path, so this settles {{FileSystemHandle/name}} rather than leaving it to be chosen: it
-is the hash. An entry has no name of its own, and the hash is the only identity it has, so
+locator's path, so this also settles {{FileSystemHandle/name}}: it is the
+hash. An entry has no name of its own, and the hash is the only identity it has, so
 reporting it carries information the empty string would discard.
 
 An entry has no name and no containing directory, so most of [[FS]]'s structural surface has
@@ -847,8 +840,8 @@ Note: Neither method is defined by [[FS]] or by the File System Access API at th
 (<a href="https://github.com/WICG/file-system-access/issues/214">WICG/file-system-access#214</a>),
 so the error name follows {{FileSystemDirectoryHandle/removeEntry()}}, the operation [[FS]] does
 define for deleting an entry: it rejects with the access result's error name when readwrite access
-is not granted. Refused rather than absent is the accurate reading here — the operations are
-meaningful and denied.
+is not granted. Rejecting is the accurate behavior here: the operations are meaningful and
+denied.
 
 {{FileSystemFileHandle/createSyncAccessHandle()}} needs no rule here: its steps reject with an
 "{{InvalidStateError}}" {{DOMException}} whenever the handle is not in a [=/bucket file system=],
@@ -889,10 +882,9 @@ origin would hand that origin the entry's bytes without [=COS entry/origins=],
 matches the File System Standard's existing treatment of handles, which are likewise only useful
 to a [=same origin=] recipient.
 
-Note: <a class=allow-2119 data-link-type=dfn data-link-for=FileSystemFileHandle>may read</a> travels with the handle rather than being recomputed,
-so a create-request handle that has not been written through stays unreadable after a transfer,
-and a read-request handle stays readable without being re-gated. Re-gating on arrival would be
-worse, not better: it would let a caller probe availability repeatedly by transferring the same
+Note: <a class=allow-2119 data-link-type=dfn data-link-for=FileSystemFileHandle>may read</a> travels with the handle, so a create-request handle that has not been written through stays unreadable after a transfer,
+and a read-request handle stays readable without being re-gated. Re-gating on arrival would let a
+caller probe availability repeatedly by transferring the same
 handle.
 
 # Storage management # {#storage-management}
@@ -923,24 +915,24 @@ Exceeding this limit is handled differently in each of those two places, because
 happen at very different points in an operation:
 
 * In [=validate a COS request=], the limit is checked before any file is fetched, hashed, or
-  written. A caller that exceeds it gets an immediate "{{TypeError}}" and nothing else happens —
+  written. A caller that exceeds it gets an immediate "{{TypeError}}" and nothing else happens,
   the same treatment as any other malformed {{CrossOriginStorageRequestFileHandleOptions/origins}}
   value.
 * In [=upgrade resource visibility=], the limit can only be reached by the cumulative effect of
   origins requested across separate, independent write calls, possibly by unrelated origins over
   a long period of time, and it is only checked after this call's bytes have already been hashed,
   verified, and durably stored. Rejecting the write at that point would discard a successful,
-  already-verified — and potentially very large — write over an unrelated bookkeeping limit, and
+  already-verified, and potentially very large write over an unrelated bookkeeping limit, and
   would not even be attributable to a single caller's mistake. The write is therefore left to
   succeed, and only the origins beyond capacity are dropped from [=COS entry/origins=], with a
   console warning. This mirrors the existing handling of a
   [[#resource-visibility-upgrades|permissive-to-more-restricted]] request: an [=/origin=] request
-  that cannot be fully honored is silently capped rather than turned into a failure of the write
-  that carried it. Consistent with [[#availability-gating]] elsewhere in this specification, a
+  that cannot be fully honored is silently capped, and the write that carried it still
+  succeeds. Consistent with [[#availability-gating]] elsewhere in this specification, a
   caller has no reliable way to confirm after the fact whether its requested [=/origin=] was
   actually added: a subsequent {{CrossOriginStorageManager/requestFileHandle()}} call as that
-  origin can still fail even if the origin was added — for example because of
-  [[#greasing|GREASE'ing]] — so its result must not be read as confirmation either way.
+  origin can still fail even if the origin was added (for example, because the entry was
+  evicted or the user agent throttled the request), so its result must not be read as confirmation either way.
 
 ## Eviction ## {#eviction}
 
@@ -961,32 +953,32 @@ When a user clears an origin's site data, the user agent should remove that orig
 *This section is non-normative.*
 
 The settings UI described above may let a user directly add a file they already have on disk to
-Cross-Origin Storage — for example, an AI model they downloaded independently of any website —
+Cross-Origin Storage (for example, an AI model they downloaded independently of any website)
 without any script ever calling {{CrossOriginStorageManager/requestFileHandle()}}. Such an entry
 has no requesting [=/origin=] to attribute the write to, which raises two questions the imperative
 API does not answer by itself:
 
 * Who is the <em>original storer</em>, for the purposes of
-  [[#original-storer-access]]? Nobody: the entry's [=COS entry/storing origins=] starts out empty,
-  rather than containing an origin that performed the write. No origin is therefore exempt from
+  [[#original-storer-access]]? Nobody: the entry's [=COS entry/storing origins=] starts out empty.
+  No origin is therefore exempt from
   the ordinary [[#availability-gating|availability gating]] and [=COS entry/origins=] checks that
-  every requesting origin is otherwise subject to — which is the correct outcome, since no origin
+  every requesting origin is otherwise subject to. That is the correct outcome, since no origin
   actually wrote the bytes.
 * Should such an entry be restricted to same-site-only, as an ordinary write that omits
   {{CrossOriginStorageRequestFileHandleOptions/origins}} is? No: "same-site" is only meaningful
   relative to a requesting origin, and a manual add has none, so there is no site for "same-site"
-  to mean. A user agent is expected to make such an entry [=COS entry/globally disclosable=]
-  instead, leaving its explicit [=COS entry/origins=] [=list=] empty, since manually seeding a file
-  only serves its purpose — letting sites the user has not visited yet reuse a file the user
-  already has on disk — if other origins can actually discover it. A user agent's settings UI may
+  to mean. A user agent is expected to make such an entry [=COS entry/globally disclosable=],
+  leaving its explicit [=COS entry/origins=] [=list=] empty, since manually seeding a file only
+  serves its purpose (letting sites the user has not visited yet reuse a file the user already has
+  on disk) if other origins can actually discover it. A user agent's settings UI may
   additionally let the user choose a narrower scope.
 
 Once added this way, an entry with [=COS entry/state=] "`written`" is otherwise indistinguishable
 from one a website wrote via {{CrossOriginStorageManager/requestFileHandle()}}: the same
 [[#availability-gating|availability gating]] and [[#resource-visibility-upgrades|visibility
-upgrade]] rules apply to it, exactly as they would for any other entry with the same grants —
-including the [=on the PHL=] check, if the entry ends up [=COS entry/globally disclosable=], which
-is the default for a manual add but not the only possible outcome.
+upgrade]] rules apply to it, exactly as they would for any other entry with the same grants.
+That includes the [=on the PHL=] check whenever the entry ends up
+[=COS entry/globally disclosable=], the default for a manual add.
 
 ## Provenance metadata ## {#provenance-metadata}
 
@@ -995,7 +987,7 @@ is the default for a manual add but not the only possible outcome.
 A [=COS entry=] deliberately records nothing about where its bytes came from. Identity is the
 [=COS entry/hash=] alone: the same bytes are the same entry regardless of how many origins stored
 them or how many URLs they were fetched from (see [[#cos-entries]]). A URL is a property of one
-writer's fetch rather than of the entry, so there is no non-arbitrary way to pick one for an entry
+writer's fetch, so there is no non-arbitrary way to pick one for an entry
 several origins wrote; it is not verifiable the way the bytes are (see [[#resource-integrity]]);
 and it carries considerably more about a user's browsing than the coarse [=/origin=] values in
 [=COS entry/storing origins=] do, since a path or query string can name a specific document,
@@ -1006,9 +998,9 @@ The motivation for wanting it is nonetheless real: a user looking at a multi-gig
 settings UI described in [[#eviction]], and a developer debugging why a
 {{CrossOriginStorageManager/requestFileHandle()}} call missed, would both like to know where a file
 came from. A user agent may serve that by keeping an implementation-private provenance record
-alongside an entry — for example, the URL each of its [=COS entry/storing origins=] fetched the
-bytes from, and when — provided the record is treated as user agent state rather than as part of
-the entry:
+alongside an entry (for example, the URL each of its [=COS entry/storing origins=] fetched the
+bytes from, and when), provided the record is treated as user agent state kept outside the
+entry:
 
 * It is never exposed to script. Nothing in this specification discloses it, and nothing added
   later should: neither {{CrossOriginStorageManager/requestFileHandle()}} nor the
@@ -1016,14 +1008,13 @@ the entry:
   contents. In particular, a requesting [=/origin=] must not be able to observe a record it did not
   itself produce.
 * It is surfaced only through trusted, non-web surfaces: the user agent's own settings and storage
-  inspection UI, its developer tools, and — where the user agent has an extension platform —
+  inspection UI, its developer tools, and (where the user agent has an extension platform)
   extension APIs gated behind an explicit, user-granted permission, on the same footing as other
   APIs that expose browsing history. See the
   [browser extension integration points explainer](extensions/extensions-explainer.md) in this
   repository for the extension surfaces being considered.
 * It is unverified, and is presented as such. A URL in it is a claim by the origin that wrote the
-  bytes, not an attestation about them — only the [=COS entry/hash=] guarantees the content (see
-  [[#resource-integrity]]). Two origins may record different URLs for the same entry, and either
+  bytes. Only the [=COS entry/hash=] guarantees the content (see [[#resource-integrity]]). Two origins may record different URLs for the same entry, and either
   may be inaccurate or deliberately misleading.
 * It shares the lifetime of the entry, and of the origin it is attributed to. It is discarded when
   the entry is evicted or deleted, and the portion attributable to an origin is discarded when
@@ -1085,23 +1076,21 @@ opt-out in name only. A worker created from a `blob:` URL runs in its creating p
 without changing anything else about it.
 
 Note: A {{ServiceWorkerGlobalScope}}'s [=WorkerGlobalScope/owner set=] is empty, so this
-algorithm returns false there. That is structural rather than an omission in [[HTML]]. The
-[=WorkerGlobalScope/owner set=] is a liveness relation, populated when a worker is created and
-consulted to decide whether that worker is still actively needed, and a service worker
-deliberately has no such relation to any {{Document}}: its registration is persisted, the user
-agent starts the global in response to events rather than a page starting it, and it can run
-with no [=/service worker client=] at all. The client that called
+algorithm returns false there. That follows from what an [=WorkerGlobalScope/owner set=] is: a
+liveness relation, populated when a worker is created and consulted to decide whether that worker
+is still actively needed. A service worker deliberately has no such relation to any {{Document}}:
+its registration is persisted, the user agent starts the global in response to events, and it can
+run with no [=/service worker client=] at all. The client that called
 {{ServiceWorkerContainer/register()}} is therefore knowable at registration time but is
 routinely gone by the time the global runs, and one running service worker serves many clients
 whose policies need not agree.
 
-Note: Covering service workers needs a captured policy rather than an owner walk, which is
-[[permissions-policy]] and [[service-workers]] work rather than this specification's. The shape
+Note: Covering service workers needs a captured policy, and that work belongs to
+[[permissions-policy]] and [[service-workers]]. The shape
 this specification would favor is to derive a service worker's policy from the
 <code>Permissions-Policy</code> header on its own script response, the way its policy container
 already carries that response's CSP: it stays under the origin's control, and it is
-re-evaluated on every update check instead of freezing at registration. Snapshotting the
-registering client's policy instead would make the opt-out stale, since removing the feature
+re-evaluated on every update check. Snapshotting the registering client's policy would make the opt-out stale, since removing the feature
 from a header would not take effect until the registration happened to update. Until such a
 model exists, failing closed is the one answer that cannot be used to escape an opt-out.
 
@@ -1118,8 +1107,8 @@ documents that disallow it.
 A [=COS entry=] whose [=COS entry/origins=] [=list=] is non-empty is disclosable to origins the
 writing origin does not control, yet that [=list=] is declared by script (through
 {{CrossOriginStorageRequestFileHandleOptions/origins}}) or by markup, either of which an attacker
-who has achieved script or markup injection can set. To keep that declaration attributable to the
-operator of the origin whose bytes are being disclosed rather than to injected content, this
+who has achieved script or markup injection can set. To tie that declaration to the operator of
+the origin whose bytes are being disclosed, in a form injected content cannot forge, this
 specification defines a response header that bounds which origins such a declaration may name.
 
 The <dfn export http-header>`Cross-Origin-Storage-Allow-Origin`</dfn> response header carries a
@@ -1135,9 +1124,8 @@ the [=/response=] behind the bytes being disclosed:
   (see [=store a fetched resource in Cross-Origin Storage=]). This is the resource's server, which
   need not be the server of the {{Document}} that loads it.
 
-A declared [=list=] is not honored as given; it is [=set/intersection|intersected=] with the
-ceiling (see [=apply a COS scope ceiling=]), so the ceiling can only ever narrow a declaration,
-never widen or create one.
+A declared [=list=] is [=set/intersection|intersected=] with the ceiling (see
+[=apply a COS scope ceiling=]), so the ceiling can only ever narrow a declaration.
 
 Note: The header is an authorization by the side that supplies the bytes. The origins it names,
 the eventual readers, are not consulted and send nothing: a listed origin takes part only later,
@@ -1220,16 +1208,15 @@ To <dfn>apply a COS scope ceiling</dfn> given a [=list=] of [=/origins=] |reques
 1. [=list/Remove=] from |requestedOrigins| each [=/origin=] that |ceiling| does not
    [=set/contain=].
 
-   Note: A recipient missing from the [=COS scope ceiling=] is dropped rather than failing the
-   write, matching how an over-length upgrade drops its excess in
+   Note: A recipient missing from the [=COS scope ceiling=] is dropped and the write still
+   succeeds, matching how an over-length upgrade drops its excess in
    [=upgrade resource visibility=]. The user agent is expected to log a console warning naming
    each dropped [=/origin=].
 1. If |requestedOrigins| [=list/is empty=], return null.
 
    Note: A [=list=] every one of whose members was dropped leaves the write with no authorized
-   cross-origin recipient, so it falls back to the same-site default rather than to the
-   strictly-narrower empty [=list=] (which would exclude even same-site readers). The bytes are
-   still stored; only the unauthorized disclosure is withheld.
+   cross-origin recipient, so it falls back to the same-site default. The bytes are still
+   stored; only the unauthorized disclosure is withheld.
 1. Return |requestedOrigins|.
 
 </div>
@@ -1244,8 +1231,8 @@ Note: Taking the intersection across a worker's [=WorkerGlobalScope/owner set=] 
 [=/origin=] and Cross-Origin Storage view exactly (see
 [[#the-crossoriginstoragemanager-interface]]), a ceiling that consulted only the worker itself
 would be empty for every worker, and moving a list-scoped write into
-`new Worker(URL.createObjectURL(&hellip;))` would strip the recipients rather than preserve the
-page's authorization; intersecting the owners' ceilings preserves it without letting any single
+`new Worker(URL.createObjectURL(&hellip;))` would strip the recipients the page authorized;
+intersecting the owners' ceilings preserves that authorization without letting any single
 owner widen it.
 
 Issue: Populating a {{Document}}'s [=Document/COS scope ceiling=] from its [=/response=] requires
@@ -1271,11 +1258,10 @@ access a file without already knowing its hash.
 
 A [=COS hash=] is not a secret. It is a content identifier, trivially computable by anyone who
 already has the file, and is routinely public knowledge for the kind of widely distributed
-resources this specification targets — published, for example, alongside a model's or a library's
-release. Knowing a hash is therefore sufficient to look an entry up, but unlike a capability URL
-or a bearer token, it grants no access by itself: whether a lookup succeeds is governed entirely
-by [=COS entry/origins=] and [[#availability-gating]], never by whether the hash happened to stay
-unpublished. Developers must not treat an unpublished hash as an access-control mechanism; an
+resources this specification targets, often published alongside a model's or a library's
+release. Knowing a hash is therefore sufficient to look an entry up, and it grants no access by
+itself: whether a lookup succeeds is governed entirely by [=COS entry/origins=] and
+[[#availability-gating]]. Developers must not treat an unpublished hash as an access-control mechanism; an
 attacker interested in a specific file does not need to guess its hash, only to obtain the file
 itself (see [[#cross-site-probing]]).
 
@@ -1299,8 +1285,8 @@ learn:
 
 The first bullet only holds if a "chosen set of origins" stays meaningfully smaller than the web.
 Nothing about the shape of {{CrossOriginStorageRequestFileHandleOptions/origins}} stops a caller
-from enumerating a very large number of origins — for example, a list assembled from a public
-top-sites ranking — which would functionally approximate global disclosure while bypassing the
+from enumerating a very large number of origins (for example, a list assembled from a public
+top-sites ranking), which would functionally approximate global disclosure while bypassing the
 deliberate, explicit opt-in that "`*`" alone requires. The [=maximum origins list length=] (see
 [[#storage-limits]]) bounds this: a limit small enough to fit genuine multi-property use cases
 (a handful of related origins under common control) but far short of any meaningful approximation
@@ -1360,12 +1346,12 @@ grant alone, the same case the [=Public Hash List=] gates (see [=determine COS d
 user agent must not apply it to [=COS entry/storing origins=], to origins [=same site=] with them,
 or to origins on the explicit [=COS entry/origins=] [=list=].
 
-A user agent applying GREASE'ing must do so with judgement proportionate to the size of the entry
+A user agent applying GREASE'ing must do so with judgment proportionate to the size of the entry
 in question. For small entries, where falling back to a network fetch is inexpensive, an occasional
 false negative is a reasonable privacy trade-off. A user agent must not apply GREASE'ing to entries
-whose size makes a spurious re-download clearly disproportionate to the resulting privacy benefit —
-for example, gigabyte-scale AI model weights — because a false negative there forces a full,
-observable, and costly re-download rather than a cheap one.
+whose size makes a spurious re-download clearly disproportionate to the resulting privacy benefit
+(for example, gigabyte-scale AI model weights), because a false negative there forces a full,
+observable, and costly re-download.
 
 ## Fingerprinting ## {#fingerprinting}
 
@@ -1384,10 +1370,10 @@ independent of nominal PHL status.
 
 The [=COS registry=] defined here is also reachable from four host integrations without going
 through {{CrossOriginStorageManager/requestFileHandle()}} directly. Each
-integration is defined in its own host specification, not in this document; this
-specification defines only the shared underlying concepts ([=COS hash=], [=COS entry=],
-[[#availability-gating|availability gating]], and the [=Public Hash List=]) that those
-integrations are expected to build on.
+integration is defined in its own host specification. This specification defines the shared
+underlying concepts ([=COS hash=], [=COS entry=], [[#availability-gating|availability gating]], and
+the [=Public Hash List=]) and the [=store a fetched resource in Cross-Origin Storage=] step that
+those integrations are expected to build on.
 
 * **HTML**: a `crossoriginstorage` attribute on <{link}> and <{script}> elements that already
   carry `integrity` [[SRI]], proposed to the WHATWG in
@@ -1402,7 +1388,7 @@ integrations are expected to build on.
 * **Fetch**: a `crossOriginStorage` {{RequestInit}} option, usable alongside
   {{RequestInit/integrity}} [[FETCH]], proposed to the WHATWG in
   [whatwg/fetch#1954](https://github.com/whatwg/fetch/issues/1954).
-  Unlike the three declarative forms, this one has no host-defined destination, so how a
+  This one has no host-defined destination, so how a
   {{Response}} served from the [=COS registry=] reports its MIME type, status, and other metadata
   is an open question for that specification; a [=COS entry=] stores [=COS entry/bytes=] only.
 
@@ -1434,9 +1420,9 @@ const response = await fetch("popular-resource.ext", {
 });
 </pre>
 
-These snippets are illustrative only. None of this syntax is defined by this specification, and
-the authoritative grammar for each form — including how a restricted, non-"`*`" origins value is
-spelled — belongs to its own host specification, not to this document. The spellings deliberately
+These snippets are illustrative only. None of this syntax is defined by this specification.
+The authoritative grammar for each form, including how a restricted origins list is spelled,
+belongs to its own host specification. The spellings deliberately
 differ: a `RequestInit` member can take a `sequence<DOMString>`, matching
 {{CrossOriginStorageRequestFileHandleOptions/origins}} exactly, while an attribute value, an
 import attribute value, and a CSS modifier argument can only carry text.
