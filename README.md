@@ -592,8 +592,19 @@ Expressing this means asking COS a question before committing to any download: *
  * Example usage to pick the best locally available variant of a model.
  */
 
-// Candidates, most capable first.
-const candidates = [
+// The only variant the app ever downloads, so the only one with a URL.
+const download = {
+  name: 'whisper-tiny',
+  url: 'https://cdn.example/models/whisper-tiny.bin',
+  hash: {
+    algorithm: 'SHA-256',
+    value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+  },
+};
+
+// Better variants, most capable first. These are only probed: the app uses
+// one if the user already has it, and never downloads it.
+const upgrades = [
   {
     name: 'whisper-large-v3',
     hash: {
@@ -610,17 +621,11 @@ const candidates = [
         'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     },
   },
-  {
-    name: 'whisper-tiny',
-    hash: {
-      algorithm: 'SHA-256',
-      value:
-        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    },
-  },
 ];
 
-for (const candidate of candidates) {
+// Probe the upgrades first, then the download itself, which the user may also
+// already have from another site.
+for (const candidate of [...upgrades, download]) {
   try {
     const handle = await navigator.crossOriginStorage.requestFileHandle(
       candidate.hash
@@ -637,14 +642,12 @@ for (const candidate of candidates) {
   }
 }
 
-// None of them is available, so fall back to downloading the smallest variant
-// that satisfies the app's requirements.
-const fallback = candidates.at(-1);
-const fileBlob = await loadFileFromNetwork(fallback.name);
-console.log('Obtained model from network', fallback.name);
+// None of them is available, so download the one variant the app ships with.
+const fileBlob = await fetch(download.url).then((response) => response.blob());
+console.log('Obtained model from network', download.name);
 ```
 
-Every step of this is a read with no URL attached. The app has no download URL to offer for `whisper-large-v3`, since it never intended to fetch that variant, and the whole point of asking is to avoid a network request rather than to condition one. A [fetch integration](#fetch-integration) cannot express this, which is one of the reasons it complements the imperative API instead of replacing it (see [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration)).
+Only `whisper-tiny` carries a URL, because it is the only variant the app will ever download. Every probe is a read with no URL attached: the app has no download URL to offer for `whisper-large-v3`, since it never intended to fetch that variant, and the whole point of asking is to avoid a network request rather than to condition one. A [fetch integration](#fetch-integration) cannot express this, which is one of the reasons it complements the imperative API instead of replacing it (see [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration)).
 
 > [!NOTE]
 > Each `requestFileHandle()` call counts as a probe against the user agent's [cross-site probing](#cross-site-probing) safeguards, so candidate lists are expected to be short, in the order of the handful of variants a model family actually ships. A `NotFoundError` for a candidate may also be [availability gating](#availability-gating) rather than a genuine absence, which is why the loop must end in a real network fallback rather than in an assumption that nothing is cached.
