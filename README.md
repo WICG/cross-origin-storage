@@ -54,9 +54,9 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
     - [Retrieving files](#retrieving-files)
     - [Transferring a handle](#transferring-a-handle)
   - [Additional integration surfaces](#additional-integration-surfaces)
-    - [Declarative HTML integration](#declarative-html-integration)
+    - [HTML integration](#html-integration)
     - [JavaScript import attribute integration](#javascript-import-attribute-integration)
-    - [Declarative CSS integration](#declarative-css-integration)
+    - [CSS integration](#css-integration)
     - [Fetch integration](#fetch-integration)
     - [Processing flow common to all four integrations](#processing-flow-common-to-all-four-integrations)
 - [Detailed design discussion](#detailed-design-discussion)
@@ -673,9 +673,9 @@ The imperative JavaScript API in the previous section covers the general case, b
 
 | Surface | Opt-in | Reaches |
 | --- | --- | --- |
-| [HTML](#declarative-html-integration) | `crossoriginstorage` attribute | `<link>` and `<script>` subresources |
+| [HTML](#html-integration) | `crossoriginstorage` attribute | `<link>` and `<script>` subresources |
 | [JavaScript imports](#javascript-import-attribute-integration) | `crossOriginStorage` import attribute | static and dynamic module imports |
-| [CSS](#declarative-css-integration) | `cross-origin-storage()` URL modifier | CSS-referenced assets such as web fonts |
+| [CSS](#css-integration) | `cross-origin-storage()` URL modifier | CSS-referenced assets such as web fonts |
 | [Fetch](#fetch-integration) | `crossOriginStorage` request option | imperative fetches of a known URL |
 
 All four are keyed off the same `origins`-style value space used by `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins, or `*` for global availability. All four are defined in their respective host specifications rather than in this one.
@@ -684,7 +684,7 @@ As with the imperative API, the list form is bounded by a response header so tha
 
 What the four have in common is that the caller holds both a URL and a hash, and wants the bytes. The imperative API remains the surface for everything that does not fit that shape: writes whose bytes did not come from a single `fetch()`, reads that have no URL to offer at all, and lookups across a set of interchangeable candidates (see [Choosing among interchangeable resources](#example-choosing-among-interchangeable-resources)). See [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration) for why the last row of the table does not subsume `requestFileHandle()`.
 
-#### Declarative HTML integration
+#### HTML integration
 
 `<link>` and `<script>` elements that already carry [`integrity`](https://w3c.github.io/webappsec-subresource-integrity/#integrity-metadata) can opt in to COS with a new `crossoriginstorage` attribute, proposed to the WHATWG in [whatwg/html#12770](https://github.com/whatwg/html/issues/12770). As in the JavaScript and CSS forms, the `integrity` hash identifies the file in COS, and `crossoriginstorage` specifies which origins may retrieve it.
 
@@ -805,9 +805,9 @@ import data from "acme-inc-corporate.ext" with {
 };
 ```
 
-#### Declarative CSS integration
+#### CSS integration
 
-In addition to the imperative JavaScript API, COS can be accessed declaratively from CSS via a new [`<request-url-modifier>`](https://drafts.csswg.org/css-values-5/#typedef-request-url-modifier) called `cross-origin-storage()`, proposed to the CSS Working Group in [w3c/csswg-drafts#14056](https://github.com/w3c/csswg-drafts/issues/14056). This is especially valuable for resources referenced in CSS—such as large web fonts—where the imperative JavaScript API is not easily applicable.
+In addition to the imperative JavaScript API, COS can be accessed from CSS via a new [`<request-url-modifier>`](https://drafts.csswg.org/css-values-5/#typedef-request-url-modifier) called `cross-origin-storage()`, proposed to the CSS Working Group in [w3c/csswg-drafts#14056](https://github.com/w3c/csswg-drafts/issues/14056). This is especially valuable for resources referenced in CSS—such as large web fonts—where the imperative JavaScript API is not easily applicable.
 
 The modifier is used alongside the existing [`integrity()`](https://drafts.csswg.org/css-values-5/#typedef-request-url-modifier-integrity-modifier) modifier. The hash from `integrity()` identifies the file in COS, and `cross-origin-storage()` specifies which origins may retrieve it—mirroring the `origins` option in the JavaScript API.
 
