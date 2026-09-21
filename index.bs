@@ -1123,8 +1123,8 @@ specification defines a response header that bounds which origins such a declara
 
 The <dfn export http-header>`Cross-Origin-Storage-Allow-Origin`</dfn> response header carries a
 <dfn>COS scope ceiling</dfn>: a [=set=] of [=/origins=] that a write may name in a non-same-site
-[=COS entry/origins=] [=list=]. The header is read from the [=/response=] that supplies the bytes
-being disclosed:
+[=COS entry/origins=] [=list=]. Whoever supplies the bytes sends the header, so it is read from
+the [=/response=] behind the bytes being disclosed:
 
 * For a {{CrossOriginStorageManager/requestFileHandle()}} write, whose bytes may be generated in
   script and have no originating [=/response=] of their own, it is the [=/response=] used to
