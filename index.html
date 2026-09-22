@@ -6,7 +6,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/cg-draft" rel="stylesheet">
   <meta content="Bikeshed version ea4009a02, updated Thu Sep 17 15:24:44 2026 -0700" name="generator">
   <link href="https://wicg.github.io/cross-origin-storage/" rel="canonical">
-  <meta content="327a20fdc3d6922b662b7417217b525f2d4d7395" name="revision">
+  <meta content="0a03d54d82e20cf881650aaacb9aee8f8c408506" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -785,7 +785,7 @@ var[data-var-color="6"] { --var-vg: #FFBCF2; }
   <div class="head">
    <h1 class="no-ref p-name" id="title">Cross-Origin Storage</h1>
    <p id="w3c-state"><a href="https://www.w3.org/standards/types/#CG-DRAFT">Draft Community Group Report</a>,
-    <time class="dt-updated" datetime="2026-09-21">21 September 2026</time></p>
+    <time class="dt-updated" datetime="2026-09-22">22 September 2026</time></p>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -875,7 +875,7 @@ A human-readable <a href="http://www.w3.org/community/about/agreements/cla-deed/
       <li><a href="#resource-integrity"><span class="secno">8.1</span> <span class="content">Resource integrity</span></a>
       <li><a href="#cross-site-probing"><span class="secno">8.2</span> <span class="content">Cross-site probing</span></a>
       <li><a href="#availability-gating"><span class="secno">8.3</span> <span class="content">Availability gating</span></a>
-      <li><a href="#greasing"><span class="secno">8.4</span> <span class="content">GREASE’ing</span></a>
+      <li><a href="#greaseing"><span class="secno">8.4</span> <span class="content">GREASE’ing</span></a>
       <li><a href="#fingerprinting"><span class="secno">8.5</span> <span class="content">Fingerprinting</span></a>
      </ol>
     <li><a href="#integration-with-other-specifications"><span class="secno">9</span> <span class="content">Integration with other specifications</span></a>
@@ -1329,7 +1329,7 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="determine-cos-
   among <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑦">storing origins</a>, their same-site set, or the explicit
   <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑦">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑦">list</a> has already returned above.</p>
        <li data-md>
-        <p>If the user agent elects to apply <a href="#greasing">GREASE’ing</a> to this request, return null.</p>
+        <p>If the user agent elects to apply <a href="#greaseing">GREASE’ing</a> to this request, return null.</p>
         <p class="note" role="note"><span class="marker">Note:</span> GREASE’ing also applies only to the global grant. The grants checked above never
   reach this step: storing origins and their same-site origins are one trust unit, and an
   origin on the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑧">list</a> was named on purpose by a writer whose
@@ -1371,7 +1371,7 @@ returns a handle whether or not the entry already exists and is already "<code>w
 <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragemanager-requestfilehandle" id="ref-for-dom-crossoriginstoragemanager-requestfilehandle⑨">requestFileHandle()</a></code> with
 <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-create" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-create④">create</a></code>: true and immediately read an entry it
 never wrote, learning its contents without satisfying <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①⓪">origins</a>,
-<a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl⑦">PHL membership</a>, or <a href="#greasing">GREASE’ing</a>. Every disclosure control in this
+<a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl⑦">PHL membership</a>, or <a href="#greaseing">GREASE’ing</a>. Every disclosure control in this
 specification is applied on the read path, so gating per entry would let a create request walk
 around all of them. Requiring the caller to supply the correct bytes first means a successful
 read through a create-obtained handle discloses nothing the caller did not already have.</p>
@@ -1553,7 +1553,7 @@ origin for bytes it never possessed. A create request returns a handle whether o
 already exists, so a caller could open a writable for a hash another origin stored, close it
 having written nothing, and have the carried-over bytes hash to the requested value. That would
 grant it read access with <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①⑤">origins</a>, the <a data-link-type="dfn" href="#dfn-public-hash-list" id="ref-for-dfn-public-hash-list③">Public Hash List</a>, and
-<a href="#greasing">GREASE’ing</a> never consulted: an <a href="#availability-gating">availability gating</a> bypass
+<a href="#greaseing">GREASE’ing</a> never consulted: an <a href="#availability-gating">availability gating</a> bypass
 assembled out of two individually permitted operations. It is the same reasoning that makes
 <a data-link-type="dfn" href="#verify-and-store" id="ref-for-verify-and-store①⓪">verify and store</a> require the complete contents on every create request.</p>
    <p class="note" role="note"><span class="marker">Note:</span> A writable closed without any write therefore holds the empty byte sequence, which will not
@@ -1826,7 +1826,7 @@ and every other origin the entry is disclosable to reads those same bytes.</p>
 this specification at once. A handle whose <a class="allow-2119" data-link-type="dfn" href="#filesystemfilehandle-may-read" id="ref-for-filesystemfilehandle-may-read⑦">may read</a> is true has already
 cleared <a data-link-type="dfn" href="#apply-availability-gating" id="ref-for-apply-availability-gating②">apply availability gating</a> <em>for the origin that requested it</em>; posting it to another
 origin would hand that origin the entry’s bytes without <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②⑤">origins</a>,
-<a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl①①">PHL membership</a> or <a href="#greasing">GREASE’ing</a> ever being evaluated for it. This
+<a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl①①">PHL membership</a> or <a href="#greaseing">GREASE’ing</a> ever being evaluated for it. This
 matches the File System Standard’s existing treatment of handles, which are likewise only useful
 to a <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-origin" id="ref-for-same-origin②">same origin</a> recipient.</p>
    <p class="note" role="note"><span class="marker">Note:</span> <a class="allow-2119" data-link-type="dfn" href="#filesystemfilehandle-may-read" id="ref-for-filesystemfilehandle-may-read⑧">may read</a> travels with the handle, so a create-request handle that has not been written through stays unreadable after a transfer,
@@ -2290,7 +2290,7 @@ scriptable integration can issue them in a loop just as readily.
 <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins②②">storing origins</a> succeeds always depends on whether the requesting origin is
 <em>allowed</em> to read the entry, governed by <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③⑧">origins</a>. For a "<code>*</code>"-scoped entry, a second,
 independent question also applies: whether the user agent is willing to <em>disclose that the entry
-exists at all</em>, governed by <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl①⑤">PHL membership</a> and <a href="#greasing">GREASE’ing</a>. Both must
+exists at all</em>, governed by <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl①⑤">PHL membership</a> and <a href="#greaseing">GREASE’ing</a>. Both must
 hold for such an entry; for a list- or same-site-scoped entry, only the first question applies.
 See <a href="#reading-files">§ 3.2 Reading files</a> for the normative algorithm. A "<code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#notfounderror" id="ref-for-notfounderror⑤">NotFoundError</a></code>" is therefore not
 proof that a resource is absent: it may mean the resource does not exist, that the requesting
@@ -2305,8 +2305,8 @@ membership alone cannot: an attacker can build a cross-site identifier out of
 otherwise-ordinary, individually PHL-eligible resources by choosing which subset to
 write, and third-party cookie availability is the deciding factor in whether the
 resulting probe is any more informative than an ordinary tracking cookie would be.</p>
-   <h3 class="heading settled" data-level="8.4" id="greasing"><span class="secno">8.4. </span><span class="content">GREASE’ing</span><a class="self-link" href="#greasing"></a></h3>
-   <p>A user agent may apply <dfn class="dfn-paneled" data-dfn-type="dfn" data-export id="greaseing">GREASE’ing</dfn> (<a href="https://tools.ietf.org/html/draft-ietf-tls-grease">Generate Random Extensions And Sustain
+   <h3 class="heading settled" data-level="8.4" id="greaseing"><span class="secno">8.4. </span><span class="content">GREASE’ing</span><a class="self-link" href="#greaseing"></a></h3>
+   <p>A user agent may apply <dfn class="dfn-paneled" data-dfn-type="dfn" data-export id="dfn-greaseing">GREASE’ing</dfn> (<a href="https://tools.ietf.org/html/draft-ietf-tls-grease">Generate Random Extensions And Sustain
 Extensibility</a>): occasionally responding as if
 a disclosable entry were absent, even though <a href="#availability-gating">§ 8.3 Availability gating</a> would otherwise
 permit disclosure. This adds noise that makes it harder for a site to distinguish a true absence
@@ -2480,7 +2480,7 @@ and Document License</a>.
    <li><a href="#determine-cos-disclosure">determine COS disclosure</a><span>, in § 3.2</span>
    <li><a href="#cos-hash-equal">equal</a><span>, in § 2.1</span>
    <li><a href="#cos-entry-globally-disclosable">globally disclosable</a><span>, in § 2.2</span>
-   <li><a href="#greaseing">GREASE’ing</a><span>, in § 8.4</span>
+   <li><a href="#dfn-greaseing">GREASE’ing</a><span>, in § 8.4</span>
    <li><a href="#cos-entry-hash">hash</a><span>, in § 2.2</span>
    <li><a href="#maximum-origins-list-length">maximum origins list length</a><span>, in § 5.1</span>
    <li><a href="#filesystemfilehandle-may-read">may read</a><span>, in § 3.3</span>
@@ -3110,6 +3110,7 @@ let dfnPanelData = {
 "de052550": {"dfnID":"de052550","dfnText":"pipeTo(destination)","external":true,"refSections":[{"refs":[{"id":"ref-for-rs-pipe-to"}],"title":"3.3. Creating and writing files"}],"url":"https://streams.spec.whatwg.org/#rs-pipe-to"},
 "de82addd": {"dfnID":"de82addd","dfnText":"filtered response","external":true,"refSections":[{"refs":[{"id":"ref-for-concept-filtered-response"},{"id":"ref-for-concept-filtered-response\u2460"}],"title":"3.4. Storing fetched resources"}],"url":"https://fetch.spec.whatwg.org/#concept-filtered-response"},
 "determine-cos-disclosure": {"dfnID":"determine-cos-disclosure","dfnText":"determine COS disclosure","external":false,"refSections":[{"refs":[{"id":"ref-for-determine-cos-disclosure"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-determine-cos-disclosure\u2460"}],"title":"3.5. Resource visibility upgrades"},{"refs":[{"id":"ref-for-determine-cos-disclosure\u2461"}],"title":"8.4. GREASE\u2019ing"}],"url":"#determine-cos-disclosure"},
+"dfn-greaseing": {"dfnID":"dfn-greaseing","dfnText":"GREASE\u2019ing","external":false,"refSections":[],"url":"#dfn-greaseing"},
 "dfn-public-hash-list": {"dfnID":"dfn-public-hash-list","dfnText":"Public Hash List","external":false,"refSections":[{"refs":[{"id":"ref-for-dfn-public-hash-list"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-dfn-public-hash-list\u2460"}],"title":"2.3. The Public Hash List"},{"refs":[{"id":"ref-for-dfn-public-hash-list\u2461"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-dfn-public-hash-list\u2462"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-dfn-public-hash-list\u2463"},{"id":"ref-for-dfn-public-hash-list\u2464"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"},{"refs":[{"id":"ref-for-dfn-public-hash-list\u2465"}],"title":"8.4. GREASE\u2019ing"},{"refs":[{"id":"ref-for-dfn-public-hash-list\u2466"}],"title":"9. Integration with other specifications"}],"url":"#dfn-public-hash-list"},
 "dictdef-crossoriginstoragerequestfilehandlehash": {"dfnID":"dictdef-crossoriginstoragerequestfilehandlehash","dfnText":"CrossOriginStorageRequestFileHandleHash","external":false,"refSections":[{"refs":[{"id":"ref-for-dictdef-crossoriginstoragerequestfilehandlehash"}],"title":"3. The CrossOriginStorageManager interface"},{"refs":[{"id":"ref-for-dictdef-crossoriginstoragerequestfilehandlehash\u2460"}],"title":"3.1. The requestFileHandle() method"}],"url":"#dictdef-crossoriginstoragerequestfilehandlehash"},
 "dictdef-crossoriginstoragerequestfilehandleoptions": {"dfnID":"dictdef-crossoriginstoragerequestfilehandleoptions","dfnText":"CrossOriginStorageRequestFileHandleOptions","external":false,"refSections":[{"refs":[{"id":"ref-for-dictdef-crossoriginstoragerequestfilehandleoptions"}],"title":"3. The CrossOriginStorageManager interface"},{"refs":[{"id":"ref-for-dictdef-crossoriginstoragerequestfilehandleoptions\u2460"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-dictdef-crossoriginstoragerequestfilehandleoptions\u2461"}],"title":"3.3. Creating and writing files"}],"url":"#dictdef-crossoriginstoragerequestfilehandleoptions"},
@@ -3136,7 +3137,6 @@ let dfnPanelData = {
 "filesystemfilehandle-cos-origin": {"dfnID":"filesystemfilehandle-cos-origin","dfnText":"COS origin","external":false,"refSections":[{"refs":[{"id":"ref-for-filesystemfilehandle-cos-origin"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-origin\u2460"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-origin\u2461"},{"id":"ref-for-filesystemfilehandle-cos-origin\u2462"}],"title":"4.1. Transferring handles"}],"url":"#filesystemfilehandle-cos-origin"},
 "filesystemfilehandle-may-read": {"dfnID":"filesystemfilehandle-may-read","dfnText":"may read","external":false,"refSections":[{"refs":[{"id":"ref-for-filesystemfilehandle-may-read"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-filesystemfilehandle-may-read\u2460"},{"id":"ref-for-filesystemfilehandle-may-read\u2461"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-filesystemfilehandle-may-read\u2462"},{"id":"ref-for-filesystemfilehandle-may-read\u2463"}],"title":"4. The Cross-Origin Storage file system"},{"refs":[{"id":"ref-for-filesystemfilehandle-may-read\u2464"},{"id":"ref-for-filesystemfilehandle-may-read\u2465"},{"id":"ref-for-filesystemfilehandle-may-read\u2466"},{"id":"ref-for-filesystemfilehandle-may-read\u2467"}],"title":"4.1. Transferring handles"}],"url":"#filesystemfilehandle-may-read"},
 "filesystemfilehandle-requested-origins": {"dfnID":"filesystemfilehandle-requested-origins","dfnText":"requested origins","external":false,"refSections":[{"refs":[{"id":"ref-for-filesystemfilehandle-requested-origins"},{"id":"ref-for-filesystemfilehandle-requested-origins\u2460"}],"title":"3.3. Creating and writing files"}],"url":"#filesystemfilehandle-requested-origins"},
-"greaseing": {"dfnID":"greaseing","dfnText":"GREASE\u2019ing","external":false,"refSections":[],"url":"#greaseing"},
 "http-headerdef-cross-origin-storage-allow-origin": {"dfnID":"http-headerdef-cross-origin-storage-allow-origin","dfnText":"Cross-Origin-Storage-Allow-Origin","external":false,"refSections":[],"url":"#http-headerdef-cross-origin-storage-allow-origin"},
 "maximum-origins-list-length": {"dfnID":"maximum-origins-list-length","dfnText":"maximum origins list length","external":false,"refSections":[{"refs":[{"id":"ref-for-maximum-origins-list-length"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-maximum-origins-list-length\u2460"}],"title":"3.5. Resource visibility upgrades"},{"refs":[{"id":"ref-for-maximum-origins-list-length\u2461"}],"title":"8.2. Cross-site probing"}],"url":"#maximum-origins-list-length"},
 "navigatorcrossoriginstorage": {"dfnID":"navigatorcrossoriginstorage","dfnText":"NavigatorCrossOriginStorage","external":false,"refSections":[{"refs":[{"id":"ref-for-navigatorcrossoriginstorage"},{"id":"ref-for-navigatorcrossoriginstorage\u2460"}],"title":"3. The CrossOriginStorageManager interface"}],"url":"#navigatorcrossoriginstorage"},
