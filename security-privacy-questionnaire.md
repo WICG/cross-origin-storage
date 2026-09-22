@@ -62,7 +62,7 @@ None.
 
 ## 14. How does this specification distinguish between behavior in first-party and third-party contexts?
 
-By default, a file stored in COS is readable only by the origin that stored it and by other same-site origins. The optional `origins` field controls access by restricting it to specific trusted origins or expanding it to all origins, providing an additional layer of control over third-party access. Global sharing of resources is strictly an opt-in operation. The budget of cross-site lookups belongs to the top-level site, so every third-party frame on a page draws from the same small budget and cannot multiply it by adding origins.
+By default, a file stored in COS is readable only by the origin that stored it and by other same-site origins. The optional `origins` field controls access by restricting it to specific trusted origins or expanding it to all origins, providing an additional layer of control over third-party access. Global sharing of resources is strictly an opt-in operation. The budget of cross-site lookups belongs to top-level's origin, so every third-party frame on a page draws from the same small budget and cannot multiply it by adding origins.
 
 Additionally, the availability gating mechanism ensures that a globally available resource is disclosed to other origins only if its hash is on the Public Hash List, which admits only resources shown to be widespread across many independent origins. A resource that is unique to, or concentrated among, a few origins therefore stays hidden from third-party requestors, further reducing the risk of cross-site state inference in third-party contexts.
 
