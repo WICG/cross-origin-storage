@@ -502,7 +502,7 @@ The imperative JavaScript API in the previous section covers the general case, b
 
 All four are keyed off the same `origins`-style value space used by `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins, or `*` for global availability. Each is defined in its own host specification.
 
-As with the imperative API, the list form is bounded by a response header so that injected markup cannot widen the sharing scope. Whoever supplies the bytes sends the header, and for these integrations that is the server of the fetched resource, such as the origin serving a font or a library. That origin is the one entitled to decide that those particular bytes may be shared, and the referencing page can only narrow that; the embedding document's own header plays no part. The effective scope is the intersection of the declared value and what the resource's `Cross-Origin-Storage-Allow-Origin` header permits. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
+As with the imperative API, the list form is bounded by a response header so that injected markup cannot widen the sharing scope. Only the list form needs this header: a resource shared with every origin (`*`) or left at the same-site default (value omitted or empty) needs no `Cross-Origin-Storage-Allow-Origin` header. Whoever supplies the bytes sends the header, and for these integrations that is the server of the fetched resource, such as the origin serving a font or a library. That origin is the one entitled to decide that those particular bytes may be shared, and the referencing page can only narrow that; the embedding document's own header plays no part. The effective scope is the intersection of the declared value and what the resource's `Cross-Origin-Storage-Allow-Origin` header permits. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
 
 What the four have in common is that the caller holds both a URL and a hash, and wants the bytes. The imperative API remains the surface for everything that does not fit that shape: writes whose bytes did not come from a single `fetch()`, reads that have no URL to offer at all, and lookups across a set of interchangeable candidates (see [Choosing among interchangeable resources](#example-choosing-among-interchangeable-resources)). See [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration) for why the last row of the table does not subsume `requestFileHandle()`.
 
@@ -518,21 +518,25 @@ A valueless `crossoriginstorage` attribute means same-site only, mirroring an om
 <!-- Same-site only. -->
 <link
   rel="stylesheet"
-  href="same-site-css-framework.css"
+  href="https://static.acme-inc.example/same-site-css-framework.css"
   integrity="sha256-abc123..."
   crossoriginstorage
 />
 
 <!-- Globally available. -->
 <script
-  src="popular-js-framework.js"
+  src="https://cdn.example/popular-js-framework.js"
   integrity="sha256-def456..."
   crossoriginstorage="*"
 ></script>
 
-<!-- Restricted to specific origins. -->
+<!--
+  Restricted to specific origins. `https://acme-cdn.example` serves this
+  script, so its response must carry
+  `Cross-Origin-Storage-Allow-Origin: https://acme-inc.example, https://acme-cdn.example`.
+-->
 <script
-  src="acme-inc-corporate.js"
+  src="https://acme-cdn.example/acme-inc-corporate.js"
   integrity="sha256-def456..."
   crossoriginstorage="https://acme-inc.example https://acme-cdn.example"
 ></script>
@@ -556,19 +560,21 @@ An empty string means same-site only, `"*"` makes the module globally available,
 
 ```js
 // Same-site only.
-import sameSite from "same-site-resource.ext" with {
+import sameSite from "https://static.acme-inc.example/same-site-resource.js" with {
   integrity: "sha256-abc123...",
   crossOriginStorage: "",
 };
 
 // Globally available.
-import popular from "popular-resource.ext" with {
+import popular from "https://cdn.example/popular-resource.js" with {
   integrity: "sha256-abc123...",
   crossOriginStorage: "*",
 };
 
-// Restricted to specific origins.
-import corporate from "acme-inc-corporate.ext" with {
+// Restricted to specific origins. `https://acme-cdn.example` serves this
+// module, so its response must carry
+// `Cross-Origin-Storage-Allow-Origin: https://acme-inc.example, https://acme-cdn.example`.
+import corporate from "https://acme-cdn.example/acme-inc-corporate.js" with {
   integrity: "sha256-def456...",
   crossOriginStorage: "https://acme-inc.example https://acme-cdn.example",
 };
@@ -577,7 +583,7 @@ import corporate from "acme-inc-corporate.ext" with {
 The same attributes work with dynamic `import()`:
 
 ```js
-const module = await import("popular-resource.ext", {
+const module = await import("https://cdn.example/popular-resource.js", {
   with: {
     integrity: "sha256-abc123...",
     crossOriginStorage: "*",
@@ -604,7 +610,7 @@ No arguments means same-site only, `*` makes the font globally available, and a 
 @font-face {
   font-family: "Same-Site Corporate Font";
   src: url(
-    "same-site-corporate.woff2"
+    "https://static.acme-inc.example/same-site-corporate.woff2"
     integrity("sha256-abc123...")
     cross-origin-storage()
   );
@@ -614,17 +620,21 @@ No arguments means same-site only, `*` makes the font globally available, and a 
 @font-face {
   font-family: "Popular Emoji Font";
   src: url(
-    "https://example.com/popular-emoji.woff2"
+    "https://cdn.example/popular-emoji.woff2"
     integrity("sha256-xyz789...")
     cross-origin-storage(*)
   );
 }
 
-/* Restricted to specific origins. */
+/*
+  Restricted to specific origins. `https://acme-cdn.example` serves this font,
+  so its response must carry
+  `Cross-Origin-Storage-Allow-Origin: https://acme-inc.example, https://acme-cdn.example, https://acme-marketing.example`.
+*/
 @font-face {
   font-family: "ACME Inc Corporate Font";
   src: url(
-    "acme-inc-corporate.woff2"
+    "https://acme-cdn.example/acme-inc-corporate.woff2"
     integrity("sha256-abc123...")
     cross-origin-storage("https://acme-inc.example", "https://acme-cdn.example", "https://acme-marketing.example")
   );
@@ -641,10 +651,17 @@ The three integrations above cover resources referenced from markup, from module
 A `crossOriginStorage` option on [`RequestInit`](https://fetch.spec.whatwg.org/#requestinit), used alongside the existing [`integrity`](https://fetch.spec.whatwg.org/#dom-requestinit-integrity) option, closes that gap. As in the other three forms, the `integrity` hash identifies the file in COS, and `crossOriginStorage` specifies which origins may retrieve it. This is proposed to the WHATWG in [whatwg/fetch#1954](https://github.com/whatwg/fetch/issues/1954), where it would be defined as:
 
 ```webidl
+dictionary CrossOriginStorageRequestOptions {
+  (DOMString or sequence<DOMString>) origins;
+  DOMString contentType;
+};
+
 partial dictionary RequestInit {
-  (DOMString or sequence<DOMString>) crossOriginStorage;
+  (DOMString or sequence<DOMString> or CrossOriginStorageRequestOptions) crossOriginStorage;
 };
 ```
+
+The string and array forms are shorthands for `{ origins }`. The dictionary form additionally lets the caller declare a `contentType`, a proposed answer to the first of the [open design questions](#open-design-questions) below.
 
 ##### Example: Fetching through COS
 
@@ -652,19 +669,21 @@ An empty string opts the resource into COS for same-site access only, `*` makes 
 
 ```js
 // Same-site only, mirroring an omitted `origins` in the imperative API.
-const sameSite = await fetch('same-site-resource.ext', {
+const sameSite = await fetch('https://static.acme-inc.example/same-site-resource.wasm', {
   integrity: 'sha256-abc123...',
   crossOriginStorage: '',
 });
 
 // Globally available.
-const global = await fetch('popular-resource.ext', {
+const global = await fetch('https://cdn.example/popular-resource.wasm', {
   integrity: 'sha256-abc123...',
   crossOriginStorage: '*',
 });
 
-// Restricted to specific origins.
-const restricted = await fetch('acme-inc-corporate.ext', {
+// Restricted to specific origins. `https://acme-cdn.example` serves this
+// resource, so its response must carry
+// `Cross-Origin-Storage-Allow-Origin: https://acme-inc.example, https://acme-cdn.example`.
+const restricted = await fetch('https://acme-cdn.example/acme-inc-corporate.wasm', {
   integrity: 'sha256-def456...',
   crossOriginStorage: [
     'https://acme-inc.example',
@@ -676,7 +695,7 @@ const restricted = await fetch('acme-inc-corporate.ext', {
 Omitting `crossOriginStorage` while keeping `integrity` preserves today's behavior: the response is fetched and verified, and COS plays no part. This is why same-site scope is spelled as an empty string: `fetch()` has no `create: true` to carry the opt-in separately, so the member's presence is what opts the request into COS and its value is what scopes the result. The imperative API, which has `create: true`, expresses the same scope by omitting `origins`.
 
 > [!NOTE]
-> The list form is an array here, whereas the HTML attribute and the import attribute use a space-separated string and the CSS modifier a comma-separated list of `<string>`s. This is deliberate because a `RequestInit` member is an ordinary JavaScript value, so a `sequence<DOMString>` is the idiomatic spelling, and it matches the imperative `origins` option exactly, down to the IDL type. The three other surfaces have no such choice to make: HTML content attribute values are text, import attribute values are restricted to strings by [TC39](https://github.com/tc39/proposal-import-attributes), and CSS has no array type, so each takes the closest list syntax its host already provides. All four resolve to the same `origins` value space.
+> The list form is an array here, whereas the HTML attribute and the import attribute use a space-separated string and the CSS modifier a comma-separated list of `<string>`s. This is deliberate because a `RequestInit` member is an ordinary JavaScript value, so a `sequence<DOMString>` is the idiomatic spelling, and it matches the imperative `origins` option exactly, down to the IDL type. The three other surfaces have no such choice to make: HTML content attribute values are text, import attribute values are [currently restricted to strings by TC39](https://github.com/tc39/proposal-import-attributes#should-more-than-just-strings-be-supported-as-attribute-values), and CSS has no array type, so each takes the closest list syntax its host already provides. All four resolve to the same `origins` value space.
 
 ##### Example: The streaming example, without the plumbing
 
@@ -684,9 +703,9 @@ The [streaming example](#example-streaming-a-file-into-cos-while-using-it) above
 
 ```js
 const { instance } = await WebAssembly.instantiateStreaming(
-  fetch('module.wasm', {
+  fetch('https://cdn.example/module.wasm', {
     integrity: 'sha256-abc123...',
-    crossOriginStorage: '*',
+    crossOriginStorage: { origins: '*', contentType: 'application/wasm' },
   }),
   imports,
 );
@@ -695,14 +714,20 @@ const { instance } = await WebAssembly.instantiateStreaming(
 The user agent performs the COS lookup, serves the bytes from storage on a hit, fetches and stores them on a miss, and does the stream splitting internally.
 
 > [!NOTE]
+> The `contentType` member is a proposed answer to [Response fidelity on a cache hit](#open-design-questions). Without it, this example works on a cache miss, where the network response carries `Content-Type: application/wasm`, and fails on a hit, where the stored bytes carry no type and `WebAssembly.instantiateStreaming()` rejects them.
+
+> [!NOTE]
 > Server runtimes such as Node.js, Deno, and Bun implement `fetch()` but have no cross-origin boundary and no user to protect, so COS does not exist there. They ignore `crossOriginStorage` the way they ignore other browser-specific request options, and isomorphic code keeps working unchanged.
 
 ##### Open design questions
 
 Two questions are specific to this integration and need answers in the [Fetch Standard discussion](https://github.com/whatwg/fetch/issues/1954):
 
-- **Response fidelity on a cache hit.** A COS entry carries bytes only, with no MIME type, status, or headers, deliberately so (see [Storing the original URL as part of a COS entry](#storing-the-original-url-as-part-of-a-cos-entry) for why unverifiable metadata stays out). A `Response` synthesized from a hit therefore has no `Content-Type` unless the integration invents one. The three other integrations sidestep this because the element, the module type, or the CSS property defines the destination, whereas a bare `fetch()` has none. This matters concretely: `WebAssembly.instantiateStreaming()` refuses anything that is not `application/wasm`, which is exactly why the hand-written example above has to supply that header itself. Candidate answers include deriving the type from the request's [destination](https://fetch.spec.whatwg.org/#concept-request-destination), letting the caller declare it, or storing a user-agent-computed type alongside the bytes.
-- **Header stripping.** A response served from COS must not reveal whether the bytes came from storage or from the network, so it cannot carry the response headers of a fetch that never happened. As a privacy matter this is smaller than it first appears: cache hits are timing-observable regardless, and disclosure is already gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing) on the read step, so this integration discloses no more than `requestFileHandle()` does. The open question is one of fidelity: which `status`, `Content-Length`, and `type` a hit-served `Response` should report.
+- **Response fidelity on a cache hit.** A COS entry carries bytes only, with no MIME type, status, or headers, deliberately so (see [Storing the original URL as part of a COS entry](#storing-the-original-url-as-part-of-a-cos-entry)). A `Response` synthesized from a hit therefore has no `Content-Type` unless the integration supplies one. The three other integrations don't have this problem, because the element, the module type, or the CSS property defines the destination; a bare `fetch()` has none. This matters concretely: `WebAssembly.instantiateStreaming()` rejects anything that is not `application/wasm`, so without a declared type the collapsed example above works on a cold cache and fails on a warm one.
+
+  Deriving the type from the request's [destination](https://fetch.spec.whatwg.org/#concept-request-destination) does not help here, since a plain `fetch()` has an empty destination. Storing a type alongside the bytes would bring back the unverifiable, writer-specific metadata the entry leaves out, and two writers can disagree on it. The favored direction is for the caller to declare the type through the dictionary form of the option, `{ origins, contentType }`. The user agent applies the declared type on a hit and on a miss alike, so both paths return the same `Content-Type`, and code tested against a cold cache keeps working against a warm one.
+
+- **Header stripping.** A response served from COS must not reveal whether the bytes came from storage or from the network, so it cannot carry the response headers of a fetch that never happened. As a privacy matter this is smaller than it first appears: cache hits are timing-observable regardless, and disclosure is already gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing) on the read step, so this integration discloses no more than `requestFileHandle()` does. The open question is one of fidelity: which `status`, `Content-Length`, and `type` a hit-served `Response` should report. A declared `contentType` settles the `Content-Type` header; the others remain open.
 
 #### Processing flow common to all four integrations
 
