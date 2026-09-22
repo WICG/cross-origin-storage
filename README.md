@@ -39,7 +39,6 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
 - [User research](#user-research)
   - [User needs example: Hugging Face](#user-needs-example-hugging-face)
   - [User needs example: Web Machine Learning Working Group](#user-needs-example-web-machine-learning-working-group)
-  - [User needs example: Mozilla](#user-needs-example-mozilla)
 - [Use cases](#use-cases)
   - [Use case 1: Large AI models](#use-case-1-large-ai-models)
   - [Use case 2: Large Wasm modules](#use-case-2-large-wasm-modules)
@@ -163,12 +162,6 @@ This led to the creation of a dedicated [Hybrid AI explainer](https://github.com
 
 > _"For example, ML models are large. This creates network cost, transfer time, and storage problems. As mentioned, client capabilities can vary. This creates adaptation, partitioning, and versioning problems. We would like to discuss potential solutions to these problems, such as shared caches, progressive model updates, and capability/requirements negotiation."_
 
-### User needs example: Mozilla
-
-In their [standards position](https://github.com/mozilla/standards-positions/issues/1067#issuecomment-2631718109) on the [Writing Assistance APIs](https://github.com/webmachinelearning/writing-assistance-apis/tree/main), Mozilla engineer [Brian Grinstead](https://github.com/bgrins) wrote:
-
-> _"We acknowledge a downside with this approach related to lack of shared client storage for model weights — it would be a better experience if the browser only had to download large weights one time. We don’t know of a privacy-preserving way to do this, short of high level APIs like these which abstract away the details of inference."_
-
 ## Use cases
 
 ### Use case 1: Large AI models
@@ -206,7 +199,7 @@ Web fonts (especially large icon fonts, emoji fonts, and fonts with extensive Un
 
 The **COS** API will be available through the `navigator.crossOriginStorage` interface. Files will be stored and retrieved based on their hashes, ensuring that each file is uniquely identified.
 
-Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of widespread resources  on the web that having one of them cached reveals nothing about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing), so a "not found" result never proves the file is missing. [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
+Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of resources so widespread on the web that having one of them cached reveals nothing about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing). [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
 
 #### COS entry
 
@@ -214,10 +207,10 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 
 - **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
 - **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError`.
-- **`origins`**: the declared sharing scope. Internally this is two independent, additive grants: an **explicit origins list** (a possibly-empty list of origins granted PHL-independent access) and a **globally disclosable** boolean (whether the entry was written with `'*'`, granting access to any origin whose request clears the [PHL](#availability-gating)). A write requests one of `'*'`, a list of origin strings, or nothing (same-site only), and that request is merged into the grants; every entry additionally always grants access to its storing origins and their same-site origins. Both grants only ever grow, which is what makes visibility "upgradeable but never downgradeable": a later `'*'` write adds the global grant *on top of* an existing list, so an origin already on the list keeps its access. See [Resource visibility upgrades](#resource-visibility-upgrades). A list of origin strings has an implementation-defined maximum length, so it can't be used as an undeclared substitute for `'*'` (see [Storing files](#storing-files) and [Cross-site probing](#cross-site-probing)), and the list form is additionally bounded by a `Cross-Origin-Storage-Allow-Origin` response header, so injected script cannot disclose an origin's data to an origin the operator never authorized (see [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header)).
-- **`storing origins`**: the set of origins that have successfully written this entry. An origin in `storing origins` may always retrieve the entry via `requestFileHandle()`, regardless of the `origins` field value or whether the hash is on the PHL.
+- **`origins`**: the declared sharing scope, stored as two independent, additive grants: an **explicit origins list** and a **globally disclosable** flag, set by a `'*'` write. A write requests `'*'`, a list of origins, or nothing (same-site only), and the request is merged into these grants (see [Resource visibility upgrades](#resource-visibility-upgrades)). A list is capped in length and bounded by the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header.
+- **`storing origins`**: the origins that have successfully written this entry. It is persisted across page loads and only ever grows.
 
-`storing origins` is persisted across page loads and only ever grows, adding each new origin that successfully writes the entry. If origin A writes a file restricted to `['https://a.example']` and origin B later writes the same hash with `origins: '*'`, both A and B are in `storing origins`, the entry becomes globally disclosable, **and it keeps its explicit list**: `https://a.example` still reads it without the hash needing to be on the PHL, exactly as before B's write, while other origins now reach it only if the hash is on the PHL. Because the global grant is stored separately from the list, B cannot revoke the access A granted. Each writer must supply the full file bytes regardless of whether the entry already exists, which prevents any origin from using a write operation to detect prior presence.
+[Availability gating](#availability-gating) describes who may read an entry through each grant.
 
 #### Storing files
 
@@ -226,7 +219,7 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 1. Write the file's data to the `FileSystemFileHandle` object and store it in Cross-Origin Storage. Data can be written with one or more `write()` calls, or streamed in with `sourceStream.pipeTo(writableStream)`. By default, `pipeTo()` closes `writableStream` automatically once `sourceStream` is exhausted, unless called with `preventClose: true` (see [Streaming a file into COS while using it](#example-streaming-a-file-into-cos-while-using-it) for the recommended pattern on large resources). Whenever the stream closes, whether via an explicit `writableStream.close()` call or implicitly through `pipeTo()`, the user agent must verify that the hash of the complete written bytes matches the declared hash, using the algorithm specified in `hash.algorithm`. If the hashes do not match, the user agent must reject the closing operation's promise with a `DataError` `DOMException` and must not store the data in COS.
 
 > [!NOTE]
-> A hash-mismatched write does not leave a stuck placeholder behind. Once no other write for that same hash is still in progress, the user agent removes the entry entirely, so a subsequent `requestFileHandle()` call for that hash behaves exactly as if it had never been requested and rejects with `NotFoundError`. This never applies to a hash some origin has already successfully written before: that entry is never removed by a later, unrelated write's failure, no matter how many times it's attempted. See [Concurrent writes](#concurrent-writes).
+> A hash-mismatched write leaves no placeholder behind; see [Concurrent writes](#concurrent-writes).
 
 > [!NOTE]
 > If `hash.value` is not a valid lowercase hexadecimal string of length 64, or `hash.algorithm` is not a hash algorithm name recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), the user agent must throw a `TypeError`.
@@ -235,7 +228,7 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 > If the [Permissions Policy](https://www.w3.org/TR/permissions-policy/) for the current context does not allow Cross-Origin Storage, the user agent must throw a `NotAllowedError` `DOMException`.
 
 > [!NOTE]
-> If `origins` is a list longer than an implementation-defined maximum length, the user agent must throw a `TypeError`. This limit exists so that a list of origins can't be used to approximate `origins: '*'` without going through its explicit opt-in; see [Cross-site probing](#cross-site-probing).
+> If `origins` is a list longer than an implementation-defined maximum length, the user agent must throw a `TypeError`; see [Cross-site probing](#cross-site-probing) for why.
 
 > [!NOTE]
 > If storing the file would cause the requesting origin to exceed its implementation-defined storage limit, the user agent must reject the closing operation's promise with a `QuotaExceededError` `DOMException` and should log a warning to the console. Each origin can only store a limited amount of data in COS, which prevents any one site from flooding the cache in an attempt to evict other sites' resources; see [Cache flooding](#cache-flooding).
@@ -390,10 +383,9 @@ await navigator.crossOriginStorage.requestFileHandle(hash, {
 
 The visibility of a resource in COS can be upgraded but never downgraded:
 
-- **Adding access**: If a resource was initially stored with an `origins` list, any site (including the original storer or a completely different site) can later call `requestFileHandle()` for the same hash with `create: true` and a more permissive value. The requested grant is *added*: a `'*'` write sets the globally disclosable flag while leaving the existing list intact, and a list write merges its origins into the existing list. Origins that already had access keep it. The new site _must still_ write the full file using the returned `FileSystemFileHandle` object, to prevent sites from using this behavior to detect whether a file was previously stored.
-- **No removal**: A write never removes access. Requesting a narrower scope than an entry already has does not restrict it: if a globally disclosable resource is written again with an `origins` list, the global grant stays in force (visibility can't be downgraded), and the listed origins are simply *added* to the explicit list, which gives them access even when the hash is not on the PHL. The user agent should log a console warning to inform the developer that the write did not, and cannot, restrict the resource. Because the list and global grants are stored independently, no writer can revoke another writer's grant. This closes the case where a later `'*'` write would otherwise have knocked a listed origin off a list-scoped entry and, via availability gating, silently revoked its access.
-- **Origins list capacity**: The same implementation-defined maximum length that bounds a single write's `origins` list (see [Storing files](#storing-files)) also bounds the *merged* list when a newly requested `origins` list is added to an entry that already has one. This can only be reached by the cumulative effect of separate writes by different, possibly unrelated, sites over time, since any single write's own list is already capped. When it is reached, the write still succeeds, since the bytes were already verified and stored. The origins beyond capacity are silently dropped from the merge, and the user agent should log a console warning. Because a `NotFoundError` can't be distinguished from other gating outcomes (see [Availability gating](#availability-gating)), a site cannot reliably confirm after the fact whether its requested origin actually made it into the merge.
-- **Original storer access**: An origin that stores a resource in COS can always read it back via `requestFileHandle()`, regardless of the `origins` value set at write time or whether the hash is on the PHL. This mirrors the Cache API's model where an origin always has access to what it stored.
+- **Adding access**: any site that supplies the full bytes can widen an entry's scope with another `create: true` request. A `'*'` write sets the global grant, and a list write merges its origins into the existing list; origins that already had access keep it. Requiring the full bytes keeps a write from revealing whether the entry already existed.
+- **No removal**: a write never removes access. If origin A stores a file restricted to `['https://a.example']` and origin B later writes the same hash with `'*'`, the entry becomes globally disclosable and keeps its list, so `https://a.example` still reads it without the hash being on the PHL. A narrower request only adds its origins to the list, and the user agent should log a console warning that the write cannot restrict the resource.
+- **Origins list capacity**: the [maximum list length](#storing-files) also caps the merged list. Once separate writes have filled it, later writes still succeed, the excess origins are dropped, and the user agent should log a console warning.
 
 #### Retrieving files
 
@@ -471,7 +463,7 @@ console.log('Obtained model from network', download.name);
 Only `whisper-tiny` carries a URL, because it is the only variant the app will ever download. Every probe is a read with no URL attached: the app has no download URL to offer for `whisper-large-v3`, since it never intended to fetch that variant, and the whole point of asking is to avoid a network request. A [fetch integration](#fetch-integration) cannot express this, which is one of the reasons it complements the imperative API (see [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration)).
 
 > [!NOTE]
-> Each `requestFileHandle()` call counts as a probe against the user agent's [cross-site probing](#cross-site-probing) safeguards, so candidate lists are expected to be short, in the order of the handful of variants a model family actually ships. A `NotFoundError` for a candidate can also mean the file is present but withheld by [availability gating](#availability-gating) or [GREASE'ing](#greaseing), which is why the loop must end in a real network fallback.
+> Each `requestFileHandle()` call counts as a probe against the user agent's [cross-site probing](#cross-site-probing) safeguards, so candidate lists are expected to be short, in the order of the handful of variants a model family actually ships.
 
 #### Transferring a handle
 
@@ -500,7 +492,7 @@ The imperative JavaScript API in the previous section covers the general case, b
 | [CSS](#css-integration) | `cross-origin-storage()` URL modifier | CSS-referenced assets such as web fonts |
 | [Fetch](#fetch-integration) | `crossOriginStorage` request option | imperative fetches of a known URL |
 
-All four are keyed off the same `origins`-style value space used by `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins, or `*` for global availability. Each is defined in its own host specification.
+In all four, the `integrity` hash identifies the file in COS, and the COS option takes the same values as the `origins` option of `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins, or `*` for global availability. Each is defined in its own host specification.
 
 As with the imperative API, the list form is bounded by a response header so that injected markup cannot widen the sharing scope. Only the list form needs this header: a resource shared with every origin (`*`) or left at the same-site default (value omitted or empty) needs no `Cross-Origin-Storage-Allow-Origin` header. Whoever supplies the bytes sends the header, and for these integrations that is the server of the fetched resource, such as the origin serving a font or a library. That origin is the one entitled to decide that those particular bytes may be shared, and the referencing page can only narrow that; the embedding document's own header plays no part. The effective scope is the intersection of the declared value and what the resource's `Cross-Origin-Storage-Allow-Origin` header permits. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
 
@@ -508,11 +500,11 @@ What the four have in common is that the caller holds both a URL and a hash, and
 
 #### HTML integration
 
-`<link>` and `<script>` elements that already carry [`integrity`](https://w3c.github.io/webappsec-subresource-integrity/#integrity-metadata) can opt in to COS with a new `crossoriginstorage` attribute, proposed to the WHATWG in [whatwg/html#12770](https://github.com/whatwg/html/issues/12770). As in the JavaScript and CSS forms, the `integrity` hash identifies the file in COS, and `crossoriginstorage` specifies which origins may retrieve it.
+`<link>` and `<script>` elements that already carry [`integrity`](https://w3c.github.io/webappsec-subresource-integrity/#integrity-metadata) can opt in to COS with a new `crossoriginstorage` attribute, proposed to the WHATWG in [whatwg/html#12770](https://github.com/whatwg/html/issues/12770).
 
 ##### Example: Opting stylesheets and scripts into COS
 
-A valueless `crossoriginstorage` attribute means same-site only, mirroring an omitted `origins` in the imperative API; `*` makes the resource globally available; and a space-separated list of origins restricts it to those origins, mirroring the `origins` array:
+A valueless `crossoriginstorage` attribute means same-site only, `*` makes the resource globally available, and a space-separated list of origins restricts it to those origins:
 
 ```html
 <!-- Same-site only. -->
@@ -549,14 +541,14 @@ Omitting `crossoriginstorage` entirely while keeping `integrity` preserves today
 
 #### JavaScript import attribute integration
 
-[Import attributes](https://github.com/tc39/proposal-import-attributes) provide a way to reach COS from module imports and dynamic `import()`, without going through `navigator.crossOriginStorage` directly, proposed to the WHATWG in [whatwg/html#12771](https://github.com/whatwg/html/issues/12771). As with the HTML and CSS forms, `integrity` identifies the file in COS, and `crossOriginStorage` specifies which origins may retrieve it.
+[Import attributes](https://github.com/tc39/proposal-import-attributes) provide a way to reach COS from module imports and dynamic `import()`, without going through `navigator.crossOriginStorage` directly, proposed to the WHATWG in [whatwg/html#12771](https://github.com/whatwg/html/issues/12771).
 
 > [!NOTE]
 > The `with { … }` syntax is defined by TC39, but `crossOriginStorage` is a **host-defined attribute key**. Like `integrity`, it requires no TC39 involvement and will be defined in the HTML Standard.
 
 ##### Example: Opting modules into COS
 
-An empty string means same-site only, `"*"` makes the module globally available, and a space-separated list of origins restricts it to those origins, mirroring the `crossoriginstorage` attribute in the HTML integration:
+An empty string means same-site only, `"*"` makes the module globally available, and a space-separated list of origins restricts it to those origins:
 
 ```js
 // Same-site only.
@@ -595,7 +587,7 @@ const module = await import("https://cdn.example/popular-resource.js", {
 
 In addition to the imperative JavaScript API, COS can be accessed from CSS via a new [`<request-url-modifier>`](https://drafts.csswg.org/css-values-5/#typedef-request-url-modifier) called `cross-origin-storage()`, proposed to the CSS Working Group in [w3c/csswg-drafts#14056](https://github.com/w3c/csswg-drafts/issues/14056). This is especially valuable for resources referenced in CSS, such as large web fonts, where the imperative JavaScript API is hard to apply.
 
-The modifier is used alongside the existing [`integrity()`](https://drafts.csswg.org/css-values-5/#typedef-request-url-modifier-integrity-modifier) modifier. The hash from `integrity()` identifies the file in COS, and `cross-origin-storage()` specifies which origins may retrieve it, mirroring the `origins` option in the JavaScript API.
+The modifier is used alongside the existing [`integrity()`](https://drafts.csswg.org/css-values-5/#typedef-request-url-modifier-integrity-modifier) modifier.
 
 ```
 cross-origin-storage() = cross-origin-storage( [ '*' | <string># ]? )
@@ -648,7 +640,7 @@ No arguments means same-site only, `*` makes the font globally available, and a 
 
 The three integrations above cover resources referenced from markup, from module graphs, and from stylesheets. The remaining case is the imperative one: a script that already knows the URL and the hash of a resource and fetches it itself. That is how most Wasm modules, asset bundles, and other large binaries are loaded today, and it is currently the case that costs the most code to move onto COS.
 
-A `crossOriginStorage` option on [`RequestInit`](https://fetch.spec.whatwg.org/#requestinit), used alongside the existing [`integrity`](https://fetch.spec.whatwg.org/#dom-requestinit-integrity) option, closes that gap. As in the other three forms, the `integrity` hash identifies the file in COS, and `crossOriginStorage` specifies which origins may retrieve it. This is proposed to the WHATWG in [whatwg/fetch#1954](https://github.com/whatwg/fetch/issues/1954), where it would be defined as:
+A `crossOriginStorage` option on [`RequestInit`](https://fetch.spec.whatwg.org/#requestinit), used alongside the existing [`integrity`](https://fetch.spec.whatwg.org/#dom-requestinit-integrity) option, closes that gap. This is proposed to the WHATWG in [whatwg/fetch#1954](https://github.com/whatwg/fetch/issues/1954), where it would be defined as:
 
 ```webidl
 dictionary CrossOriginStorageRequestOptions {
@@ -665,10 +657,10 @@ The string and array forms are shorthands for `{ origins }`. The dictionary form
 
 ##### Example: Fetching through COS
 
-An empty string opts the resource into COS for same-site access only, `*` makes it globally available, and an array of origins restricts it to those origins, mirroring the values the imperative `origins` option accepts:
+An empty string opts the resource into COS for same-site access only, `*` makes it globally available, and an array of origins restricts it to those origins:
 
 ```js
-// Same-site only, mirroring an omitted `origins` in the imperative API.
+// Same-site only.
 const sameSite = await fetch('https://static.acme-inc.example/same-site-resource.wasm', {
   integrity: 'sha256-abc123...',
   crossOriginStorage: '',
@@ -728,17 +720,13 @@ Two questions are specific to this integration and need answers in the [Fetch St
 
 #### Processing flow common to all four integrations
 
-The HTML, import attribute, CSS, and fetch forms above share the same underlying model as the imperative API: a resource is identified by its integrity hash, and a COS lookup is attempted before falling back to the network.
+1. The user agent looks the `integrity` hash up in COS. If the requesting origin may read the entry (see [Availability gating](#availability-gating)), the resource is served from COS and no network request is made.
+2. Otherwise, the resource is fetched as usual. If it matches the `integrity` hash, the user agent stores it in COS with the declared scope; if not, it fails per existing `integrity` behavior and nothing is stored.
 
-1. The user agent checks COS for a file matching the `integrity` hash. If found and the requesting origin is allowed per the declared `origins`-style value, the resource is served from COS, and no network request is made.
-2. Otherwise, the resource is fetched from the declared URL as usual. If the fetched content matches the `integrity` hash and the declared origins permit it, the user agent stores it in COS for future use by this or other origins. If the hash does not match, the resource is rejected per existing `integrity` behavior and is not stored in COS.
-
-Step 1's COS lookup is subject to the same [availability gating](#availability-gating) as the imperative API. A resource declared with the global (`*`) origins-style value is only found by a requester outside its storing origins if its hash also clears the Public Hash List (and GREASE'ing doesn't suppress it); a same-site- or list-scoped resource needs no such additional clearance once the requesting origin is in scope. Either way, a lookup that doesn't succeed simply falls through to step 2's network fetch, which makes it indistinguishable from a genuine cache miss, exactly as `requestFileHandle()`'s `NotFoundError` is.
-
-Because all four forms piggyback on `integrity`, they inherit its existing failure semantics: a hash mismatch is always treated as a fetch failure, independent of whether COS is involved.
+A lookup that doesn't succeed is indistinguishable from a cache miss, exactly as `requestFileHandle()`'s `NotFoundError` is.
 
 > [!NOTE]
-> The hash format differs between these four integrations and the imperative form, intentionally so. The `integrity` attribute, the `integrity` import attribute, the `integrity()` CSS modifier, and the `integrity` request option all follow the [Subresource Integrity](https://w3c.github.io/webappsec-subresource-integrity/) convention and express hashes as base64-encoded strings (e.g., `sha256-abc123…`). The imperative `requestFileHandle()` API uses lowercase hexadecimal strings (e.g., `8f434346…`), which matches the format used by AI model hubs such as [Hugging Face](https://huggingface.co/) when publishing model checksums. The user agent normalizes both representations internally; they identify the same underlying bytes.
+> The hash format differs between these four integrations and the imperative form. The `integrity` attribute, the `integrity` import attribute, the `integrity()` CSS modifier, and the `integrity` request option follow the [Subresource Integrity](https://w3c.github.io/webappsec-subresource-integrity/) convention and express hashes as base64-encoded strings (e.g., `sha256-abc123…`). The imperative `requestFileHandle()` API uses lowercase hexadecimal strings (e.g., `8f434346…`), which matches the format AI model hubs such as [Hugging Face](https://huggingface.co/) use for model checksums. The user agent normalizes both representations internally; they identify the same bytes.
 
 ## Detailed design discussion
 
@@ -896,7 +884,7 @@ In browsers that still support third-party cookies, user agents are expected to 
 
 If a file is only used on certain kinds of websites, an attacker can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which an attacker might exploit, for example, for targeted advertising. The attacker site would need to probe hashes of resources it's interested in. The `origins` field mitigates this risk by allowing origins to restrict resource access to a specific set of trusted origins, ensuring the resource is not globally "probeable". Sites are expected to use this field for proprietary resources or when global COS cache hits are not expected.
 
-This mitigation only holds if a "specific set of trusted origins" stays meaningfully smaller than the web. Nothing about the shape of `origins` stops a caller from enumerating a very large number of origins (for example, a list assembled from a public top-sites ranking), which would functionally approximate global disclosure while bypassing the deliberate, explicit opt-in that `origins: '*'` alone requires. This is why `origins` lists have an implementation-defined maximum length (see [Storing files](#storing-files)): a limit small enough to fit genuine multi-property use cases (a handful of related origins under common control) but far short of any meaningful approximation of "every origin". A second control constrains *which* origins a list may name: the list is bounded by a `Cross-Origin-Storage-Allow-Origin` response header, so a caller cannot name origins the byte-supplying origin's operator did not authorize, even ones injected into an otherwise honest page (see [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header)).
+This mitigation only holds if a list stays meaningfully smaller than the web. A caller could otherwise enumerate a very large number of origins (for example, a public top-sites ranking) and approximate global disclosure without the explicit `'*'` opt-in. `origins` lists therefore have an implementation-defined maximum length that fits a handful of related origins under common control, and the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header bounds which origins a list may name.
 
 User agents are expected to implement safeguards against such attacks, for example, by limiting the number of probes, or by returning false negatives when a site known to be malicious is probing. Each call to `requestFileHandle()` can be considered a probe, and user agents can limit the number of probes per site or even block probes from sites known to be malicious.
 
@@ -904,23 +892,20 @@ A lookup performed by one of the [host integrations](#additional-integration-sur
 
 #### Availability gating
 
-Two independent mechanisms can control whether a `requestFileHandle()` call returns a file handle or a `NotFoundError`:
+Whether a `requestFileHandle()` call returns a handle depends on the grants an entry carries. Grants are set at write time, add up, and are never removed (see [Resource visibility upgrades](#resource-visibility-upgrades)):
 
-- **Access control** (`origins`-based): which origins may obtain a file handle. This is determined by the grants set at write time: the explicit `origins` list, plus the always-present storing-origin and same-site baseline. An origin that qualifies under none of them receives `NotFoundError`, even if the resource is physically present in COS.
-- **Availability gating** (PHL-based): whether the user agent discloses that the resource exists in COS at all. **This applies only to the global (`origins: '*'`) grant.** It is determined by whether the hash is on the **Public Hash List (PHL)**, a shared, vendor-neutral allowlist that all browser vendors are expected to respect. An origin relying on the global grant to reach a resource whose hash is not on the PHL receives `NotFoundError`, even though `'*'` nominally permits any origin.
+- **Storing origins** can always read the entry, mirroring the Cache API, where an origin can always read what it stored.
+- **Same-site origins of a storing origin** can read it. This is the default scope.
+- **Origins on the explicit `origins` list** can read it, whether or not the hash is on the PHL.
+- **Any other origin** can read it only through the global grant (`origins: '*'`), and only if the hash is on the **Public Hash List (PHL)**, a shared, vendor-neutral allowlist all browser vendors are expected to respect. [GREASE'ing](#greaseing) may still withhold it.
 
-The two mechanisms attach to individual grants, and grants are additive, so an entry can carry both. A requester that qualifies through the storing-origin, same-site, or explicit-list grant is subject to access control only, and succeeds without the hash being on the PHL, even if the same entry is *also* globally disclosable. Only a requester relying on the global grant alone is subject to availability gating as well, and then both must be satisfied: a globally disclosable resource whose hash is not on the PHL is not cross-origin accessible *through that grant*. This split is deliberate: the storing origin has already made an explicit, bounded disclosure decision by naming a specific list or accepting the same-site default, so requiring separate global-ubiquity clearance on top of that would make ordinary restricted sharing (see [Choosing who can read a file](#example-choosing-who-can-read-a-file)) depend on unrelated, public curation of what is often a proprietary resource that will never appear on a public allowlist. Availability gating exists specifically to bound the global grant, the one grant where disclosure could otherwise reach any origin on the web.
+An origin that qualifies under none of these, or relies on the global grant for a hash not on the PHL, receives a `NotFoundError` `DOMException` that is identical in content and timing to the file being absent. A requester that qualifies through the first three grants never consults the PHL, even if the entry is also globally disclosable. The PHL gates only the global grant because the other grants already reflect a bounded disclosure decision by the storing origin; requiring public curation for them would block ordinary restricted sharing of proprietary resources (see [Choosing who can read a file](#example-choosing-who-can-read-a-file)).
 
-**Availability gating in detail.** For a `'*'`-scoped resource, user agents implement availability gating using the PHL:
-
-- **On the PHL:** The user agent may answer truthfully, returning a handle if the file is present, or a `NotFoundError` `DOMException` if it is absent. ([GREASE'ing](#greaseing) may still introduce occasional false negatives even for PHL-listed resources.)
-- **Not on the PHL:** The user agent must always return a `NotFoundError` `DOMException`, regardless of whether the file is physically present in COS. The response must be identical whether the file is absent or present, so that cache state cannot be inferred by observing the response or its timing.
-
-The PHL covers well-known resources, such as popular open-source libraries, widely used Wasm modules, web fonts served by major font CDNs, and AI model weights published by recognized model hubs. These are unconditionally eligible for cross-origin availability disclosure because independent, corroborated evidence of their ubiquity (for example, appearing byte-identical across a large number of independently crawled origins) makes cache presence uninformative about any individual user, a form of **k-anonymity** where _k_ is that minimum corroborating-origin count. This ubiquity check happens once, offline, as part of how a hash is admitted to the PHL, so the user agent never repeats it at query time. A hash is either on the current PHL snapshot or it isn't; a hash that never clears that bar is treated as permanently absent at the API surface, and the user agent returns a `NotFoundError` `DOMException` as if the file were not stored in COS at all.
+The PHL covers well-known resources, such as popular open-source libraries, widely used Wasm modules, web fonts served by major font CDNs, and AI model weights published by recognized model hubs. These are unconditionally eligible for cross-origin availability disclosure because independent, corroborated evidence of their ubiquity (for example, appearing byte-identical across a large number of independently crawled origins) makes cache presence uninformative about any individual user, a form of **k-anonymity** where _k_ is that minimum corroborating-origin count. This ubiquity check happens once, offline, as part of how a hash is admitted to the PHL, so the user agent never repeats it at query time.
 
 The full design of the PHL (its data format, admission criteria, sourcing, and cross-vendor governance) is specified in the [Public Hash List explainer](public-hash-list/phl-explainer.md). In short, it proposes: governance by the WHATWG, modeled directly on the [Public Suffix List](https://publicsuffix.org/)'s cross-vendor, rolling-release precedent; a compact, algorithm-sectioned flat-text format of bare hex digests, with provenance kept in human-readable comments; and a separate, optional section for hashes hand-curated from a recognized AI model hub, to unlock the AI use case that objective popularity signals alone cannot cover. An early, non-normative code prototype of the list itself lives in this repository for now, at [`public-hash-list/implementation/`](public-hash-list/implementation/). The [Governance](public-hash-list/phl-explainer.md#governance) section of the PHL explainer describes the target end state, a dedicated, cross-vendor repository.
 
-Developers must NOT rely on a `NotFoundError` as definitive proof that a file is absent from COS. A `NotFoundError` MAY indicate that the requesting origin is simply out of scope, or, for a `'*'`-scoped resource, that the user agent has withheld confirmation of the file's presence for privacy reasons.
+Developers must NOT treat a `NotFoundError` as proof that a file is absent from COS: the requesting origin may be out of scope, or the user agent may be withholding a `'*'`-scoped file for privacy reasons. The fallback is always a network fetch.
 
 #### GREASE'ing
 
@@ -932,11 +917,11 @@ However, user agents must exercise size-proportionate judgment when applying GRE
 
 #### API response reference
 
-The following tables summarize the response a user agent must return for every combination of inputs. Outside of the "Created, not yet written" case below, every non-success read-path outcome returns `NotFoundError`, so the caller cannot distinguish between a genuine cache miss and a gated or access-controlled resource.
+The following tables summarize the response a user agent must return for every combination of inputs.
 
 ##### Read path
 
-The rows are keyed by *how the requesting origin qualifies*, and the grants are additive, so a requester that qualifies under any row succeeds under that row regardless of the others. In particular, an origin on the explicit list succeeds without the PHL even when the entry is also globally disclosable.
+The rows are keyed by how the requesting origin qualifies (see [Availability gating](#availability-gating)). A "—" means the column does not apply to that row.
 
 | Requester qualifies via | On PHL? | GREASEd? | Response |
 | -- | -- | -- | -- |
@@ -950,9 +935,7 @@ The rows are keyed by *how the requesting origin qualifies*, and the grants are 
 | No qualifying grant (out of scope) | — | — | `NotFoundError` |
 | Not in COS | — | — | `NotFoundError` |
 
-The PHL is consulted only for an origin that qualifies *solely* through the global grant; the storing-origin, same-site, and explicit-list rows never consult it, which is why their "On PHL?" cells show "—". The same holds for GREASE'ing: it can turn only a success through the global grant into a `NotFoundError`, so those rows show "—" under "GREASEd?" too. A storing origin always succeeds, independent of PHL, `origins`, or GREASE'ing (see [Original storer access](#resource-visibility-upgrades)).
-
-The "Created, not yet written" row applies both to a fresh `requestFileHandle()` call for that hash and to calling `getFile()` on a `FileSystemFileHandle` that was itself obtained from a still-pending `create: true` request; see [Concurrent writes](#concurrent-writes).
+The "Created, not yet written" row also covers `getFile()` on a handle from a still-pending `create: true` request; see [Concurrent writes](#concurrent-writes).
 
 `getFile()` is gated per handle, so a handle obtained from a `create: true` request also rejects with `NotAllowedError` when some other origin has *already* written the entry and this handle has not been written through. Otherwise a create request would be a read: any origin could ask for a handle and immediately call `getFile()`, learning an entry's contents without satisfying `origins`, the PHL, or GREASE'ing, all of which are enforced on the read path only.
 
