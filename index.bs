@@ -433,7 +433,7 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
       disclosed to an origin that qualifies through this grant alone; an origin that also appears
       among [=COS entry/storing origins=], their same-site set, or the explicit
       [=COS entry/origins=] [=list=] has already returned above.
-   1. If the user agent elects to apply [[#greasing|GREASE'ing]] to this request, return null.
+   1. If the user agent elects to apply [[#greaseing|GREASE'ing]] to this request, return null.
 
       Note: GREASE'ing also applies only to the global grant. The grants checked above never
       reach this step: storing origins and their same-site origins are one trust unit, and an
@@ -474,7 +474,7 @@ returns a handle whether or not the entry already exists and is already "`writte
 {{CrossOriginStorageManager/requestFileHandle()}} with
 {{CrossOriginStorageRequestFileHandleOptions/create}}: true and immediately read an entry it
 never wrote, learning its contents without satisfying [=COS entry/origins=],
-[=on the PHL|PHL membership=], or [[#greasing|GREASE'ing]]. Every disclosure control in this
+[=on the PHL|PHL membership=], or [[#greaseing|GREASE'ing]]. Every disclosure control in this
 specification is applied on the read path, so gating per entry would let a create request walk
 around all of them. Requiring the caller to supply the correct bytes first means a successful
 read through a create-obtained handle discloses nothing the caller did not already have.
@@ -618,7 +618,7 @@ origin for bytes it never possessed. A create request returns a handle whether o
 already exists, so a caller could open a writable for a hash another origin stored, close it
 having written nothing, and have the carried-over bytes hash to the requested value. That would
 grant it read access with [=COS entry/origins=], the [=Public Hash List=], and
-[[#greasing|GREASE'ing]] never consulted: an [[#availability-gating|availability gating]] bypass
+[[#greaseing|GREASE'ing]] never consulted: an [[#availability-gating|availability gating]] bypass
 assembled out of two individually permitted operations. It is the same reasoning that makes
 [=verify and store=] require the complete contents on every create request.
 
@@ -878,7 +878,7 @@ Note: Without the [=same origin=] check, transferring would defeat every disclos
 this specification at once. A handle whose <a class=allow-2119 data-link-type=dfn data-link-for=FileSystemFileHandle>may read</a> is true has already
 cleared [=apply availability gating=] *for the origin that requested it*; posting it to another
 origin would hand that origin the entry's bytes without [=COS entry/origins=],
-[=on the PHL|PHL membership=] or [[#greasing|GREASE'ing]] ever being evaluated for it. This
+[=on the PHL|PHL membership=] or [[#greaseing|GREASE'ing]] ever being evaluated for it. This
 matches the File System Standard's existing treatment of handles, which are likewise only useful
 to a [=same origin=] recipient.
 
@@ -1315,7 +1315,7 @@ Whether a {{CrossOriginStorageManager/requestFileHandle()}} read from an origin 
 [=COS entry/storing origins=] succeeds always depends on whether the requesting origin is
 *allowed* to read the entry, governed by [=COS entry/origins=]. For a "`*`"-scoped entry, a second,
 independent question also applies: whether the user agent is willing to *disclose that the entry
-exists at all*, governed by [=on the PHL|PHL membership=] and [[#greasing|GREASE'ing]]. Both must
+exists at all*, governed by [=on the PHL|PHL membership=] and [[#greaseing|GREASE'ing]]. Both must
 hold for such an entry; for a list- or same-site-scoped entry, only the first question applies.
 See [[#reading-files]] for the normative algorithm. A "{{NotFoundError}}" is therefore not
 proof that a resource is absent: it may mean the resource does not exist, that the requesting
@@ -1332,9 +1332,9 @@ otherwise-ordinary, individually PHL-eligible resources by choosing which subset
 write, and third-party cookie availability is the deciding factor in whether the
 resulting probe is any more informative than an ordinary tracking cookie would be.
 
-## GREASE'ing ## {#greasing}
+## GREASE'ing ## {#greaseing}
 
-A user agent may apply <dfn export>GREASE'ing</dfn> ([Generate Random Extensions And Sustain
+A user agent may apply <dfn export id="dfn-greaseing">GREASE'ing</dfn> ([Generate Random Extensions And Sustain
 Extensibility](https://tools.ietf.org/html/draft-ietf-tls-grease)): occasionally responding as if
 a disclosable entry were absent, even though [[#availability-gating]] would otherwise
 permit disclosure. This adds noise that makes it harder for a site to distinguish a true absence
