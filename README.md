@@ -81,6 +81,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
     - [Cache flooding](#cache-flooding)
     - [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header)
   - [Privacy considerations](#privacy-considerations)
+    - [Cross-site tracking through writes](#cross-site-tracking-through-writes)
     - [Cross-site probing](#cross-site-probing)
     - [Availability gating](#availability-gating)
     - [GREASE'ing](#greaseing)
@@ -878,15 +879,32 @@ The header bounds disclosure to the origins the operator authorized. If a site l
 
 ### Privacy considerations
 
-In browsers that still support third-party cookies, user agents are expected to make this API available only in contexts where third-party cookies are enabled.
+In browsers that still support third-party cookies, COS lets a tracker link a user's visits across sites no better than a third-party cookie already can. By applying the mitigations listed below, COS can also be implemented in browsers without support for third-party cookies.
+
+Since every COS lookup and write passes through one explicit API, the user agent knows exactly where tracking would have to happen—unlike tracking vectors that hide in timing side channels or scattered platform quirks. That single choke point is what makes it possible to count, gate, and rate-limit cross-site disclosure precisely, something browsers cannot do for signals they never see.
+
+#### Cross-site tracking through writes
+
+COS lets a tracker write, which turns it into a potential cross-site store. Embedded as a third-party iframe, `tracker.example` can call `requestFileHandle(hash, { create: true })` on site A to store a chosen subset of small files, each file's presence encoding one bit, and read that subset back from the same iframe on site B. On both sites it is a storing origin, so every read succeeds without the Public Hash List, GREASE'ing, or any origins grant, and the recovered pattern links the user's visits the way a third-party cookie would. This requires each embedding site to grant the iframe `allow="cross-origin-storage"`. 
+
+A tracker script loaded directly into the page runs as the site's own origin, so everything it stores belongs to site A, and a script on site B runs as B and is not a storing origin. To read those files back from B, it has to make them cross-origin readable. A list naming B needs site A to send a `Cross-Origin-Storage-Allow-Origin` header authorizing B, which only the site operator can do. With `origins: '*'`, the only files other origins can see are those whose hashes are on the Public Hash List, so the tracker has to encode its bits as a strategically chosen subset of well-known public files. It then reads through the global grant, where GREASE'ing may drop some bits at random and files the user already cached on other sites add false signals, so the tracker needs redundancy to recover a stable identifier. Eviction and the per-origin storage limit bound both variants, and the identifier lasts until the cache evicts it.
+
+##### Potential mitigations
+
+Mitigations need to carefully balance between ensuring the user's privacy and maintaining the usefulness of the feature.  
+
+* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, defined by the user agent. Lookups for files the requesting site stored itself stay free. The budget belongs to the top-level site the user is visiting, and every frame on the page draws from it, so a tracker cannot multiply it by adding origins.
+* A written file becomes shareable with other sites only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page.
+* The count persists across page reloads for the whole origin (and across tabs), so reloading does not reset it.
+* Each call to `requestFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
+
+Since each lookup reveals at most one bit, a budget of 8 limits a tracker to 8 bits per window, well short of the roughly 32 bits needed to identify a device. A patient tracker can still combine partial results over time, so cross-site tracking becomes slow and paced by the user's own engagement, but not impossible.
 
 #### Cross-site probing
 
 If a file is only used on certain kinds of websites, an attacker can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which an attacker might exploit, for example, for targeted advertising. The attacker site would need to probe hashes of resources it's interested in. The `origins` field mitigates this risk by allowing origins to restrict resource access to a specific set of trusted origins, ensuring the resource is not globally "probeable". Sites are expected to use this field for proprietary resources or when global COS cache hits are not expected.
 
 This mitigation only holds if a list stays meaningfully smaller than the web. A caller could otherwise enumerate a very large number of origins (for example, a public top-sites ranking) and approximate global disclosure without the explicit `'*'` opt-in. `origins` lists therefore have an implementation-defined maximum length that fits a handful of related origins under common control, and the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header bounds which origins a list may name.
-
-User agents are expected to implement safeguards against such attacks, for example, by limiting the number of probes, or by returning false negatives when a site known to be malicious is probing. Each call to `requestFileHandle()` can be considered a probe, and user agents can limit the number of probes per site or even block probes from sites known to be malicious.
 
 A lookup performed by one of the [host integrations](#additional-integration-surfaces) counts as a probe on the same terms. Such a lookup returns no error to the page, but a site learns its outcome anyway by observing whether its own server receives the fallback request, which is the same single bit a `NotFoundError` carries. This discloses nothing the imperative API would not, and the same `origins` scoping, availability gating, and GREASE'ing apply. It does mean a probe limit must count all four surfaces: the [fetch integration](#fetch-integration) in particular is as scriptable in a loop as `requestFileHandle()` is, so counting only imperative calls would leave the limit trivially avoidable.
 
