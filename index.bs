@@ -1323,14 +1323,15 @@ origin is out of scope, that a "`*`"-scoped resource's hash is not (yet, or ever
 that GREASE'ing suppressed a true positive. Developers must not treat "{{NotFoundError}}" as
 anything more specific than "fall back to the network."
 
-Note: A `"*"`-scoped entry's disclosure is additionally limited to requesting
-[=origins=] that can set or read third-party cookies in the current context; such an
-entry is not disclosed to an origin third-party cookies are unavailable to,
-regardless of [=PHL=] membership. This closes a gap [=PHL=]
-membership alone cannot: an attacker can build a cross-site identifier out of
-otherwise-ordinary, individually PHL-eligible resources by choosing which subset to
-write, and third-party cookie availability is the deciding factor in whether the
-resulting probe is any more informative than an ordinary tracking cookie would be.
+Note: In a user agent that supports third-party cookies, the "`*`" grant lets a tracker link a
+user's visits across sites no better than a third-party cookie already can. The [=PHL=] alone
+does not bound this: an attacker can build a cross-site identifier out of individually
+PHL-eligible resources by choosing which subset to write. A user agent that blocks third-party
+cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for example with a
+small budget of cross-site lookups keyed on the origin and shared by every frame on the
+page, a count that persists across reloads for a time window, and sharing of written entries only
+after a user gesture. The README's
+[privacy considerations](README.md#privacy-considerations) describe these mitigations.
 
 ## GREASE'ing ## {#greaseing}
 
