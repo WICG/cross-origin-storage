@@ -893,9 +893,9 @@ A tracker script loaded directly into the page runs as the site's own origin, so
 
 Mitigations need to carefully balance between ensuring the user's privacy and maintaining the usefulness of the feature.
 
-* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself stay free. The budget belongs to the top-level origin the user is visiting, and every frame on the page draws from it, so a tracker cannot multiply it by adding origins.
+* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself stay free. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
 * A written file becomes shareable with other sites only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page.
-* The count persists across page reloads for the whole origin (and across tabs), so reloading does not reset it.
+* The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it.
 * Each call to `requestFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
 
 Since each lookup reveals at most one bit, a budget of 8 limits a tracker to 8 bits per window, well short of the roughly 32 bits needed to identify a device. A patient tracker can still combine partial results over time, so cross-site tracking becomes slow and paced by the user's own engagement, but not impossible.

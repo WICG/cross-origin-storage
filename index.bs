@@ -1328,8 +1328,8 @@ user's visits across sites no better than a third-party cookie already can. The 
 does not bound this: an attacker can build a cross-site identifier out of individually
 PHL-eligible resources by choosing which subset to write. A user agent that blocks third-party
 cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for example with a
-small budget of cross-site lookups keyed on the origin and shared by every frame on the
-page, a count that persists across reloads for a time window, and sharing of written entries only
+small budget of cross-site lookups keyed on the top-level site and shared by every frame on
+the page, a count that persists across reloads for a time window, and sharing of written entries only
 after a user gesture. The README's
 [privacy considerations](README.md#privacy-considerations) describe these mitigations.
 
