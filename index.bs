@@ -162,6 +162,15 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    is one of three independent, additive grants that decide who may read an entry, the
    other two being its [=COS entry/storing origins=] (always readable, together with origins
    [=same site=] with them) and [=COS entry/globally disclosable=].
+
+   Note: A write whose {{CrossOriginStorageRequestFileHandleOptions/origins}} is an explicit empty
+   [=list=] (`origins: []`) grants exactly what a write that omits
+   {{CrossOriginStorageRequestFileHandleOptions/origins}} grants: the entry's
+   [=COS entry/storing origins=] and the origins [=same site=] with them, the baseline every entry
+   carries (see [=determine COS disclosure=]). [=apply a COS scope ceiling|Applying the ceiling=]
+   turns the empty [=list=] into null, so both writes reach the rest of
+   [=complete a create request=] in the same state. An explicit [=list=] only ever adds recipients;
+   it never withholds the entry from the writer's own site.
 : <dfn for="COS entry">globally disclosable</dfn>
 :: A [=boolean=], initially false, recording whether the entry has been written with a request for
    global ("`*`") availability. When true, the entry is readable by any origin whose request
