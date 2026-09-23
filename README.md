@@ -83,6 +83,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
   - [Privacy considerations](#privacy-considerations)
     - [Cross-site tracking through writes](#cross-site-tracking-through-writes)
     - [Cross-site probing](#cross-site-probing)
+    - [In-progress writes](#in-progress-writes)
     - [Availability gating](#availability-gating)
     - [GREASE'ing](#greaseing)
     - [API response reference](#api-response-reference)
@@ -204,10 +205,10 @@ Who may read an entry depends on how it was shared. An entry is always available
 
 #### COS entry
 
-Each resource stored in COS is conceptually represented as an entry with the following fields:
+Each resource stored in COS is conceptually represented as an entry with the following fields. An entry exists only once its bytes have been written and verified, so there is no half-written state; see [In-progress writes](#in-progress-writes).
 
 - **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
-- **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError`.
+- **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError` and stores nothing.
 - **`origins`**: the declared sharing scope, stored as two independent, additive grants: an **explicit origins list** and a **globally disclosable** flag, set by a `'*'` write. A write requests `'*'`, a list of origins, or nothing (same-site only), and the request is merged into these grants (see [Resource visibility upgrades](#resource-visibility-upgrades)). A list is capped in length and bounded by the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header.
 - **`storing origins`**: the origins that have successfully written this entry. It is persisted across page loads and only ever grows.
 
@@ -220,7 +221,7 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 1. Write the file's data to the `FileSystemFileHandle` object and store it in Cross-Origin Storage. Data can be written with one or more `write()` calls, or streamed in with `sourceStream.pipeTo(writableStream)`. By default, `pipeTo()` closes `writableStream` automatically once `sourceStream` is exhausted, unless called with `preventClose: true` (see [Streaming a file into COS while using it](#example-streaming-a-file-into-cos-while-using-it) for the recommended pattern on large resources). Whenever the stream closes, whether via an explicit `writableStream.close()` call or implicitly through `pipeTo()`, the user agent must verify that the hash of the complete written bytes matches the declared hash, using the algorithm specified in `hash.algorithm`. If the hashes do not match, the user agent must reject the closing operation's promise with a `DataError` `DOMException` and must not store the data in COS.
 
 > [!NOTE]
-> A hash-mismatched write leaves no placeholder behind; see [Concurrent writes](#concurrent-writes).
+> A write registers nothing until its bytes have been verified, so a hash-mismatched write leaves no trace and a write in progress is invisible to every origin, including the writer's own later lookups; see [Concurrent writes](#concurrent-writes).
 
 > [!NOTE]
 > If `hash.value` is not a valid lowercase hexadecimal string of length 64, or `hash.algorithm` is not a hash algorithm name recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), the user agent must throw a `TypeError`.
@@ -750,9 +751,12 @@ const hash = {
 
 Two tabs can find the same hash absent and start writing it at the same time. The user agent stores the file once; this proposal does not coordinate the two downloads.
 
-- **While an entry is unwritten,** every `requestFileHandle()` call for its hash, from any origin including the writer, rejects with `NotAllowedError` (see the "Created, not yet written" row of the [read path table](#read-path)). The distinct error tells a reader that a write is in progress, so it does not start another download of a file that may already be gigabytes along.
-- **A handle from a `create: true` request** rejects `getFile()` with the same `NotAllowedError` until that handle's own write has completed, even for the origin that requested it.
-- **When a write fails,** for example because its bytes don't match the hash, the user agent removes the entry once no other write for that hash is outstanding, and later lookups get `NotFoundError`. Waiting for the other writes keeps one tab's failure from disturbing another tab's write for the same hash, and an entry some origin has already written is never removed by a failed write.
+- **A write in progress is invisible.** A `create: true` request puts nothing in the COS registry. An entry appears only once a writer has supplied the complete bytes and the user agent has verified them against the hash, so a lookup for a hash whose only write is still in flight returns `NotFoundError`, exactly as it would for a hash no origin has ever written. Callers cannot detect that someone else is mid-download, and must not try to.
+- **A handle from a `create: true` request** rejects `getFile()` with `NotAllowedError` until that handle's own write has completed. This answer is the same whether or not the hash is stored, and a handle cannot be deserialized cross-origin, so it reaches only the origin that made the request.
+- **When a write fails,** for example because its bytes don't match the hash, there is nothing to clean up: the failed writer never registered anything, and an entry another origin has already written is untouched. Later lookups get whatever the registry holds, independent of the failure.
+- **When two writes succeed,** whichever completes second finds the entry the first created and adds its own origin and `origins` grants to it. Both sets of bytes hash to the same value, so storing them once is enough.
+
+Related origins can still deduplicate downloads themselves, with Web Locks, a `BroadcastChannel`, or a shared worker. Unrelated origins have no way to coordinate, by design.
 
 ### What a COS handle can and cannot do
 
@@ -908,6 +912,12 @@ This mitigation only holds if a list stays meaningfully smaller than the web. A 
 
 A lookup performed by one of the [host integrations](#additional-integration-surfaces) counts as a probe on the same terms. Such a lookup returns no error to the page, but a site learns its outcome anyway by observing whether its own server receives the fallback request, which is the same single bit a `NotFoundError` carries. This discloses nothing the imperative API would not, and the same `origins` scoping, availability gating, and GREASE'ing apply. It does mean a probe limit must count all four surfaces: the [fetch integration](#fetch-integration) in particular is as scriptable in a loop as `requestFileHandle()` is, so counting only imperative calls would leave the limit trivially avoidable.
 
+#### In-progress writes
+
+A write that has been requested and not completed must look, to every origin, exactly like a hash that was never written. COS gets this structurally: `requestFileHandle()` with `create: true` neither reads nor writes the COS registry, and an entry is added only after a writer supplies the complete bytes and the user agent verifies them.
+
+Registering a placeholder instead, and answering concurrent reads of it with a distinguishable error, would hand any origin one noiseless bit about any hash, ahead of `origins`, the PHL, and GREASE'ing, and without writing any bytes for the storage limit to bound.
+
 #### Availability gating
 
 Whether a `requestFileHandle()` call returns a handle depends on the grants an entry carries. Grants are set at write time, add up, and are never removed (see [Resource visibility upgrades](#resource-visibility-upgrades)):
@@ -943,7 +953,6 @@ The rows are keyed by how the requesting origin qualifies (see [Availability gat
 
 | Requester qualifies via | On PHL? | GREASEd? | Response |
 | -- | -- | -- | -- |
-| (entry created, not yet written) | — | — | `NotAllowedError` |
 | Storing origin | — | — | Success |
 | Same-site of a storing origin | — | — | Success |
 | On the explicit `origins` list | — | — | Success |
@@ -953,9 +962,9 @@ The rows are keyed by how the requesting origin qualifies (see [Availability gat
 | No qualifying grant (out of scope) | — | — | `NotFoundError` |
 | Not in COS | — | — | `NotFoundError` |
 
-The "Created, not yet written" row also covers `getFile()` on a handle from a still-pending `create: true` request; see [Concurrent writes](#concurrent-writes).
+A hash whose only write is still in flight falls under the last row: it has no entry in COS yet, so it is `NotFoundError` like any other absent hash. There is no response that distinguishes it; see [In-progress writes](#in-progress-writes).
 
-`getFile()` is gated per handle, so a handle obtained from a `create: true` request also rejects with `NotAllowedError` when some other origin has *already* written the entry and this handle has not been written through. Otherwise a create request would be a read: any origin could ask for a handle and immediately call `getFile()`, learning an entry's contents without satisfying `origins`, the PHL, or GREASE'ing, all of which are enforced on the read path only.
+`getFile()` is gated per handle rather than by this table. A handle from a `create: true` request rejects with `NotAllowedError` until that handle's own write completes, whether or not another origin has already written the entry. Otherwise a create request would be a read: any origin could ask for a handle and immediately call `getFile()`, learning an entry's contents without satisfying `origins`, the PHL, or GREASE'ing, all of which are enforced on the read path only. Because that answer is the same either way, and a handle cannot be deserialized cross-origin, it discloses nothing.
 
 ##### Write path
 

@@ -145,17 +145,13 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
 : <dfn for="COS entry">hash</dfn>
 :: A [=COS hash=].
 : <dfn for="COS entry">bytes</dfn>
-:: Null, or a [=byte sequence=] whose digest under [=COS entry/hash=]'s [=COS hash/algorithm=]
-   equals [=COS entry/hash=]'s [=COS hash/value=]. Null until a writer completes
-   [=verify and store|verification and storage=].
-: <dfn for="COS entry">state</dfn>
-:: Either "`pending`" or "`written`". An entry starts out "`pending`" and becomes "`written`"
-   exactly once, when [=COS entry/bytes=] is first set.
-: <dfn for="COS entry">pending writer count</dfn>
-:: A non-negative integer, initially 0, counting outstanding writers: {{FileSystemFileHandle}}
-   handles returned by [=complete a create request=] whose [=verify and store|closing write=] has
-   not yet settled. Used only to decide, in [=verify and store=], whether a failed write is safe to
-   clean up; see [[#creating-and-writing-files]].
+:: A [=byte sequence=] whose digest under [=COS entry/hash=]'s [=COS hash/algorithm=]
+   equals [=COS entry/hash=]'s [=COS hash/value=].
+
+   Note: An entry is added to the [=COS registry=] only once a writer has supplied these bytes and
+   the user agent has verified them; see [=verify and store=]. A write that has been requested but
+   not completed has no representation in the registry at all, which is what makes an in-progress
+   write indistinguishable from an absent one on the read path. See [[#in-progress-writes]].
 : <dfn for="COS entry">origins</dfn>
 :: A [=list=] of [=/origins=] granted explicit, cross-origin read access, independent of the
    [=Public Hash List=]. Initially empty, it only ever [[#resource-visibility-upgrades|grows]]. This
@@ -375,15 +371,12 @@ To <dfn>complete a read request</dfn> given [=a new promise|a promise=] |result|
 
 1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
    [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
-1. If |entry| is not null and |entry|'s [=COS entry/state=] is "`pending`":
-   1. [=Queue a global task=] on the [=DOM manipulation task source=] given |global| to
-      [=/reject=] |result| with a "{{NotAllowedError}}" {{DOMException}}.
-   1. Return.
 
-   Note: A hash with a write in progress deliberately does not behave like a hash that is
-   absent, so that a caller does not mistake an in-progress write for a genuine cache miss
-   and begin a redundant, concurrent download of a very large file for the sole purpose of
-   writing it. See [[#creating-and-writing-files]].
+   Note: A write that another writer has requested but not yet completed is not in the
+   [=COS registry=], so |entry| is null for such a hash and this algorithm proceeds exactly as it
+   does for a hash no origin has ever written. Every disclosure this specification permits is
+   decided by [=apply availability gating=] below; there is no earlier branch that could answer
+   before it. See [[#in-progress-writes]].
 1. Let |disclosableEntry| be the result of running [=apply availability gating=] given |entry|
    and |origin|.
 1. If |disclosableEntry| is null:
@@ -391,8 +384,9 @@ To <dfn>complete a read request</dfn> given [=a new promise|a promise=] |result|
       [=/reject=] |result| with a "{{NotFoundError}}" {{DOMException}}.
    1. Return.
 1. Let |handle| be the result of <a>creating a new `FileSystemFileHandle`</a> [[FS]] whose
-   [=FileSystemHandle/locator=] addresses |disclosableEntry| within the
+   [=FileSystemHandle/locator=] addresses |disclosableEntry|'s [=COS entry/hash=] within the
    [=Cross-Origin Storage file system=], in |realm|.
+1. Set |handle|'s [=FileSystemFileHandle/COS hash=] to |disclosableEntry|'s [=COS entry/hash=].
 1. Set |handle|'s [=FileSystemFileHandle/COS origin=] to |origin|.
 1. Set |handle|'s [=FileSystemFileHandle/may read=] to true.
 
@@ -408,7 +402,11 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
 [=/origin=] |origin|, return a [=COS entry=] or null:
 
 1. If |entry| is null, return null.
-1. [=Assert=]: |entry|'s [=COS entry/state=] is "`written`".
+
+   Note: An entry in the [=COS registry=] has always been written and verified, so there is no
+   half-written state for this algorithm to consider. A hash whose only write is still in flight is
+   absent from the registry and reaches this algorithm as null, the same as a hash no origin has
+   ever written; see [[#in-progress-writes]].
 1. If |origin| is in |entry|'s [=COS entry/storing origins=], return |entry|.
 
    Note: The original storer, and any origin that has itself successfully written the entry,
@@ -468,17 +466,23 @@ A {{FileSystemFileHandle}} created by [=complete a create request=] has an assoc
 attempt to [[#resource-visibility-upgrades|upgrade]] the entry's [=COS entry/origins=] to once the
 handle is successfully written through.
 
-Every {{FileSystemFileHandle}} addressing a [=COS entry=] also has an associated
+Every {{FileSystemFileHandle}} addressing the [=Cross-Origin Storage file system=] also has an
+associated <dfn for="FileSystemFileHandle">COS hash</dfn>, the [=COS hash=] it addresses, an
+associated
 <dfn for="FileSystemFileHandle">COS origin</dfn>, the [=/origin=] that obtained it, and an
 associated
 <dfn for="FileSystemFileHandle">may read</dfn> boolean, which governs whether
-{{FileSystemFileHandle/getFile()}} may disclose the entry's bytes through that particular handle.
-It is true for a handle returned by [=complete a read request=], which has already passed
+{{FileSystemFileHandle/getFile()}} may disclose the addressed entry's bytes through that particular
+handle. It is true for a handle returned by [=complete a read request=], which has already passed
 [[#availability-gating|availability gating]], and false for a handle returned by
 [=complete a create request=] until [=verify and store=] succeeds for that same handle.
 
+Note: A handle addresses a [=COS hash=], not a [=COS entry=]. [=complete a create request=] returns
+one for a hash that has no entry in the [=COS registry=] and might never acquire one, so there is no
+entry for it to reference until [=verify and store=] creates one.
+
 Note: This is deliberately a property of each handle. A create request
-returns a handle whether or not the entry already exists and is already "`written`" (see
+returns a handle whether or not an entry for the hash already exists (see
 [=complete a create request=]), so a per-entry rule would let any origin call
 {{CrossOriginStorageManager/requestFileHandle()}} with
 {{CrossOriginStorageRequestFileHandleOptions/create}}: true and immediately read an entry it
@@ -498,40 +502,30 @@ To <dfn>complete a create request</dfn> given [=a new promise|a promise=] |resul
 1. If |requestedOrigins| is a [=list=], set |requestedOrigins| to the result of running
    [=apply a COS scope ceiling=] given |requestedOrigins| and the result of running
    [=obtain the COS scope ceiling=] given |global|.
-1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
-   [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
-1. If |entry| is null:
-   1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
-      [=COS entry/bytes=] is null, [=COS entry/state=] is "`pending`", [=COS entry/origins=] is an
-      empty [=list=], [=COS entry/globally disclosable=] is false, and
-      [=COS entry/storing origins=] is an empty [=set=].
-   1. [=map/Set=] the [=COS registry=][|hash|] to |entry|.
-
-   Note: The new entry starts with no explicit [=COS entry/origins=] grant and is not
-   [=COS entry/globally disclosable=]; |requestedOrigins| is applied to it below by
-   [=verify and store=] through [=upgrade resource visibility=], once the bytes are written and
-   verified, exactly as for a request that finds an existing entry. This is what makes a create
-   request supply the full bytes before it can widen visibility (see [[#resource-visibility-upgrades]]).
-1. Increment |entry|'s [=COS entry/pending writer count=] by 1.
-
-   Note: This tracks |handle| as an outstanding writer even if the caller never calls
-   {{FileSystemFileHandle/createWritable()}} on it, or never closes the resulting stream. Such an
-   abandoned handle permanently counts against |entry|, exactly as an abandoned in-flight write
-   already left |entry| permanently "`pending`" before this mechanism existed; see
-   [=verify and store=].
 1. Let |handle| be the result of <a>creating a new `FileSystemFileHandle`</a> [[FS]] whose
-   [=FileSystemHandle/locator=] addresses |entry| within the
+   [=FileSystemHandle/locator=] addresses |hash| within the
    [=Cross-Origin Storage file system=], in |realm|.
+1. Set |handle|'s [=FileSystemFileHandle/COS hash=] to |hash|.
 1. Set |handle|'s [=FileSystemFileHandle/COS origin=] to |global|'s
    [=relevant settings object=]'s [=environment settings object/origin=].
 1. Set |handle|'s [=FileSystemFileHandle/requested origins=] to |requestedOrigins|.
 1. Set |handle|'s [=FileSystemFileHandle/may read=] to false.
 
-   Note: |handle| is returned whether or not |entry| already existed, and whether or not it is
-   already "`written`". The caller still needs to supply the complete file bytes through
-   |handle|, so that a write cannot be used to detect prior presence (see
-   [[#cross-site-probing]]) and so that a request for a more permissive
-   [=COS entry/origins=] value can be verified before being honored; see
+   Note: This algorithm does not consult the [=COS registry=] and does not modify it. It cannot:
+   its result has to be independent of whether |hash| is already stored, or a create request would
+   itself disclose prior presence (see [[#cross-site-probing]]). |handle| is therefore returned on exactly
+   the same terms whether the entry exists, was never written, or is being written by someone else
+   right now, and it carries no read access until this caller supplies the bytes.
+
+   Note: Because nothing is registered here, a caller that requests a handle and then abandons it,
+   never calling {{FileSystemFileHandle/createWritable()}} or never closing the resulting stream,
+   leaves the registry exactly as it found it. No other origin can observe that the request
+   happened, and no hash can be pinned in a placeholder state that suppresses later reads of it.
+   See [[#in-progress-writes]].
+
+   Note: |requestedOrigins| is applied only by [=verify and store=], through
+   [=upgrade resource visibility=], once the bytes have been written and verified. This is what
+   makes a create request supply the full bytes before it can widen visibility; see
    [[#resource-visibility-upgrades]].
 1. [=Queue a global task=] on the [=DOM manipulation task source=] given |global| to
    [=/resolve=] |result| with |handle|.
@@ -564,8 +558,9 @@ first created, so every later [=list/clone=] of it stays duplicate-free too.
 
 When the {{FileSystemWritableFileStream}} obtained by calling
 {{FileSystemFileHandle/createWritable()}} on a handle whose [=FileSystemHandle/locator=]
-addresses a [=COS entry=] is closed [[FS]], the user agent must run the [=verify and store=] steps
-below before that closing operation's promise is fulfilled.
+addresses the [=Cross-Origin Storage file system=] is closed [[FS]], the user agent must run the
+[=verify and store=] steps below, given that handle, before that closing operation's promise is
+fulfilled.
 
 Note: This applies regardless of how closing was triggered: an explicit
 {{WritableStream/close()}} call, or a {{ReadableStream/pipeTo()}} call that reaches the end of its
@@ -573,53 +568,52 @@ source, which by default also closes its destination. [[STREAMS]] does not disti
 the point a stream becomes closed, and neither does this algorithm.
 
 <div algorithm>
-The <dfn>verify and store</dfn> steps, given the [=COS entry=] |entry| addressed by the closed
-stream's handle, the complete written [=byte sequence=] |bytes|, and the closing operation's
+The <dfn>verify and store</dfn> steps, given the {{FileSystemFileHandle}} |handle| whose stream was
+closed, the complete written [=byte sequence=] |bytes|, and the closing operation's
 [=relevant settings object=]'s [=environment settings object/origin=] |origin|, are:
 
+1. Let |hash| be |handle|'s [=FileSystemFileHandle/COS hash=].
 1. Let |computedValue| be the lowercase hexadecimal digest of |bytes|, computed using the
-   algorithm named by |entry|'s [=COS hash/algorithm=], per [[WEBCRYPTO]].
-1. If |computedValue| is not exactly equal to |entry|'s [=COS hash/value=]:
+   algorithm named by |hash|'s [=COS hash/algorithm=], per [[WEBCRYPTO]].
+1. If |computedValue| is not exactly equal to |hash|'s [=COS hash/value=]:
    1. [=Reject=] the closing operation's promise with a "{{DataError}}" {{DOMException}}.
-   1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
-      [=Cross-Origin Storage queue=]:
-      1. Decrement |entry|'s [=COS entry/pending writer count=] by 1.
-      1. If |entry|'s [=COS entry/state=] is "`pending`" and |entry|'s
-         [=COS entry/pending writer count=] is 0, then [=map/remove=] |entry|'s
-         [=COS entry/hash=] from the [=COS registry=].
-
-         Note: This is what makes a failed write clean up after itself: a later
-         {{CrossOriginStorageManager/requestFileHandle()}} call for the same hash, once no other
-         writer is still outstanding, sees no entry at all and gets an ordinary
-         "{{NotFoundError}}". The count guards against
-         deleting an entry that another writer, concurrently in flight for the same hash (for
-         example, two tabs that both found the hash absent and independently began writing it),
-         might still [=verify and store|successfully write=]: if that writer is still outstanding,
-         or already succeeded, either the count has not yet reached 0 or |entry|'s
-         [=COS entry/state=] is no longer "`pending`", and this step is a no-op. An
-         already-"`written`" entry can never be removed this way, regardless of how many later
-         writers request it and fail: only an entry that has never once been successfully written
-         is eligible.
    1. Abort these steps.
+
+   Note: A failed write has nothing to clean up. [=complete a create request=] registered no entry,
+   so a write that never produced verified bytes leaves the [=COS registry=] untouched, and a later
+   {{CrossOriginStorageManager/requestFileHandle()}} call for the same hash gets the same
+   "{{NotFoundError}}" it would have got had the write never been attempted. An entry some origin
+   has already written is likewise unaffected: this algorithm only ever adds bytes and grants.
 1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
    [=Cross-Origin Storage queue=]:
-   1. Set |entry|'s [=COS entry/bytes=] to |bytes|.
-   1. Set |entry|'s [=COS entry/state=] to "`written`".
-   1. [=set/Append=] |origin| to |entry|'s [=COS entry/storing origins=], if not already present.
-   1. Decrement |entry|'s [=COS entry/pending writer count=] by 1.
-   1. Run [=upgrade resource visibility=] given |entry| and the handle's
-      [=FileSystemFileHandle/requested origins=].
-   1. Set the handle's [=FileSystemFileHandle/may read=] to true.
+   1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
+      [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
+   1. If |entry| is null:
+      1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
+         [=COS entry/bytes=] is |bytes|, [=COS entry/origins=] is an empty [=list=],
+         [=COS entry/globally disclosable=] is false, and [=COS entry/storing origins=] is an empty
+         [=set=].
+      1. [=map/Set=] the [=COS registry=][|hash|] to |entry|.
 
-      Note: Only this handle becomes readable. Another handle for the same entry, obtained from a
+      Note: This is the only step in this specification that adds an entry to the
+      [=COS registry=], and it runs only after |bytes| has been verified against |hash|. Two
+      writers that both find the hash absent and write it concurrently each arrive here; whichever
+      is enqueued second finds the entry the first created and merely adds its own origin and
+      grants below. Their bytes hash to the same value, so storing them once is sufficient.
+   1. [=set/Append=] |origin| to |entry|'s [=COS entry/storing origins=], if not already present.
+   1. Run [=upgrade resource visibility=] given |entry| and |handle|'s
+      [=FileSystemFileHandle/requested origins=].
+   1. Set |handle|'s [=FileSystemFileHandle/may read=] to true.
+
+      Note: Only this handle becomes readable. Another handle for the same hash, obtained from a
       different create request that has not been written through, stays unreadable.
 
 </div>
 
-{{FileSystemFileHandle/createWritable()}} called on a {{FileSystemFileHandle}} addressing a
-[=COS entry=] must produce a {{FileSystemWritableFileStream}} whose contents start empty,
-regardless of the value of {{FileSystemCreateWritableOptions/keepExistingData}} and regardless of
-the addressed entry's [=COS entry/state=].
+{{FileSystemFileHandle/createWritable()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=] must produce a {{FileSystemWritableFileStream}} whose contents
+start empty, regardless of the value of {{FileSystemCreateWritableOptions/keepExistingData}} and
+regardless of whether the addressed [=COS hash=] has an entry in the [=COS registry=].
 
 Note: [[FS]] otherwise defines {{FileSystemCreateWritableOptions/keepExistingData}} as seeding the
 stream with the existing file's contents. Honoring that here would let a caller become a storing
@@ -690,18 +684,16 @@ or null |origins|, and an [=environment settings object=] |settings|:
       [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
    1. If |entry| is null:
       1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
-         [=COS entry/bytes=] is null, [=COS entry/state=] is "`pending`", [=COS entry/origins=] is
-         an empty [=list=], [=COS entry/globally disclosable=] is false, and
-         [=COS entry/storing origins=] is an empty [=set=].
+         [=COS entry/bytes=] is |bytes|, [=COS entry/origins=] is an empty [=list=],
+         [=COS entry/globally disclosable=] is false, and [=COS entry/storing origins=] is an empty
+         [=set=].
       1. [=map/Set=] the [=COS registry=][|hash|] to |entry|.
-   1. If |entry|'s [=COS entry/state=] is "`pending`":
-      1. Set |entry|'s [=COS entry/bytes=] to |bytes|.
-      1. Set |entry|'s [=COS entry/state=] to "`written`".
 
-      Note: An entry can be "`pending`" here because a {{CrossOriginStorageManager/requestFileHandle()}}
-      writer for the same hash is still in flight. Its [=COS entry/pending writer count=] is left
-      untouched, so that writer's own [=verify and store=] still settles normally; its bytes
-      hash to the same value, so storing them again changes nothing.
+      Note: As in [=verify and store=], the entry is created only once |bytes| has been verified
+      against |hash|, which the integration's {{Request/integrity}} check has already done. A
+      {{CrossOriginStorageManager/requestFileHandle()}} writer for the same hash that is still in
+      flight is unaffected: it holds no registry state, and its own [=verify and store=] settles
+      normally, finding this entry and adding its origin and grants to it.
    1. [=set/Append=] |origin| to |entry|'s [=COS entry/storing origins=], if not already present.
    1. Run [=upgrade resource visibility=] given |entry| and |requestedOrigins|.
 
@@ -788,29 +780,35 @@ would claim a capability {{FileSystemFileHandle/createWritable()}} will refuse. 
 "`granted`", since a caller holding a readable handle can read through it. Requesting cannot change
 either answer, as there is no prompt to show and no state a grant could be recorded in.
 
-Calling {{FileSystemFileHandle/getFile()}} on a {{FileSystemFileHandle}} addressing a
-[=COS entry=] whose [=FileSystemFileHandle/may read=] is false must reject with a
-"{{NotAllowedError}}" {{DOMException}}. This covers two distinct cases:
+Calling {{FileSystemFileHandle/getFile()}} on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=] whose [=FileSystemFileHandle/may read=] is false must reject
+with a "{{NotAllowedError}}" {{DOMException}}. This covers two distinct cases:
 
-* A handle from a [[#creating-and-writing-files|create request]] whose entry is still
-  "`pending`", for the same reason a concurrent
-  {{CrossOriginStorageManager/requestFileHandle()}} call for the same hash rejects (see
-  [[#reading-files]]): the caller must not be able to observe a not-yet-verified placeholder as if
-  it were the file's real contents.
-* A handle from a create request for an entry that some *other* origin has already written. The
-  entry's [=COS entry/state=] is "`written`", but this caller has not supplied the bytes and has
-  not passed [[#availability-gating|availability gating]], so it must learn nothing about the
-  entry, not even whether it exists.
+* A handle from a [[#creating-and-writing-files|create request]] that has not been written through
+  yet, whose addressed hash has no entry in the [=COS registry=]. There are no verified bytes to
+  return, and the caller must not be able to observe its own unfinished write as if it were the
+  file's real contents.
+* A handle from a create request for a hash that some *other* origin has already written. Verified
+  bytes exist, and this caller has not supplied them and has not passed
+  [[#availability-gating|availability gating]], so it must learn nothing about the entry, not even
+  whether it exists.
+
+Note: The rejection is identical in both cases, so it discloses nothing. This is why
+"{{NotAllowedError}}" is safe here although the read path deliberately avoids it: this handle is
+the caller's own, obtained by its own create request, and a handle cannot be deserialized in any
+other origin (see [[#transferring-handles]]). The answer therefore never crosses an origin boundary, and
+it is constant with respect to the registry's contents. Contrast [[#in-progress-writes]], where a
+distinct error on the read path *would* have crossed that boundary.
 
 Once a handle's [=FileSystemFileHandle/may read=] is true, {{FileSystemFileHandle/getFile()}}
 called on it returns a {{File}} whose contents are the addressed entry's [=COS entry/bytes=]; this
 is exactly the behavior [[FS]] already defines for a [=file entry=] whose
 [=file entry/binary data=] is those bytes.
 
-A {{FileSystemFileHandle}} addressing a [=COS entry=] has a [=/file system locator=] whose
-[=file system locator/path=] is a [=/list=] containing a single [=/string=], the entry's
-[=COS hash=]'s [=COS hash/value=], and whose [=file system locator/root=] is the
-[=Cross-Origin Storage file system=].
+A {{FileSystemFileHandle}} addressing the [=Cross-Origin Storage file system=] has a
+[=/file system locator=] whose [=file system locator/path=] is a [=/list=] containing a single
+[=/string=], its [=FileSystemFileHandle/COS hash=]'s [=COS hash/value=], and whose
+[=file system locator/root=] is the [=Cross-Origin Storage file system=].
 
 Note: [[FS]] defines {{FileSystemHandle/name}} as the last path component of the handle's
 locator's path, so this also settles {{FileSystemHandle/name}}: it is the
@@ -823,9 +821,9 @@ can always answer: the [=COS registry=] holds at most one [=COS entry=] per [=CO
 handles address the same entry exactly when their hashes are equal.
 
 {{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing a
-[=COS entry=], with an argument that also addresses a [=COS entry=] and was obtained by the same
-[=/origin=], must return true if the two handles' [=COS hash=] items are equal, and false
-otherwise.
+the [=Cross-Origin Storage file system=], with an argument that also addresses it and was obtained
+by the same [=/origin=], must return true if the two handles'
+[=FileSystemFileHandle/COS hash=] items are [=COS hash/equal=], and false otherwise.
 
 Note: Refusing this would discard information the user agent already holds.
 
@@ -837,8 +835,8 @@ which is a claim about a handle the calling origin is not entitled to inspect. R
 that the comparison could not be made.
 
 <code>move()</code> and <code>remove()</code> called on a
-{{FileSystemFileHandle}} addressing a [=COS entry=] must reject with a "{{NotAllowedError}}"
-{{DOMException}}, and must leave the entry unchanged.
+{{FileSystemFileHandle}} addressing the [=Cross-Origin Storage file system=] must reject with a
+"{{NotAllowedError}}" {{DOMException}}, and must leave any addressed entry unchanged.
 
 Note: An entry is shared by every origin in its [=COS entry/storing origins=], so honoring a
 removal would let one site destroy data other sites depend on; deletion belongs to
@@ -869,9 +867,10 @@ A {{FileSystemFileHandle}} is a [=serializable object=] [[FS]], so one addressin
 {{MessagePort/postMessage(message, options)}}. That is a second way to come by such a handle, alongside
 {{CrossOriginStorageManager/requestFileHandle()}}, so it is constrained here as well.
 
-The [=serialization steps=] for a {{FileSystemFileHandle}} addressing a [=COS entry=], given
-|value| and |serialized|, additionally:
+The [=serialization steps=] for a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=], given |value| and |serialized|, additionally:
 
+1. Set |serialized|.\[[COSHash]] to |value|'s [=FileSystemFileHandle/COS hash=].
 1. Set |serialized|.\[[COSOrigin]] to |value|'s [=FileSystemFileHandle/COS origin=].
 1. Set |serialized|.\[[COSMayRead]] to |value|'s [=FileSystemFileHandle/may read=].
 
@@ -880,6 +879,7 @@ The [=deserialization steps=], given |serialized|, |value| and |realm|, addition
 1. If |serialized|.\[[COSOrigin]] is not [=same origin=] with |realm|'s
    [=environment settings object=]'s [=environment settings object/origin=], then throw a
    "{{DataCloneError}}" {{DOMException}}.
+1. Set |value|'s [=FileSystemFileHandle/COS hash=] to |serialized|.\[[COSHash]].
 1. Set |value|'s [=FileSystemFileHandle/COS origin=] to |serialized|.\[[COSOrigin]].
 1. Set |value|'s [=FileSystemFileHandle/may read=] to |serialized|.\[[COSMayRead]].
 
@@ -982,7 +982,7 @@ API does not answer by itself:
   on disk) if other origins can actually discover it. A user agent's settings UI may
   additionally let the user choose a narrower scope.
 
-Once added this way, an entry with [=COS entry/state=] "`written`" is otherwise indistinguishable
+Once added this way, an entry is otherwise indistinguishable
 from one a website wrote via {{CrossOriginStorageManager/requestFileHandle()}}: the same
 [[#availability-gating|availability gating]] and [[#resource-visibility-upgrades|visibility
 upgrade]] rules apply to it, exactly as they would for any other entry with the same grants.
@@ -1317,6 +1317,51 @@ those gates apply to it unchanged. A rate limit, however, is only effective if l
 surfaces are counted alongside {{CrossOriginStorageManager/requestFileHandle()}} calls, since a
 scriptable integration can issue them in a loop just as readily.
 </div>
+
+## In-progress writes ## {#in-progress-writes}
+
+A write that has been requested but not completed must be indistinguishable, to every origin, from
+a hash that was never written at all. This specification achieves that structurally: a
+[=COS entry=] is added to the [=COS registry=] only by [=verify and store=] or
+[=store a fetched resource in Cross-Origin Storage=], in both cases only after the complete bytes
+have been verified against the hash. [=complete a create request=] neither reads nor writes the registry. There is
+consequently no placeholder state for a read to observe, and no branch on the read path that could
+answer before [=apply availability gating=] does.
+
+The alternative, registering a placeholder when a create request is made and rejecting concurrent
+reads of it with a distinguishable error, would let a caller learn that *some* origin is writing a
+given hash right now. That single bit sounds minor and is not. It would be available:
+
+* to any origin, including one with no grant of any kind on the entry, since the placeholder
+  carries no grants and the read would be answered before [=determine COS disclosure=] ran;
+* for any hash, including one that is not [=on the PHL=] and never could be, so an attacker could
+  use hashes derived from a per-user value, which is exactly the pattern [[#fingerprinting]]
+  exists to catch;
+* without [[#greaseing|GREASE'ing]], which applies only to disclosures that reach the gating step,
+  so the bit would be noiseless;
+* without supplying any bytes, so neither the [[#storage-limits|per-origin storage limit]] nor
+  [[#eviction]] would bound how many such bits an origin could create.
+
+A tracker embedded on two sites could therefore mint an arbitrary-width identifier on the first and
+read it back on the second, at no storage cost, bypassing [=COS entry/origins=], the
+[=Public Hash List=], and GREASE'ing together. A placeholder would also be a denial-of-service
+vector: pinning the hash of a genuinely popular resource would suppress every other origin's reads
+of it for as long as the placeholder survived.
+
+Note: What this costs is the ability for one caller to discover that another is already downloading
+a large file, and so to avoid starting a redundant download of it. That is a real cost, and it is
+the reason an earlier draft of this specification used a distinguishable error here. It is
+recoverable where it matters most, within a single origin, using
+<a href="https://w3c.github.io/web-locks/">Web Locks</a>, {{BroadcastChannel}}, or a shared worker,
+none of which disclose
+anything across an origin boundary. Across origins the saving is largely theoretical: two unrelated
+origins would have to race on the same hash at the same moment, and an entry that neither has
+written yet is not disclosable to the other in any case until it is [=on the PHL=].
+
+Note: "{{NotAllowedError}}" remains the response for {{FileSystemFileHandle/getFile()}} on a
+create-obtained handle that has not been written through (see [[#cos-file-system]]). That answer is
+constant with respect to the registry and reaches only the origin that made the request, since
+handles cannot be deserialized cross-origin (see [[#transferring-handles]]), so it is not a channel.
 
 ## Availability gating ## {#availability-gating}
 
