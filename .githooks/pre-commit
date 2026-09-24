@@ -2,10 +2,11 @@
 # SPDX-FileCopyrightText: 2026 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Regenerates the README table of contents when README.md is part of the
-# commit. Enable once per clone with `git config core.hooksPath .githooks`.
+# Regenerates the README's IDL appendix and table of contents when README.md
+# or index.bs is part of the commit. Enable once per clone with
+# `git config core.hooksPath .githooks`.
 
-git diff --cached --quiet -- README.md && exit 0
+git diff --cached --quiet -- README.md index.bs && exit 0
 
 if ! git diff --quiet -- README.md; then
   # Staging the regenerated file would also stage these unrelated edits.
@@ -13,5 +14,7 @@ if ! git diff --quiet -- README.md; then
   exit 1
 fi
 
+# Read the staged spec, so unstaged IDL edits don't leak into the commit.
+git show :index.bs | node scripts/idl.mjs README.md - || exit 1
 node scripts/toc.mjs README.md || exit 1
 git add README.md

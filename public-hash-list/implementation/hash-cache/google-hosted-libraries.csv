@@ -344,9 +344,11 @@ https://ajax.googleapis.com/ajax/libs/shaka-player/4.13.25/shaka-player.compiled
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.14.0/shaka-player.compiled.js,,59e3728e9322268f849dfd0d686f0aa5d8ea59ea72bb93e9e5c60787f2acf702,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.14.28/shaka-player.compiled.js,,87c23851662aa3bc007c81053052be8f184a54aaa3f78966d957d443563fe18e,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.15.0/shaka-player.compiled.js,,c4d619822809d1f7d4e168dc9c6639e72b94cd8f41774b6e5e8be0af2880539f,0
-https://ajax.googleapis.com/ajax/libs/shaka-player/4.15.59/shaka-player.compiled.js,,6aa0baa036e004bbd0d59d069bd1949bb868575f9d62d4f187978ed6cc12d409,0
+https://ajax.googleapis.com/ajax/libs/shaka-player/4.15.59/shaka-player.compiled.js,,6aa0baa036e004bbd0d59d069bd1949bb868575f9d62d4f187978ed6cc12d409,1
+https://ajax.googleapis.com/ajax/libs/shaka-player/4.15.61/shaka-player.compiled.js,,41a4617e0a389309da2bac7372adad064f31a9d1b10b486eb56ab2ebd8262839,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.16.0/shaka-player.compiled.js,,1856beb1db1172a35fe7819b8d789ef220e6ca687cbf0be29153737d2c633089,0
-https://ajax.googleapis.com/ajax/libs/shaka-player/4.16.48/shaka-player.compiled.js,,ad24fd30a38033600d0dc2ebdbe780c12e927e276a2b6ec0cc633110cd6070de,0
+https://ajax.googleapis.com/ajax/libs/shaka-player/4.16.48/shaka-player.compiled.js,,ad24fd30a38033600d0dc2ebdbe780c12e927e276a2b6ec0cc633110cd6070de,1
+https://ajax.googleapis.com/ajax/libs/shaka-player/4.16.50/shaka-player.compiled.js,,89c7bb218465102ae86d7388e8c5717e73300ffd59f0e91c79f4b4cbe4e7fe0f,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.2.0/shaka-player.compiled.js,,d4ce28fe1dac1880bb9760dec10a046f16e4e1371b02acb5d4410f3f706fc96d,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.2.14/shaka-player.compiled.js,,fc4460d75c10518de0a5fca8c97c77a7004b22a04bdcc8f3db64c5a8d50adaf6,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/4.3.0/shaka-player.compiled.js,,c21b4226117c4159dbf88aca722b27360268b65781007452ecd35fa90faccedd,0
@@ -365,9 +367,11 @@ https://ajax.googleapis.com/ajax/libs/shaka-player/4.9.36/shaka-player.compiled.
 https://ajax.googleapis.com/ajax/libs/shaka-player/5.0.0/shaka-player.compiled.js,,0342e49e4f1703d5ca6accfd5beaa604ba77fad77d83c03353d7570f8a2567e3,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/5.0.28/shaka-player.compiled.js,,0bf3e018725937bf2a72a1c74064cd1cf7dd6d9772e02eab5f2ebfd0768d2405,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/5.1.0/shaka-player.compiled.js,,e21b5e69ee82323b0201729f5576f71f8109cdda19599167acdb5f9d8a72cb42,0
-https://ajax.googleapis.com/ajax/libs/shaka-player/5.1.22/shaka-player.compiled.js,,2f14a208d9e992ea94144ac11e2ffebf1881ba3a4adbdeec1ef4a628c25515b6,0
+https://ajax.googleapis.com/ajax/libs/shaka-player/5.1.22/shaka-player.compiled.js,,2f14a208d9e992ea94144ac11e2ffebf1881ba3a4adbdeec1ef4a628c25515b6,1
+https://ajax.googleapis.com/ajax/libs/shaka-player/5.1.24/shaka-player.compiled.js,,8f6a3f7dd14d6eefbd5963dd1fa6449a749ed703a4ce1d548fadab972669b598,0
 https://ajax.googleapis.com/ajax/libs/shaka-player/5.2.0/shaka-player.compiled.js,,11bf8372224b99132f5f855e81d88334c01c7f36cbc34af4891f31c753d00937,0
-https://ajax.googleapis.com/ajax/libs/shaka-player/5.2.9/shaka-player.compiled.js,,99c93f1e1cbad7823e908eb4554cab627c06387ae8f09b273b4bf94963ff36f6,0
+https://ajax.googleapis.com/ajax/libs/shaka-player/5.2.11/shaka-player.compiled.js,,dd617e6eb7dd323dd9b4b2608f6c4ff64e5b7ac7b309bc67c3549dfc424f925c,0
+https://ajax.googleapis.com/ajax/libs/shaka-player/5.2.9/shaka-player.compiled.js,,99c93f1e1cbad7823e908eb4554cab627c06387ae8f09b273b4bf94963ff36f6,1
 https://ajax.googleapis.com/ajax/libs/spf/2.0.0/spf.js,,869ca90cfa6550715e8144f0978c50975d9d335b78c6c5d454477e972accef88,0
 https://ajax.googleapis.com/ajax/libs/spf/2.0.1/spf.js,,11850e84281a17d8b39c73652f9ae771e87d1ddbbae87da580431e231bf28c81,0
 https://ajax.googleapis.com/ajax/libs/spf/2.1.0/spf.js,,c9303c970274f7217ff4ee67feece2eabc5e8c25689a6d3908255e035ddb381f,0

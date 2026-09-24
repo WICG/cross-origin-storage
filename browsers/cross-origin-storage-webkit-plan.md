@@ -410,8 +410,8 @@ fetch error that reads like a real failure.
 | `origins-scoping` | 16 | 0 |
 | `public-hash-list` | 2 | 0 |
 | `permissions-policy` | 3 | 2 |
-| `declarative-css` (2 files) | 6 | 3 |
-| `declarative-html` (2 files) | 1 | 5 |
+| `css` (2 files) | 6 | 3 |
+| `html` (2 files) | 1 | 5 |
 | `import-attribute` (2 files) | 1 | 9 |
 | `cross-mechanism-interop` | 0 | 4 |
 | **Total** | **153** | **23** |
