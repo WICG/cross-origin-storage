@@ -89,6 +89,13 @@ that qualify through the global scope, and browsers withhold it for files whose
 size would make a spurious re-download disproportionate. See the
 [explainer's GREASE'ing section](README.md#greaseing).
 
+### Prevalence
+
+The share of devices holding a given file, which sets what one answer about it
+is worth. A file half of devices hold yields the most entropy per query, a
+near-universal file yields almost none, and a positive answer on a rare file
+carries its surprisal, −log₂ of the prevalence.
+
 ## Background
 
 Any party holding a file's bytes can compute its hash and query it, so the
@@ -222,12 +229,11 @@ The tracker can do this in two ways.
 The distinguishing signal is the set of files the device accumulated through
 ordinary browsing. The tracker writes nothing.
 
-Entropy per query peaks at a prevalence (the share of devices holding a given
-file) near one half, so near-universal files contribute nothing and the
-informative ones are those roughly half of devices hold. Enough of them yield a
-pattern unique to a device, supporting cross-site linking. Correlated files
-reduce the yield, since a font family's subsets and a model's shards arrive
-together and are effectively one observation.
+Entropy per query peaks at a prevalence near one half, so near-universal files
+contribute nothing and the informative ones are those roughly half of devices
+hold. Enough of them yield a pattern unique to a device, supporting cross-site
+linking. Correlated files reduce the yield, since a font family's subsets and a
+model's shards arrive together and are effectively one observation.
 
 **Example.** The same analytics script on a recipe blog and a local newspaper
 queries the same 60 libraries and fonts. The patterns match across both visits,
