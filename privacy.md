@@ -271,22 +271,26 @@ hundred hobby blogs and another on two hundred sites covering a region, holding
 both narrows the candidates to the intersection. Per-resource k-anonymity gives
 no guarantee over conjunctions.
 
-**Example.** A hobby-blog plugin ships a distinctive stylesheet deployed on
+**Example.** A game engine ships a distinctive WebAssembly build deployed on
 roughly three hundred sites, establishing that the device visited one of them. A
-second query, for a file specific to a German-language theme, is also positive.
-Four sites deploy both, so the tracker narrows the history to four candidates.
+second query, for a German-language UI pack, is also positive. Four sites deploy
+both, so the tracker narrows the history to four candidates. The cohort the same
+two answers imply, a German-speaking player, is Attack 4.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
-// tracker crawled, so a hit maps to the set of sites known to ship it. Narrow
+// tracker crawled, so a hit maps to the origins known to serve it. Narrow
 // deployments are what pay off here.
 const deployments = new Map([
-  ['a7c2…', hobbyBlogs], // ~300 sites running one blog plugin
-  ['9f04…', germanSites], // ~200 sites using a German-language theme
+  // ~300 sites embedding the same build of one game engine.
+  ['a7c2…', ['https://play.example', 'https://arcade.example']],
+  // ~200 sites shipping the engine's German-language UI pack.
+  ['9f04…', ['https://spiele.example', 'https://arcade.example']],
 ]);
 
 // Every hit constrains the history further, and the intersection of the
-// matched sets is the candidate list.
+// matched sets is the candidate list: here, the German-language sites
+// running that engine.
 let candidates = null;
 for (const [value, sites] of deployments) {
   if (!(await has({ algorithm: 'SHA-256', value }))) continue;
