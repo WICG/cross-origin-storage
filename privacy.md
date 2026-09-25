@@ -333,9 +333,9 @@ cooperation from that site.
 ### Description
 
 Take `game67.example` as the site in question. It is built with a popular game
-engine, and the tracker has observed 199 other games shipping the same engine
+engine, and the tracker has observed about 200 games shipping the same engine
 build. A probe on that hash comes back positive, which places the device on one
-of the 200 and stays silent about which. That same answer already supports the
+of those 200 and stays silent about which. That same answer already supports the
 weaker claim of Attack 3, that this is someone who plays browser games. Naming
 the site takes more probes.
 
@@ -349,11 +349,11 @@ with an unrelated visit elsewhere, so the result is evidence short of proof,
 sharpening the fewer sites a person visits. Per-resource k-anonymity carries no
 guarantee over conjunctions.
 
-None of this works without the roster. The attacker has to know which 200 games
-ship that engine build and which three of them carry the cookie banner library,
-since an answer about contents says nothing about a site until a deployment map
-names the sites. Trackers build one from what their own script sees load across
-the sites carrying it, and from public crawls like the
+None of this works without the roster. The attacker has to know which games ship
+that engine build and which three of them carry the cookie banner library, since
+an answer about contents says nothing about a site until a deployment map names
+the sites. Trackers build one from what their own script sees load across the
+sites carrying it, and from public crawls like the
 [HTTP Archive](https://httparchive.org/) and
 [Common Crawl](https://commoncrawl.org/), neither of them complete, so a map
 understates where a file appears.
@@ -368,7 +368,7 @@ const cookieBanner = ['https://game12.example', 'https://game67.example'];
 const adSdk = ['https://game67.example', 'https://shop.example'];
 
 const deployments = new Map([
-  ['a7c2…', engineGames], // the engine build, 200 games
+  ['a7c2…', engineGames], // the engine build, about 200 games
   ['9f04…', cookieBanner], // the cookie banner library, some 2,000 pages
   ['5b31…', adSdk], // an ad SDK bundle, thousands of pages
 ]);
