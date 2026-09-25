@@ -34,6 +34,9 @@ section of the explainer.
 
 ## Preliminaries
 
+Any party holding a file's bytes can compute its hash and query it, so the
+addressable set spans the public web and anything the attacker authors.
+
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion. That is the scale every
 attack below accumulates toward and every mitigation tries to bound. How much an
@@ -41,13 +44,11 @@ attacker reaches in practice is an empirical question:
 [Gómez-Boix et al.](https://doi.org/10.1145/3178876.3186097) (WWW 2018) analyzed
 2,067,942 browser fingerprints from a top-15 French website and found 33.6% of
 them unique, against the rates above 80% that earlier, self-selected samples had
-reported. Stability matters as much as uniqueness for a signal that has to
-survive between visits:
-[Pugliese et al.](https://doi.org/10.2478/popets-2020-0041) (PoPETs 2020)
-followed 1,304 users for three years with ground truth at the user level and
-found 67.6% to 93.1% of them trackable, depending on the device split and
-feature set, with trackable fingerprints staying stable for a mean of 3.1 to 3.4
-weeks.
+reported. [Pugliese et al.](https://doi.org/10.2478/popets-2020-0041)
+(PoPETs 2020) followed 1,304 users for three years with ground truth at the user
+level and found 67.6% to 93.1% of them trackable, depending on the device split
+and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
+3.4 weeks.
 
 Attack 1 is stateful tracking: the tracker writes the identifier and reads it
 back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
