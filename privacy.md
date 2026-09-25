@@ -578,11 +578,7 @@ is why a budget has to count all four surfaces.
 
 ---
 
-## Attacks the design rules out
-
-Both appear here because relaxing these properties would reopen them.
-
-### Existence oracle through in-progress writes
+## Existence oracle through in-progress writes
 
 The objective is a yes-or-no answer about any hash at all, storing nothing and
 clearing no gate.
@@ -596,7 +592,9 @@ COS adds an entry only after a writer supplies the complete contents and the
 browser verifies them against the hash. Until then the hash reads as absent,
 identically to one never written.
 
-### Timing side channel
+---
+
+## Timing side channel
 
 The objective is to read the answer a refusal withholds, out of how long the
 refusal takes.
