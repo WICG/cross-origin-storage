@@ -12,10 +12,11 @@ hash doubles as an integrity guarantee. A site requests a file by hash, and the
 browser returns it without a network request when it holds those bytes and the
 requesting origin is permitted to see them.
 
-The benefit is the elimination of redundant downloads for large assets: AI
-models, WebAssembly modules, widely used JavaScript libraries, game engines, and
-web fonts. A four-gigabyte model fetched on one site is available immediately on
-the next, reducing bandwidth, load latency, disk usage, and energy consumption.
+The benefit is the elimination of redundant downloads. A file fetched on one
+site is available immediately on the next, whatever its size, reducing
+bandwidth, load latency, disk usage, and energy consumption. Typical candidates
+are AI models, WebAssembly modules, JavaScript libraries, game engines, and web
+fonts.
 
 The cache is unpartitioned by design, which is where the benefit comes from and
 where the exposure comes from. An answer to "is this file present" is determined
