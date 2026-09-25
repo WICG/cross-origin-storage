@@ -12,10 +12,8 @@ on a single entry however each site obtained them. The hash doubles as an
 integrity guarantee: the browser verifies the bytes against it at write time, so
 a site can use an entry some other origin stored without having to trust that
 origin. A site requests a file by hash, and the browser serves it without a
-network request when both of these hold:
-
-1. It already has bytes matching that hash.
-2. The requesting origin is permitted to see them.
+network request when _(i)_ it already has bytes matching that hash, and _(ii)_
+the requesting origin is permitted to see them.
 
 The benefit is the elimination of redundant downloads. A file fetched on one
 site is available immediately on the next, reducing bandwidth, load latency,
