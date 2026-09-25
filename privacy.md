@@ -133,13 +133,6 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
-Attack 1 is stateful tracking: the tracker writes the identifier and reads it
-back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attacks 8
-through 10 are **XS-Leaks** over the existence oracle the cache exposes. Attacks
-6 and 7 target the rate limiting that constrains the rest. The last two are the
-ones the current design already answers, and they appear here because relaxing
-either property would reopen them.
-
 ## Attack 1: Supercookie
 
 ### Objective
