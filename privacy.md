@@ -176,12 +176,12 @@ The tracker can do this in two ways.
 
 2. **Through the Public Hash List.** A tracker running as the site's own script
    writes under that site's origin, unreadable elsewhere. Reaching it from a
-   second site requires globally readable entries, meaning
-   [Public Hash List](public-hash-list/phl-explainer.md) hashes written with
-   `origins: '*'`. The tracker therefore carries the identifier in a subset of
-   listed files that are small and, despite being on the PHL, comparatively
-   rare. This variant is noisier: organic cache hits produce false positives,
-   and GREASE'ing produces false negatives, so the tracker adds redundancy.
+   second site requires [Public Hash List](public-hash-list/phl-explainer.md)
+   hashes written with `origins: '*'`. The tracker therefore carries the
+   identifier in a subset of listed files that are small and, despite being on
+   the PHL, comparatively rare. This variant is noisier: organic cache hits
+   produce false positives, and GREASE'ing produces false negatives, so the
+   tracker adds redundancy.
 
    ```js
    // Same cos, has, and bits as above, but the carriers have to be on the PHL,
