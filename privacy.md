@@ -164,8 +164,10 @@ The tracker can do this in two ways.
    // Nothing came back, so this is a new device. Mint an identifier and
    // store the file for each bit that is set, fetching bytes only for those.
    if (id === 0) {
-     id = crypto.getRandomValues(new Uint32Array(1))[0];
+     id = randomIdentifier();
      for (const [i, hash] of trackerHashes.entries()) {
+       // id >>> i moves bit i down to the low position and & 1 isolates it,
+       // so this skips every hash whose bit is not set.
        if (!((id >>> i) & 1)) continue;
        const handle = await cos.requestFileHandle(hash, { create: true });
        const w = await handle.createWritable();
@@ -194,6 +196,7 @@ The tracker can do this in two ways.
    // Site A, as the site's own origin: the global scope is what makes the
    // entry readable from anywhere else.
    for (const [i, hash] of phlHashes.entries()) {
+     // Again, only the hashes whose bit is set.
      if (!((id >>> i) & 1)) continue;
      const opts = { create: true, origins: '*' };
      const handle = await cos.requestFileHandle(hash, opts);
