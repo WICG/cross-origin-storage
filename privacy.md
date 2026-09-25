@@ -40,16 +40,16 @@ wrote, mirroring the Cache API, and that access needs no declaration. The grants
 add up and are never removed, so a scope only ever widens. See
 [COS entry](README.md#cos-entry) and
 [Availability gating](README.md#availability-gating). A write declares one of
-three things.
+three scopes.
 
-- **Nothing**, the default, which keeps the entry same-site: only same-site
-  origins of a storing origin can read it.
+- **Same-site scope.** The default, which a write selects by passing no
+  `origins` value. Same-site origins of a storing origin can read the entry.
 
   ```js
   await navigator.crossOriginStorage.requestFileHandle(hash, { create: true });
   ```
 
-- **A list of origins**, which only those origins can read, whether or not the
+- **List scope.** Only the named origins can read the entry, whether or not the
   hash is on the PHL. The list is capped in length and bounded by the
   byte-supplying origin's
   [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
@@ -62,8 +62,8 @@ three things.
   });
   ```
 
-- **`'*'`**, the global scope, which any origin can read, provided the hash is
-  on the PHL. GREASE'ing may still withhold it.
+- **Global scope.** Any origin can read the entry, provided the hash is on the
+  PHL. GREASE'ing may still withhold it.
 
   ```js
   await navigator.crossOriginStorage.requestFileHandle(hash, {
