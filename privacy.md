@@ -340,7 +340,7 @@ Attack 3, that this is someone who plays browser games. Naming the site takes
 more probes.
 
 Composing probes narrows it, and every file probed is widely deployed in its own
-right, so each one passes admission. `game67.example` also embeds a cookie
+right, so each one passes PHL admission. `game67.example` also embeds a cookie
 banner library served identically to some 2,000 pages, three of them among the
 124 Unity games. A positive on that hash leaves `game12.example`,
 `game67.example`, and `game88.example`. A third probe, on an ad SDK bundle
