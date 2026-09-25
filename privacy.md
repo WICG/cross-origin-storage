@@ -584,8 +584,8 @@ is why a budget has to count all four surfaces.
 
 ### Objective
 
-The objective is a yes-or-no answer about any hash at all, storing nothing and
-clearing no gate.
+The objective is a yes-or-no answer about any hash at all, without storing any
+bytes and without passing any of the checks that gate a read.
 
 ### Description
 
