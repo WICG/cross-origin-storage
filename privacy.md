@@ -264,10 +264,9 @@ inclusion, and it leaves nothing a user could find or clear.
 
 The goal is the one the `:visited` leaks served: establishing that a device
 visited a particular site, with no cooperation from that site. Say a hundred
-browser games ship the same engine build. A probe on that hash comes back
-positive, which places the device on one of the hundred and stays silent about
-which. That bound of 100 is what the PHL's k-anonymity admission is for, and
-reaching Game 67 is what this attack does.
+browser games ship the same engine build, and the objective is to establish that
+this device was on Game 67. A probe on the engine's hash comes back positive,
+which places the device on one of the hundred and stays silent about which.
 
 Composing probes gets there, and every file it probes is widely deployed in its
 own right, so each one passes admission. A German UI pack shipped across
