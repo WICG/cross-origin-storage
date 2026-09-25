@@ -89,6 +89,16 @@ that qualify through the global scope, and browsers withhold it for files whose
 size would make a spurious re-download disproportionate. See the
 [explainer's GREASE'ing section](README.md#greaseing).
 
+### Lookup budget
+
+A cap the explainer proposes on how many cross-site lookups a site may perform
+in a time window, on the order of 8 to 16. Lookups for files the requesting site
+stored itself stay free. The budget belongs to the top-level site and every
+frame on the page draws from it, it persists across reloads and tabs, and it
+counts every surface that reaches the cache. Attacks 6 through 8 target those
+three properties in turn. See
+[Potential mitigations](README.md#potential-mitigations).
+
 ### Prevalence
 
 The share of devices holding a given file, which sets what one answer about it
@@ -440,11 +450,6 @@ gets a positive, and has substantial grounds to tie the forum account to the
 researcher's signed-in identity.
 
 ---
-
-## The lookup budget
-
-The explainer proposes bounding the number of cross-site lookups a site may
-perform. The three attacks that follow target that bound.
 
 ## Attack 6: Sybil attack on the budget
 
