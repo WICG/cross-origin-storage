@@ -9,9 +9,11 @@
 across origins. A file is identified by the cryptographic hash of its contents,
 with no reference to where those contents came from, so identical bytes converge
 on a single entry however each site obtained them. The hash doubles as an
-integrity guarantee. A site requests a file by hash, and the browser returns it
-without a network request when it holds those bytes and the requesting origin is
-permitted to see them.
+integrity guarantee: the browser verifies the bytes against it at write time, so
+a site can use an entry some other origin stored without having to trust that
+origin. A site requests a file by hash, and the browser returns it without a
+network request when it holds those bytes and the requesting origin is permitted
+to see them.
 
 The benefit is the elimination of redundant downloads. A file fetched on one
 site is available immediately on the next, reducing bandwidth, load latency,
