@@ -68,19 +68,19 @@ target the rate limiting that constrains the rest.
 
 ## Glossary
 
-**[Public Hash List (PHL)](README.md#availability-gating).** A shared,
-vendor-neutral allowlist of hashes for resources deployed widely enough that
-confirming their presence says nothing about an individual. That k-anonymity
-argument is settled once, when a hash is admitted, so the browser never repeats
-it at query time. An entry written with `origins: '*'` is readable by an
-unrelated origin only if its hash is on the list. See the
-[PHL explainer](public-hash-list/phl-explainer.md).
+**Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
+resources deployed widely enough that confirming their presence says nothing
+about an individual. That k-anonymity argument is settled once, when a hash is
+admitted, so the browser never repeats it at query time. An entry written with
+`origins: '*'` is readable by an unrelated origin only if its hash is on the
+list. See [Availability gating](README.md#availability-gating) in the explainer
+and the [PHL explainer](public-hash-list/phl-explainer.md).
 
-**[GREASE'ing](README.md#greaseing).** The browser occasionally reporting a file
-as absent although it holds it, so a site cannot read a negative answer as proof
-of absence. It applies only to reads that qualify through `origins: '*'`, and
-browsers withhold it for files whose size would make a spurious re-download
-disproportionate.
+**GREASE'ing.** The browser occasionally reporting a file as absent although it
+holds it, so a site cannot read a negative answer as proof of absence. It
+applies only to reads that qualify through `origins: '*'`, and browsers withhold
+it for files whose size would make a spurious re-download disproportionate. See
+the [explainer's GREASE'ing section](README.md#greaseing).
 
 ---
 
