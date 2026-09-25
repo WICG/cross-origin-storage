@@ -184,27 +184,32 @@ The tracker can do this in two ways.
    tracker adds redundancy.
 
    ```js
-   // Same `cos`, `has()`, and `bits` as above. The carriers have to be on the
-   // PHL, so the tracker picks small ones that few devices are likely to hold.
+   // Same `cos` and `has()` as above. The carriers have to be on the PHL, so
+   // the tracker picks small ones that few devices are likely to hold.
    const phlHashes = [
      { algorithm: 'SHA-256', value: 'e3b0…' },
      // …31 more
    ];
 
-   // Site A, as the site's own origin: the global scope is what makes the
-   // entry readable from anywhere else.
-   for (const [i, hash] of phlHashes.entries()) {
-     if (!bits[i]) continue;
-     const opts = { create: true, origins: '*' };
-     const handle = await cos.requestFileHandle(hash, opts);
-     const w = await handle.createWritable();
-     await w.write(await loadPhlFile(i));
-     await w.close();
-   }
+   // Runs as each site's own script. The read reaches entries another site
+   // wrote, because the global scope covers unrelated origins.
+   let bits = await Promise.all(phlHashes.map(has));
 
-   // Site B, a different origin: the read succeeds through the global scope,
-   // which only applies to hashes on the Public Hash List.
-   const recovered = await Promise.all(phlHashes.map(has));
+   // Organic cache hits set a few bits on any device, so the test for an
+   // unmarked device relies on the redundancy the identifier carries.
+   if (!looksMarked(bits)) {
+     bits = randomBits(phlHashes.length);
+     for (const [i, hash] of phlHashes.entries()) {
+       if (!bits[i]) continue;
+       // `origins: '*'` is what the next site's read needs, and the browser
+       // only honors it for hashes on the Public Hash List.
+       const opts = { create: true, origins: '*' };
+       const handle = await cos.requestFileHandle(hash, opts);
+       const w = await handle.createWritable();
+       await w.write(await loadPhlFile(i));
+       await w.close();
+     }
+   }
    ```
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
