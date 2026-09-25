@@ -443,11 +443,12 @@ if (await has(target)) linkToAccount(knownAccount);
 
 ### Example
 
-A researcher signs in to a specialist site and fetches an uncommon medical
-imaging model held by a few thousand devices worldwide. That site's operator
-also runs a script on an unauthenticated forum, queries the same hash there,
-gets a positive, and has substantial grounds to tie the forum account to the
-researcher's signed-in identity.
+A researcher's work involves an uncommon medical imaging model that a few
+thousand devices worldwide hold, so their browser has it stored. An attacker
+suspects that a particular anonymous forum account belongs to that researcher,
+and needs only script on a page the account loads, which an ad slot supplies.
+One probe for the model's hash comes back positive, which is substantial grounds
+for tying the account to the researcher.
 
 ---
 
