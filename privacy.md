@@ -32,7 +32,7 @@ motivates the feature. This document covers the attacks; the mitigations COS
 proposes are in the [Privacy considerations](README.md#privacy-considerations)
 section of the explainer.
 
-## Preliminaries
+## Background
 
 Any party holding a file's bytes can compute its hash and query it, so the
 addressable set spans the public web and anything the attacker authors.
