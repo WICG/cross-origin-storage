@@ -188,7 +188,7 @@ The tracker can do this in two ways.
    // the tracker picks small ones that few devices are likely to hold.
    const phlHashes = [
      { algorithm: 'SHA-256', value: 'e3b0…' },
-     // …31 more
+     // …31 or more, for redundancy
    ];
 
    // Runs as each site's own script. The read reaches entries another site
