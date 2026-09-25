@@ -266,10 +266,10 @@ The cache-based analogue of the `:visited` leaks, over file presence in place of
 link styling.
 
 A hash deployed across two hundred sites narrows history to those two hundred, a
-k-anonymity bound of 200. Composition erodes it: where one file appears on two
-hundred hobby blogs and another on two hundred sites covering a region, holding
-both narrows the candidates to the intersection. Per-resource k-anonymity gives
-no guarantee over conjunctions.
+k-anonymity bound of 200. Composition erodes it: where one file appears on the
+two hundred sites running one game engine and another on two hundred sites
+covering a region, holding both narrows the candidates to the intersection.
+Per-resource k-anonymity gives no guarantee over conjunctions.
 
 **Example.** A game engine ships a distinctive WebAssembly build deployed on
 roughly three hundred sites, establishing that the device visited one of them. A
