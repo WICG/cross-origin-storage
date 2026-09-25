@@ -7,10 +7,11 @@
 
 [Cross-Origin Storage](README.md) (COS) is a content-addressable cache shared
 across origins. A file is identified by the cryptographic hash of its contents,
-so the same bytes served from two different URLs form a single entry, and the
-hash doubles as an integrity guarantee. A site requests a file by hash, and the
-browser returns it without a network request when it holds those bytes and the
-requesting origin is permitted to see them.
+with no reference to where those contents came from, so identical bytes converge
+on a single entry however each site obtained them, and the hash doubles as an
+integrity guarantee. A site requests a file by hash, and the browser returns it
+without a network request when it holds those bytes and the requesting origin is
+permitted to see them.
 
 The benefit is the elimination of redundant downloads. A file fetched on one
 site is available immediately on the next, reducing bandwidth, load latency,
