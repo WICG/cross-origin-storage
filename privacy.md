@@ -448,16 +448,22 @@ understates where a file appears.
 ```js
 // Each probe is a file whose deployment the attacker mapped beforehand, so a
 // hit says the device visited at least one origin in that set. Every one of
-// these files is widely deployed, so each passes PHL admission. The sets are
-// truncated here.
+// these files is widely deployed, so each passes PHL admission, and each set
+// below runs to hundreds or thousands of entries, truncated to two here.
+
+// About 200 games ship this engine build.
 const engineGames = ['https://game1.example', 'https://game67.example'];
+
+// Some 2,000 pages embed this cookie banner library, three of them games.
 const cookieBanner = ['https://game12.example', 'https://game67.example'];
+
+// Thousands of pages carry this ad SDK bundle, one of them a game.
 const adSdk = ['https://game67.example', 'https://shop.example'];
 
 const deployments = new Map([
-  ['a7c2…', engineGames], // the engine build, about 200 games
-  ['9f04…', cookieBanner], // the cookie banner library, some 2,000 pages
-  ['5b31…', adSdk], // an ad SDK bundle, thousands of pages
+  ['a7c2…', engineGames],
+  ['9f04…', cookieBanner],
+  ['5b31…', adSdk],
 ]);
 
 const hits = [];
