@@ -69,22 +69,20 @@ the subset. Clearing cookies has no effect, since the identifier lives in the
 shared cache. Eviction and the per-origin storage limit bound its lifetime and
 size, and the tracker refreshes it on each visit.
 
-The tracker can do this in two ways. They differ in how it runs on the page,
-which grant carries the read on the second site, and what each one needs from
-the embedding sites.
+The tracker can do this in two ways.
 
-**Through an embedded frame.** Both sites embed an iframe from `tracker.example`
-and grant it `allow="cross-origin-storage"`, so the tracker writes under its own
-origin. A storing origin can always read its own entries, so the recovery
-bypasses the Public Hash List, GREASE'ing, and the `origins` grants entirely.
-
-**Through the Public Hash List.** A tracker running as the site's own script
-writes under that site's origin, unreadable elsewhere. Reaching it from a second
-site requires globally readable entries, meaning
-[Public Hash List](public-hash-list/phl-explainer.md) hashes written with
-`origins: '*'`. The codeword is therefore a subset of well-known public files.
-This variant is noisier: organic cache hits produce false positives, and
-GREASE'ing produces false negatives, so the tracker adds redundancy.
+1. **Through an embedded frame.** Both sites embed an iframe from
+   `tracker.example` and grant it `allow="cross-origin-storage"`, so the tracker
+   writes under its own origin. A storing origin can always read its own
+   entries, so the recovery bypasses the Public Hash List, GREASE'ing, and the
+   `origins` grants entirely.
+2. **Through the Public Hash List.** A tracker running as the site's own script
+   writes under that site's origin, unreadable elsewhere. Reaching it from a
+   second site requires globally readable entries, meaning
+   [Public Hash List](public-hash-list/phl-explainer.md) hashes written with
+   `origins: '*'`. The codeword is therefore a subset of well-known public
+   files. This variant is noisier: organic cache hits produce false positives,
+   and GREASE'ing produces false negatives, so the tracker adds redundancy.
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
 random for this device. A week later, on an unrelated shopping site, it queries
