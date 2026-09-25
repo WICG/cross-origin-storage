@@ -19,9 +19,10 @@ are AI models, WebAssembly modules, JavaScript libraries, game engines, and web
 fonts.
 
 The cache is unpartitioned by design, which is where the benefit comes from and
-where the exposure comes from. An answer to "is this file present" is determined
-by activity on other sites, and every attack below is built from that one
-question, repeated.
+where the exposure comes from. Whether a given hash is present depends on which
+other sites the user visited and what those sites stored, so every answer
+crosses a site boundary. The attacks below differ only in which hashes they ask
+about and how many answers they accumulate.
 
 **Mitigations need to carefully balance between ensuring the user's privacy and
 maintaining the usefulness of the feature.** Restrictions severe enough to
