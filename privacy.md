@@ -156,6 +156,9 @@ The tracker can do this in two ways.
 
    // Read first: a storing origin sees whatever it stored on any earlier site.
    const bits = await Promise.all(trackerHashes.map(has));
+
+   // Pack the hit/miss answers into one 32-bit integer, bit i from hash i.
+   // >>> 0 reads it back as unsigned; bit 31 would otherwise make it negative.
    let id = bits.reduce((n, b, i) => n | (b << i), 0) >>> 0;
 
    // Nothing came back, so this is a new device. Mint an identifier and
