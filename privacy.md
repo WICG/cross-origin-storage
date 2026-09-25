@@ -148,6 +148,10 @@ The tracker can do this in two ways.
    const cos = navigator.crossOriginStorage;
    const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 
+   // 32 small files the tracker can serve, one per bit: hashes[i] identifies
+   // a file and bytes[i] holds its contents.
+   const { hashes, bytes } = await loadCarriers();
+
    // Read first: a storing origin sees whatever it stored on any earlier site.
    const bits = await Promise.all(hashes.map(has));
    let id = bits.reduce((n, b, i) => n | (b << i), 0) >>> 0;
@@ -175,19 +179,24 @@ The tracker can do this in two ways.
    and GREASE'ing produces false negatives, so the tracker adds redundancy.
 
    ```js
-   // Site A, as the site's own origin: the bytes are a real well-known file,
-   // and the global grant is what makes the entry readable elsewhere.
-   const handle = await cos.requestFileHandle(phlHashes[i], {
-     create: true,
-     origins: '*',
-   });
-   const w = await handle.createWritable();
-   await w.write(bytes[i]);
-   await w.close();
+   // Same cos, has, and id as above. The carriers have to be on the PHL, so
+   // the tracker picks well-known files and serves their real bytes.
+   const { hashes, bytes } = await loadListedCarriers();
 
-   // Site B, a different origin: the read succeeds through the global grant,
+   // Site A, as the site's own origin: the global scope is what makes the
+   // entry readable from anywhere else.
+   for (const [i, hash] of hashes.entries()) {
+     if (!((id >>> i) & 1)) continue;
+     const opts = { create: true, origins: '*' };
+     const handle = await cos.requestFileHandle(hash, opts);
+     const w = await handle.createWritable();
+     await w.write(bytes[i]);
+     await w.close();
+   }
+
+   // Site B, a different origin: the read succeeds through the global scope,
    // which only applies to hashes on the Public Hash List.
-   const bits = await Promise.all(phlHashes.map(has));
+   const bits = await Promise.all(hashes.map(has));
    ```
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
