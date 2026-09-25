@@ -617,17 +617,23 @@ is why a budget has to count all four integration points.
 
 ### Objective
 
-The objective is a yes-or-no answer about any hash at all, without storing any
-bytes and without passing any of the checks that gate a read.
+The objective is to learn whether the device holds a given file in exactly the
+cases where a read refuses to say: the requesting origin is out of scope, the
+hash is not on the Public Hash List, or GREASE'ing withheld the answer.
 
 ### Description
 
-Any observable difference on the write path is a read that no gate applies to.
-Asking to create a hash costs nothing, names an arbitrary hash, and passes
-neither `origins`, nor the Public Hash List, nor GREASE'ing. A browser that
-consulted the registry on that call, or registered a placeholder that a later
-read could tell apart from "never stored", would answer it differently for a
-hash the device already holds, and that difference is a noiseless bit.
+A read clears three checks. The sharing scope has to cover the requesting
+origin, the global scope additionally requires PHL membership, and GREASE'ing
+can still withhold a positive. A write clears none of them, because storing
+bytes discloses nothing by itself. Anything the write path lets through about
+the registry is therefore an answer to the question those three checks exist to
+control, delivered without noise, for any hash the attacker names.
+
+Asking to create costs nothing and supplies no bytes. A browser that consulted
+the registry on that call, or registered a placeholder that a later read could
+tell apart from "never stored", would answer differently for a hash the device
+already holds, and that difference is the oracle.
 
 COS adds an entry only after a writer supplies the complete contents and the
 browser verifies them against the hash, and `requestFileHandle()` with
@@ -635,8 +641,9 @@ browser verifies them against the hash, and `requestFileHandle()` with
 complete, the hash reads as absent, identically to one never written.
 
 ```js
-// Same `cos` as above. Ask to create a hash the attacker holds no bytes for,
-// on a path where no scope, PHL, or GREASE'ing check applies.
+// Same `cos` as above. `target` is scoped to origins this attacker is not on,
+// so an ordinary read refuses. Creating applies no scope, PHL, or GREASE'ing
+// check, so it is the only path left.
 const handle = await cos.requestFileHandle(target, { create: true });
 await handle.createWritable(); // nothing written, nothing closed
 
@@ -646,11 +653,12 @@ await handle.createWritable(); // nothing written, nothing closed
 
 ### Example
 
-A script asks to create the hash of a medical imaging model it has never
-possessed and supplies no bytes. Under a placeholder design it learns whether
-the device already holds that model, for any hash it cares to name and as often
-as it likes, with none of the checks that a read would have to clear. COS
-answers identically whether the entry exists or not.
+A hospital stores an imaging model list-scoped to its own partner origins, so a
+read from anywhere else refuses outright and the PHL never enters into it. An
+unrelated site asks to create that same hash and supplies no bytes. Under a
+placeholder design, the answer to that request differs from the answer for a
+hash nobody holds, and the site learns that this device belongs to someone who
+uses that hospital's software. COS answers identically either way.
 
 ---
 
