@@ -115,7 +115,7 @@ Almost every attack below runs on the global scope, the one under which an
 origin with no prior relationship to an entry learns that it exists. A tracker
 cannot approximate the web with an explicit list, and the same-site default
 carries nothing across a site boundary. Attack 1 supplies the two exceptions,
-and each costs the tracker something every participating site has to supply: its
+and each costs the tracker something a participating site has to supply: its
 embedded frame reads back its own entries as a storing origin, which takes
 `allow="cross-origin-storage"` from each site, and its list-scoped variant takes
 a response header from the writing site naming the reading one.
@@ -374,10 +374,10 @@ Keeping such a model off the global scope is the PHL's job.
 
 ### Example
 
-An advertising script queries eight in-browser AI models and finds one,
-establishing that the device runs local inference. A query for the Japanese
-subset of a common font is also positive, establishing a language attribute.
-Eight lookups, two accurate targeting attributes, no identifier.
+An advertising script queries seven in-browser AI models and finds one,
+establishing that the device runs local inference. An eighth query, for the
+Japanese subset of a common font, is also positive, establishing a language
+attribute. Eight lookups, two accurate targeting attributes, no identifier.
 
 ## Attack 4: History sniffing
 
@@ -393,7 +393,7 @@ which COS-eligible resources it fetches yields the candidate hashes, and mapping
 where else each of those is deployed yields the roster that later answers are
 read against.
 
-`game67.example` is built with a popular game engine, and the tracker has
+`game67.example` is built with a popular game engine, and the attacker has
 observed about 200 games shipping the same engine build. A probe on that hash
 comes back positive, which places the device on one of those 200 and stays
 silent about which. That same answer already supports the weaker claim of Attack
@@ -419,7 +419,7 @@ understates where a file appears.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
-// tracker mapped beforehand, so a hit says the device visited at least one
+// attacker mapped beforehand, so a hit says the device visited at least one
 // origin in that set. Every one of these files is widely deployed, so each
 // passes PHL admission. The sets are truncated here.
 const engineGames = ['https://game1.example', 'https://game67.example'];
@@ -463,9 +463,9 @@ the attacker already knows.
 
 What matters here is how much a single positive answer tells the attacker. A hit
 on a file that one device in ten thousand holds carries about 13 bits, and a hit
-on a file most devices hold carries almost none. Where a tracker knows that a
-specific person holds an unusual file, observed during an authenticated session,
-one query elsewhere approximates a test for that person.
+on a file most devices hold carries almost none. Where an attacker has reason to
+think a specific person holds an unusual file, one query on a page that person
+loads approximates a test for that person.
 
 Large AI models suit this well. Few devices hold any given one, they persist
 across long intervals, and the size-proportionate rule withholds GREASE'ing from
@@ -473,16 +473,15 @@ files whose spurious re-download would be disproportionate, so the answer is
 noise-free exactly where it is most identifying.
 
 ```js
-// Same `has()` as above. A single hash, recorded while the person was signed
-// in on another property the same operator runs: a model held by a few
-// thousand devices worldwide, so its prevalence is around 10⁻⁴.
+// Same `has()` as above. One hash: a model held by a few thousand devices
+// worldwide, so its prevalence is around 10⁻⁴, and the attacker has reason to
+// think this particular person holds it.
 const target = { algorithm: 'SHA-256', value: '0b8e…' };
 
-// On an unauthenticated page, a positive answer is some 13 bits of evidence
-// that this is the same person. The file is large enough that the
-// size-proportionate rule withholds GREASE'ing, so the answer carries no
-// noise.
-if (await has(target)) linkToAccount(knownAccount);
+// On a page the suspected account is reading, a positive is some 13 bits of
+// evidence. The file is large enough that the size-proportionate rule
+// withholds GREASE'ing, so the answer carries no noise.
+if (await has(target)) linkToAccount(suspectedAccount);
 ```
 
 ### Example
