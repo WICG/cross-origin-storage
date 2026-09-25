@@ -133,11 +133,12 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
-The ten attacks, and how far a mitigation reaches against each. **Completely**
-means the mitigation the explainer proposes closes the evasion it targets.
-**Partially** means it raises the cost and slows accumulation without ending it.
-**By design** means the current design already rules the attack out, and it
-appears here because relaxing that property would reopen it.
+The following sections present ten attacks, each with its objective and how far
+a mitigation reaches against it. **Partially** means the mitigation the
+explainer proposes raises the cost and slows accumulation without ending the
+attack. **Completely** means it closes the evasion it targets. **By design**
+means the current design already rules the attack out, and it appears here
+because relaxing that property would reopen it.
 
 | Attack                                                                                                                         | Objective                                                                                                  | Solvable with mitigation |
 | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------ |
