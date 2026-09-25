@@ -55,6 +55,20 @@ back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
 are **XS-Leaks** over the existence oracle the cache exposes. Attacks 6 and 7
 target the rate limiting that constrains the rest.
 
+## Glossary
+
+**Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
+resources deployed widely enough that confirming their presence says nothing
+about an individual. That k-anonymity argument is settled once, when a hash is
+admitted, so the browser never repeats it at query time. An entry written with
+`origins: '*'` is readable by an unrelated origin only if its hash is on the
+list. See the [PHL explainer](public-hash-list/phl-explainer.md).
+
+**GREASE'ing.** The browser occasionally reporting a file as absent although it
+holds it, so a site cannot read a negative answer as proof of absence. It
+applies only to reads that qualify through `origins: '*'`, and browsers withhold
+it for files whose size would make a spurious re-download disproportionate.
+
 ---
 
 ## Attack 1: Supercookie
@@ -76,6 +90,31 @@ The tracker can do this in two ways.
    writes under its own origin. A storing origin can always read its own
    entries, so the recovery bypasses the Public Hash List, GREASE'ing, and the
    `origins` grants entirely.
+
+   ```html
+   <!-- On every embedding site. -->
+   <iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
+   ```
+
+   ```js
+   // Inside the frame, so every call runs as tracker.example.
+   const cos = navigator.crossOriginStorage;
+   const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
+
+   // Site A: store the file for each bit that is set.
+   for (const [i, hash] of hashes.entries()) {
+     if (!((id >> i) & 1)) continue;
+     const handle = await cos.requestFileHandle(hash, { create: true });
+     const w = await handle.createWritable();
+     await w.write(bytes[i]);
+     await w.close();
+   }
+
+   // Site B: the same origin reads its own entries back.
+   const bits = await Promise.all(hashes.map(has));
+   const recovered = bits.reduce((n, b, i) => n | (b << i), 0);
+   ```
+
 2. **Through the Public Hash List.** A tracker running as the site's own script
    writes under that site's origin, unreadable elsewhere. Reaching it from a
    second site requires globally readable entries, meaning
@@ -83,6 +122,22 @@ The tracker can do this in two ways.
    `origins: '*'`. The codeword is therefore a subset of well-known public
    files. This variant is noisier: organic cache hits produce false positives,
    and GREASE'ing produces false negatives, so the tracker adds redundancy.
+
+   ```js
+   // Site A, as the site's own origin: the bytes are a real well-known file,
+   // and the global grant is what makes the entry readable elsewhere.
+   const handle = await cos.requestFileHandle(phlHashes[i], {
+     create: true,
+     origins: '*',
+   });
+   const w = await handle.createWritable();
+   await w.write(bytes[i]);
+   await w.close();
+
+   // Site B, a different origin: the read succeeds through the global grant,
+   // which only applies to hashes on the Public Hash List.
+   const bits = await Promise.all(phlHashes.map(has));
+   ```
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
 random for this device. A week later, on an unrelated shopping site, it queries
