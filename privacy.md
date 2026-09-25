@@ -35,9 +35,9 @@ section of the explainer.
 ## Preliminaries
 
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
-of several billion**, since 2³² is about 4.3 billion, and that is the scale
-every attack below accumulates toward and every mitigation tries to bound. How
-much an attacker reaches in practice is an empirical question:
+of several billion**, since 2³² is about 4.3 billion. That is the scale every
+attack below accumulates toward and every mitigation tries to bound. How much an
+attacker reaches in practice is an empirical question:
 [Gómez-Boix et al.](https://doi.org/10.1145/3178876.3186097) (WWW 2018) analyzed
 2,067,942 browser fingerprints from a top-15 French website and found 33.6% of
 them unique, against the rates above 80% that earlier, self-selected samples had
