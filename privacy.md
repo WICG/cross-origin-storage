@@ -7,292 +7,237 @@
 
 [Cross-Origin Storage](README.md) (COS) is a content-addressable cache shared
 across origins. A file is identified by the cryptographic hash of its contents,
-so the same bytes served from two different URLs form a single cache entry, and
-the hash doubles as an integrity guarantee. A site asks for a file by hash. If
-the browser already holds those exact bytes and the requesting site is permitted
-to see them, the file is returned without any network request.
+so the same bytes served from two different URLs form a single entry, and the
+hash doubles as an integrity guarantee. A site requests a file by hash, and the
+browser returns it without a network request when it holds those bytes and the
+requesting origin is permitted to see them.
 
 The benefit is the elimination of redundant downloads for large assets: AI
 models, WebAssembly modules, widely used JavaScript libraries, game engines, and
-web fonts. A four-gigabyte model downloaded on one site is available immediately
-on the next, which reduces bandwidth consumption, load latency, disk usage, and
-energy use, and avoids transferring identical bytes repeatedly across the
-network.
+web fonts. A four-gigabyte model fetched on one site is available immediately on
+the next, reducing bandwidth, load latency, disk usage, and energy consumption.
 
-Both properties follow from the same design decision: the cache is shared
-between unrelated sites. A site that asks whether a file is present receives an
-answer determined by activity on other sites. Every attack described here is
-constructed from that one question, repeated.
+The cache is unpartitioned by design, which is where the benefit comes from and
+where the exposure comes from. An answer to "is this file present" is determined
+by activity on other sites, and every attack below is built from that one
+question, repeated.
 
 **Mitigations need to carefully balance between ensuring the user's privacy and
 maintaining the usefulness of the feature.** Restrictions severe enough to
 eliminate every attack described here would also eliminate the sharing that
-motivates the feature. This document covers the attacks. The mitigations COS
-proposes are described in the
-[Privacy considerations](README.md#privacy-considerations) section of the
-explainer.
+motivates the feature. This document covers the attacks; the mitigations COS
+proposes are in the [Privacy considerations](README.md#privacy-considerations)
+section of the explainer.
 
-## Why these attacks are possible
+## Preliminaries
 
-Three properties of the design underlie every attack below.
+Content addressing means no prior relationship with a file's publisher is
+required: any party holding the bytes can compute the hash and query it. The
+addressable set is therefore the entire public web, plus anything the attacker
+authors.
 
-**The cache is shared across sites.** Conventional browser storage, including
-cookies, is partitioned per site, so what one site stores is unreadable by the
-next. A content-addressable shared cache crosses that boundary by design.
+Each lookup returns one bit. Roughly **32 independent bits distinguish one
+device among several billion**, which is the quantity every attack below
+accumulates and every mitigation tries to bound.
 
-**Files are addressed by their contents.** Any party holding a copy of a file
-can compute its hash, so any site can ask about any file whose bytes it knows.
-No prior relationship with the file's publisher is required.
-
-**Each lookup yields one bit.** A lookup either returns the file or reports it
-as absent. A single answer carries little information. Roughly **32 independent
-yes-or-no answers are sufficient to distinguish one device among several
-billion**, which is the quantity every attack below works to accumulate.
-
-## How these attacks are classified
-
-The attacks fall into two families that privacy research treats separately,
-because they call for different defenses.
-
-**Stateful tracking** covers attacks where the tracker writes something and
-reads it back. The written state is the identifier. Attack 1 is of this kind,
-and the established term for state that survives cookie clearing and crosses
-site boundaries is a **supercookie**.
-
-**Cross-site leaks**, commonly abbreviated **XS-Leaks**, cover attacks where the
-tracker writes nothing and infers information about the user's state on other
-sites from an observable side effect. Attacks 2 through 5 and Attack 8 are
-XS-Leaks. The shared cache acts as an **existence oracle**: a primitive that
-answers whether a given item is present.
-
-Attacks 6 and 7 target the rate limiting that constrains the others.
+Attack 1 is stateful tracking: the tracker writes the identifier and reads it
+back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
+are **XS-Leaks** over the existence oracle the cache exposes. Attacks 6 and 7
+target the rate limiting that constrains the rest.
 
 ---
 
 ## Attack 1: Supercookie
 
-Also described as a persistent cross-site identifier. The tracker constructs the
-identifier itself, so this attack does not depend on the device's existing
-contents.
+The tracker constructs the identifier, so this attack is independent of the
+device's existing contents and of the prevalence distribution the read-side
+attacks depend on.
 
-The tracker selects a set of small files and stores a chosen subset of them on
-the first site. The presence or absence of each file encodes one bit. On a
-second site it queries the same set and recovers the subset, which serves as a
-cross-site identifier. Clearing cookies does not affect it, because the
-identifier resides in the shared cache.
+A set of small files is chosen, and a per-device subset is stored on the first
+site, one bit per file. A query for the same set on a second site recovers the
+subset. Clearing cookies has no effect, since the identifier lives in the shared
+cache. Eviction and the per-origin storage limit bound its lifetime and size,
+and the tracker refreshes it on each visit.
 
-Two variants differ in the permissions they require.
-
-**Through an embedded frame.** An iframe from `tracker.example` embedded on both
-sites, granted `allow="cross-origin-storage"` by each, stores the files under
-its own origin. An origin can always read entries it stored, so recovery is
-exact: the Public Hash List, GREASE'ing, and the `origins` grants play no part.
+**Through an embedded frame.** An iframe from `tracker.example` on both sites,
+granted `allow="cross-origin-storage"` by each, writes under its own origin. A
+storing origin can always read its own entries, so recovery is exact: the Public
+Hash List, GREASE'ing, and the `origins` grants are all bypassed.
 
 **Through the Public Hash List.** A tracker running as the site's own script
-stores files under that site's origin, which a second site cannot read. To reach
-them from elsewhere it must use files that are globally readable, meaning
-entries on the [Public Hash List](public-hash-list/phl-explainer.md) of
-well-known resources written with `origins: '*'`. The encoding is therefore a
-chosen subset of well-known public files. This variant is noisier: the device
-may already hold some of those files from ordinary browsing, producing false
-positives, and GREASE'ing may report a stored file as absent. The tracker
-compensates with redundancy.
+writes under that site's origin, unreadable elsewhere. Reaching it from a second
+site requires globally readable entries, meaning
+[Public Hash List](public-hash-list/phl-explainer.md) hashes written with
+`origins: '*'`. The codeword is therefore a subset of well-known public files.
+This variant is noisier: organic cache hits produce false positives, and
+GREASE'ing produces false negatives, so the tracker adds redundancy.
 
-**Example.** A tracker embedded on a news site stores 32 small files, selecting
-the subset at random for this device. A week later the same tracker, embedded on
-an unrelated shopping site, queries those 32 hashes and recovers the same
-subset. The two visits are linked to one device, and cookie clearing in the
-interval has no effect.
+**Example.** A tracker on a news site stores 32 files, selecting the subset at
+random for this device. A week later, on an unrelated shopping site, it queries
+those 32 hashes, recovers the subset, and links the visits. Cookie clearing in
+the interval is irrelevant.
 
 ---
 
 ## Attack 2: Cache-based fingerprinting
 
-Fingerprinting constructs a stable device identifier from observable properties.
-Here the observable property is the set of files the cache already holds,
-accumulated through ordinary browsing. The attack performs no writes.
+The distinguishing signal is the set of files accumulated through ordinary
+browsing. No writes are involved.
 
-The tracker queries a fixed set of well-known files and records which are
-present. Near-universal files contribute nothing, since almost every device has
-them. Files held by roughly half of devices are the informative ones, because
-each answer divides the population approximately in two. A sufficient number of
-such files produces a pattern unique to one device, which supports **cross-site
-linking**: attributing two visits on unrelated sites to the same device.
+Entropy per query peaks at a prevalence near one half, so near-universal files
+contribute nothing and the informative ones are those roughly half of devices
+hold. Enough of them yield a pattern unique to a device, supporting cross-site
+linking. Correlated files reduce the yield, since a font family's subsets and a
+model's shards arrive together and are effectively one observation.
 
-**Example.** The same analytics script is present on a recipe blog and on a
-local newspaper. On each site it queries the same 60 well-known libraries and
-fonts. The pattern of present and absent files matches across the two visits, so
-the script attributes both to one device and merges the two browsing records.
+**Example.** The same analytics script on a recipe blog and a local newspaper
+queries the same 60 libraries and fonts. The patterns match across both visits,
+so the script attributes them to one device and merges the browsing records.
 
-This attack is less reliable than Attack 1, because the tracker works with
-whatever the device happens to hold. It requires no cooperation from the
-embedding sites beyond script inclusion, and it writes nothing that a user could
-later find or clear.
+Reliability is lower than Attack 1, because the tracker works with whatever the
+device holds. It needs no cooperation from the embedding sites beyond script
+inclusion, and it leaves nothing a user could find or clear.
 
 ---
 
 ## Attack 3: History sniffing
 
-History sniffing determines which sites a user has visited. The classic form
-exploited the styling of visited links; the cache-based form queries files
-deployed by a limited set of sites, where presence establishes that the device
-visited one of them.
+The cache-based analogue of the `:visited` leaks, over file presence in place of
+link styling.
 
-A file used across half the web carries no such information. A file used by two
-hundred sites narrows the device's history to those two hundred. Combining
-lookups narrows it further: where one file appears on two hundred hobby blogs
-and a second appears on two hundred sites covering a particular region, holding
-both restricts the candidates to the intersection, which may be a single site.
+A hash deployed across two hundred sites narrows history to those two hundred, a
+k-anonymity bound of 200. Composition erodes it: where one file appears on two
+hundred hobby blogs and another on two hundred sites covering a region, holding
+both narrows the candidates to the intersection. Per-resource k-anonymity gives
+no guarantee over conjunctions.
 
-**Example.** A plugin for hobby blogs ships a distinctive stylesheet deployed on
-roughly three hundred sites. A tracker queries that stylesheet and establishes
-that the device visited one of them. It then queries a second file specific to a
-German-language theme. Both are present, and only four sites in the world deploy
-both, so the device's reading history is narrowed to four candidates without any
-access to browsing history.
+**Example.** A hobby-blog plugin ships a distinctive stylesheet deployed on
+roughly three hundred sites, establishing that the device visited one of them. A
+second query, for a file specific to a German-language theme, is also positive.
+Four sites deploy both, so history is narrowed to four candidates.
 
 ---
 
 ## Attack 4: Attribute inference
 
-Attribute inference derives characteristics of the user, including interests,
-language, and profession, without establishing an identity. The absence of an
-identifier is what makes it resistant to the mitigations aimed at identifiers.
+No identifier is established, which is what makes this resistant to every
+mitigation aimed at identifiers. Files carry semantics: a Japanese font subset
+implies a reading language, a game engine implies browser gaming, a speech model
+implies dictation, and a model shipped by one application implies use of that
+application. Cohort assignment follows directly from presence.
 
-Files carry semantic meaning. A font covering Japanese script indicates the user
-reads Japanese. A game engine indicates browser gaming. A speech recognition
-model indicates dictation use. A model loaded by an application in a specific
-domain indicates use of that application. Grouping users this way is also known
-as **cohort inference**.
+**Example.** An advertising script queries eight in-browser AI models and finds
+one, establishing that the device runs local inference. A query for the Japanese
+subset of a common font is also positive, establishing a language attribute.
+Eight lookups, two accurate targeting attributes, no identifier.
 
-**Example.** An advertising script queries eight AI models that run in the
-browser and finds one present, establishing that the device runs in-browser AI
-workloads. It then queries the Japanese subset of a common web font and finds it
-present, establishing a language attribute. Eight lookups yield two accurate
-targeting attributes, and no identifier was required.
-
-The sensitivity varies with the file. A model distributed by a mental health or
-addiction support application carries a strong inference about the user, and the
-browser has no basis for distinguishing a query for that file from a query for a
-font.
+Sensitivity varies with the file. A model distributed by a mental health or
+addiction support application supports a strong inference about the user, and
+the browser has no basis for distinguishing that query from a query for a font.
 
 ---
 
 ## Attack 5: Targeted de-anonymization
 
-De-anonymization links an anonymous session to a known identity. The preceding
-attacks operate across a population; this one targets a known individual.
+The relevant quantity here is surprisal: a positive answer on a hash with
+prevalence 10⁻⁴ carries 13 bits. Where a tracker knows a specific person holds
+an unusual file, observed during an authenticated session, one query elsewhere
+approximates a test for that person.
 
-Common files are unsuitable here and rare files are ideal. Where a tracker knows
-that a specific person holds an unusual file, perhaps observed during an
-authenticated session, a single query elsewhere approximates a test for that
-person's presence. Large AI models are well suited to this purpose: few devices
-hold any given one, they persist for long periods, and GREASE'ing is withheld
-for files whose size makes a spurious re-download disproportionate, so the
-answer is reliable.
+Large AI models suit this well. Few devices hold any given one, they persist
+across long intervals, and the size-proportionate rule withholds GREASE'ing from
+files whose spurious re-download would be disproportionate, so the answer is
+noise-free exactly where it is most identifying.
 
-**Example.** A researcher signs in to a specialist site and downloads an
-uncommon model for medical image analysis, held by perhaps a few thousand
-devices worldwide. The same operator later queries that hash on an
-unauthenticated public forum, receives a positive answer, and has substantial
-grounds to associate the anonymous forum account with the authenticated
-identity.
+**Example.** A researcher signs in to a specialist site and fetches an uncommon
+medical imaging model held by a few thousand devices worldwide. The same
+operator later queries that hash on an unauthenticated forum, gets a positive,
+and has substantial grounds to associate the forum account with the
+authenticated identity.
 
 ---
 
 ## Attacks against the lookup budget
 
-The explainer proposes limiting the number of cross-site lookups a site may
-perform. The following attacks target that limit.
+The explainer proposes bounding the number of cross-site lookups a site may
+perform. These three attacks target that bound.
 
 ### Attack 6: Sybil attack on the budget
 
-A Sybil attack defeats a per-identity limit by acquiring many identities. Where
-the limit is counted per requesting origin, subdomains are unlimited and cost
-nothing, so one tracker can present itself as several origins, embed each as a
-frame, assign each a distinct portion of the work, and collect the results in
-the parent frame through `postMessage`. Independent trackers on one page can
-pool their allowances the same way, which makes this a **collusion** attack as
-well.
+A budget keyed to the requesting origin is multiplied by the number of origins
+the attacker brings. Wildcard DNS makes subdomains free, so one tracker presents
+as several origins, embeds each as a frame, partitions the work, and collects
+the answers in the parent through `postMessage`. Independent trackers on one
+page can pool allowances the same way, making this collusion as well as Sybil.
 
-**Example.** A limit permits eight lookups per origin per time window. The
-tracker embeds four frames on four subdomains it controls. Each frame spends its
-own eight lookups on a distinct set of files and returns the answers to the
-page, producing 32 answers within a single page view. This is the reason the
-explainer scopes the budget to the top-level site, shared across every frame on
-the page.
+**Example.** At eight lookups per origin per window, four frames on four
+attacker-controlled subdomains spend eight each on disjoint sets, yielding 32
+answers in one page view. This is why the explainer keys the budget to the
+top-level site, shared across every frame.
 
 ### Attack 7: Rate-limit evasion by reload
 
-A limit scoped to a single page load can be reset by the page, which can reload
-itself without user interaction. The general pattern is a rate limit whose
-counter is bound to a context the attacker controls.
+A counter bound to a context the attacker controls is a counter the attacker
+resets. A page reloads itself without user interaction, and a per-page-load
+allowance is fresh on each load.
 
-**Example.** A tracker is permitted eight lookups per page load. Its page
-reloads itself four times in under two seconds. Each load receives a fresh
-allowance and spends it on a distinct set of files, yielding 32 answers. This is
-the reason the count must persist across reloads.
+**Example.** At eight lookups per page load, four silent reloads inside two
+seconds yield 32 answers. This is why the count has to persist across reloads
+and navigations.
 
 ### Attack 8: Cross-site leak through the loading path
 
-The imperative lookup function is one of several paths to the cache. The
+The imperative API is one of four paths to the cache. The
 [HTML](README.md#html-integration),
 [import attribute](README.md#javascript-import-attribute-integration),
 [CSS](README.md#css-integration), and [fetch](README.md#fetch-integration)
-integrations consult it as well.
+integrations consult it as well, and return no value to the page.
 
-These paths return no value to the page. The site nonetheless learns the outcome
-by observing its own server, which is the classic XS-Leak pattern of reading a
-side effect in place of a return value: a file served from the shared cache
-produces no request, and that absence carries the same single bit as an explicit
-answer.
+The site recovers the bit from its own server logs, the standard XS-Leak pattern
+of reading a side effect in place of a return value: a cache hit produces no
+request, and that silence is the same bit.
 
 **Example.** A tracker places 32 ordinary resource references on its page and
-records which of them its server is asked for. The eleven that produce no
-request are the files the device already held. The tracker obtains 32 answers
-without calling the lookup function. This is the reason a limit must count every
-path that reaches the cache.
+records which its server is asked for. The eleven producing no request are the
+files already held. Thirty-two answers, no call to `requestFileHandle()`. This
+is why a budget has to count all four surfaces.
 
 ---
 
 ## Attacks the design rules out
 
-Two attacks are excluded by the current design. Both are described here because
-they would become available if these properties were relaxed.
+Both are recorded because they reopen if these properties are relaxed.
 
 ### Existence oracle through in-progress writes
 
-Writing a large file takes time. If the browser registered an entry when a write
-began, any site could distinguish "a write is in progress" from "never stored,"
-which is a reliable one-bit existence oracle for an arbitrary hash, obtained
-without storing anything and without passing the `origins` grants, the Public
-Hash List, or GREASE'ing.
+Registering an entry when a write begins would let any origin distinguish "write
+in progress" from "never stored," a noiseless one-bit oracle over an arbitrary
+hash, obtained without storing bytes for the storage limit to bound and without
+passing `origins`, the Public Hash List, or GREASE'ing.
 
 COS adds an entry only after a writer supplies the complete contents and the
-browser verifies them against the hash. Until then the hash is reported as
-absent, identically to a hash never written.
+browser verifies them against the hash. Until then the hash reads as absent,
+identically to one never written.
 
 ### Timing side channel
 
-If a refusal returned faster for a file that is genuinely absent than for one
-the browser is withholding, the elapsed time would disclose the answer and
-bypass the protections above. Timing side channels of this kind are the most
-common foundation for XS-Leaks on the web.
+A refusal that resolved faster for a genuinely absent file than for a withheld
+one would disclose the answer through elapsed time and bypass everything above.
+Timing is the most common substrate for XS-Leaks on the web.
 
-COS requires a refusal to be identical in content and in timing across all of
-its causes: the file is absent, the requesting site is out of scope, or the
-browser is withholding a file it holds.
+COS requires the refusal to be identical in content and timing across all of its
+causes: absent, out of scope, or withheld.
 
 ---
 
 ## The mitigation problem
 
-Every attack described here passes through one API. A tracker exploiting timing
-side channels or accumulated platform quirks has many places to operate
-undetected. A tracker using COS must issue an explicit, countable request, which
-the browser can count, delay, or decline.
+Every attack here passes through one API. A tracker working from timing
+variation or accumulated platform quirks has many places to hide; a tracker
+using COS has to issue an explicit, countable request that the browser can
+count, delay, or decline.
 
-That property is what makes the problem tractable, and it also locates the
-difficulty precisely. The protection is only as good as the accounting, which is
-why Attacks 6 through 8, directed at the budget itself, warrant the same
-attention as the identification attacks that precede them.
+That is what makes the problem tractable, and it locates the difficulty
+precisely. The protection is worth exactly what the accounting is worth, which
+is why Attacks 6 through 8 warrant the same attention as the identification
+attacks above them.
