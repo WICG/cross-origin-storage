@@ -148,23 +148,25 @@ The tracker can do this in two ways.
    const cos = navigator.crossOriginStorage;
    const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 
-   // 32 small files the tracker can serve, one per bit: hashes[i] identifies
-   // a file and bytes[i] holds its contents.
-   const { hashes, bytes } = await loadCarriers();
+   // One small file the tracker serves per bit of the identifier.
+   const trackerHashes = [
+     { algorithm: 'SHA-256', value: '4d7a…' },
+     // …31 more
+   ];
 
    // Read first: a storing origin sees whatever it stored on any earlier site.
-   const bits = await Promise.all(hashes.map(has));
+   const bits = await Promise.all(trackerHashes.map(has));
    let id = bits.reduce((n, b, i) => n | (b << i), 0) >>> 0;
 
    // Nothing came back, so this is a new device. Mint an identifier and
-   // store the file for each bit that is set.
+   // store the file for each bit that is set, fetching bytes only for those.
    if (id === 0) {
      id = crypto.getRandomValues(new Uint32Array(1))[0];
-     for (const [i, hash] of hashes.entries()) {
+     for (const [i, hash] of trackerHashes.entries()) {
        if (!((id >>> i) & 1)) continue;
        const handle = await cos.requestFileHandle(hash, { create: true });
        const w = await handle.createWritable();
-       await w.write(bytes[i]);
+       await w.write(await loadTrackerFile(i));
        await w.close();
      }
    }
@@ -179,24 +181,27 @@ The tracker can do this in two ways.
    and GREASE'ing produces false negatives, so the tracker adds redundancy.
 
    ```js
-   // Same cos, has, and id as above. The carriers have to be on the PHL, so
-   // the tracker picks well-known files and serves their real bytes.
-   const { hashes, bytes } = await loadListedCarriers();
+   // Same cos, has, and id as above, but the carriers have to be on the PHL,
+   // so the tracker picks well-known public files and serves their real bytes.
+   const phlHashes = [
+     { algorithm: 'SHA-256', value: 'e3b0…' },
+     // …31 more
+   ];
 
    // Site A, as the site's own origin: the global scope is what makes the
    // entry readable from anywhere else.
-   for (const [i, hash] of hashes.entries()) {
+   for (const [i, hash] of phlHashes.entries()) {
      if (!((id >>> i) & 1)) continue;
      const opts = { create: true, origins: '*' };
      const handle = await cos.requestFileHandle(hash, opts);
      const w = await handle.createWritable();
-     await w.write(bytes[i]);
+     await w.write(await loadPhlFile(i));
      await w.close();
    }
 
    // Site B, a different origin: the read succeeds through the global scope,
    // which only applies to hashes on the Public Hash List.
-   const bits = await Promise.all(hashes.map(has));
+   const bits = await Promise.all(phlHashes.map(has));
    ```
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
