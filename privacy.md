@@ -42,11 +42,11 @@ authors.
 Each COS lookup (or probe) returns one bit. Roughly **32 independent bits
 distinguish one device among several billion**, since 2³² is about 4.3 billion,
 and that is the quantity every attack below accumulates and every mitigation
-tries to bound. Quantifying tracking capacity in bits of identifying information
-follows Eckersley's
-[Panopticlick study](https://doi.org/10.1007/978-3-642-14527-8_1) (PETS 2010),
-which placed a lower bound of 18.1 bits on browser fingerprint entropy across
-470,161 browsers and found 83.6% of them instantaneously unique.
+tries to bound. How much of it an attacker reaches in practice is an empirical
+question: [Gómez-Boix et al.](https://doi.org/10.1145/3178876.3186097)
+(WWW 2018) analyzed 2,067,942 browser fingerprints from a top-15 French website
+and found 33.6% of them unique, against the rates above 80% that earlier,
+self-selected samples had reported.
 
 Attack 1 is stateful tracking: the tracker writes the identifier and reads it
 back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
