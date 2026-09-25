@@ -178,9 +178,10 @@ The tracker can do this in two ways.
    writes under that site's origin, unreadable elsewhere. Reaching it from a
    second site requires globally readable entries, meaning
    [Public Hash List](public-hash-list/phl-explainer.md) hashes written with
-   `origins: '*'`. The codeword is therefore a subset of well-known public
-   files. This variant is noisier: organic cache hits produce false positives,
-   and GREASE'ing produces false negatives, so the tracker adds redundancy.
+   `origins: '*'`. The tracker therefore carries the identifier in a subset of
+   well-known public files. This variant is noisier: organic cache hits produce
+   false positives, and GREASE'ing produces false negatives, so the tracker adds
+   redundancy.
 
    ```js
    // Same cos, has, and bits as above, but the carriers have to be on the PHL,
