@@ -641,8 +641,11 @@ browser verifies them against the hash, and `requestFileHandle()` with
 complete, the hash reads as absent, identically to one never written.
 
 ```js
-// Same `cos` as above. `target` is scoped to origins this attacker is not on,
-// so an ordinary read refuses. Creating applies no scope, PHL, or GREASE'ing
+// Same `cos` as above. Whoever stored this file named a short list of partner
+// origins, and this attacker is not one of them, so an ordinary read refuses.
+const target = { algorithm: 'SHA-256', value: '7f2e…' };
+
+// Creating names the same hash and applies no scope, PHL, or GREASE'ing
 // check, so it is the only path left.
 const handle = await cos.requestFileHandle(target, { create: true });
 await handle.createWritable(); // nothing written, nothing closed
