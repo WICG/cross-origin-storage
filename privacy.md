@@ -184,8 +184,8 @@ The tracker can do this in two ways.
    tracker adds redundancy.
 
    ```js
-   // Same cos, has, and bits as above, but the carriers have to be on the PHL,
-   // so the tracker picks small ones that few devices are likely to hold.
+   // Same `cos`, `has`, and `bits` as above. The carriers have to be on the
+   // PHL, so the tracker picks small ones that few devices are likely to hold.
    const phlHashes = [
      { algorithm: 'SHA-256', value: 'e3b0…' },
      // …31 more
