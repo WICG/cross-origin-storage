@@ -391,7 +391,8 @@ top-level site, shared across every frame.
 ```
 
 ```js
-// In each frame, spending that origin's whole allowance on a disjoint slice.
+// In each frame, spending that origin's whole allowance on a disjoint slice
+// of the same `probes` as Attack 2. `n` is the frame's index, 0 through 3.
 const mine = probes.slice(n * 8, n * 8 + 8);
 parent.postMessage(await Promise.all(mine.map(has)), '*');
 
@@ -411,8 +412,9 @@ seconds yield 32 answers. This is why the count has to persist across reloads
 and navigations.
 
 ```js
-// Spend this load's allowance, stash what came back, and reload for a fresh
-// one. Four loads inside two seconds cover the same 32 hashes.
+// Spend this load's allowance on a slice of the same `probes` as Attack 2,
+// stash what came back, and reload for a fresh one. Four loads inside two
+// seconds cover all 32.
 const round = Number(sessionStorage.round ?? 0);
 const mine = probes.slice(round * 8, round * 8 + 8);
 
@@ -451,9 +453,9 @@ files the device already held. Thirty-two answers, no call to
 ```
 
 ```js
-// On the tracker's own server: a request for p7.css means the device lacked
-// that file, and silence means it held it. The page never sees the answer,
-// and never has to.
+// On the tracker's own server, where each of the same 32 `probes` as Attack 2
+// has its own path: a request for p7.css means the device lacked that file,
+// and silence means it held it. The page never sees the answer.
 const bits = probes.map((probe) => !requestLog.has(probe.path));
 ```
 
