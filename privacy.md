@@ -656,12 +656,13 @@ await handle.createWritable(); // nothing written, nothing closed
 
 ### Example
 
-A hospital stores an imaging model list-scoped to its own partner origins, so a
-read from anywhere else refuses outright and the PHL never enters into it. An
-unrelated site asks to create that same hash and supplies no bytes. Under a
-placeholder design, the answer to that request differs from the answer for a
-hash nobody holds, and the site learns that this device belongs to someone who
-uses that hospital's software. COS answers identically either way.
+A bank stores a WebAssembly transaction-signing module, naming its own origins
+and its payment partner's, so a read from anywhere else refuses outright and the
+PHL never enters into it. An unrelated site asks to create that same hash and
+supplies no bytes. Under a placeholder design, the answer to that request
+differs from the answer for a hash nobody holds, and the site learns that this
+device belongs to a customer of that bank, which is what a phishing campaign
+needs to pick its targets. COS answers identically either way.
 
 ---
 
