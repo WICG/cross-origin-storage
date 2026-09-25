@@ -214,8 +214,7 @@ The tracker can do this in two ways.
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
 random for this device. A week later, on an unrelated shopping site, it queries
-those 32 hashes, recovers the subset, and links the visits. Cookie clearing in
-the interval is irrelevant.
+those 32 hashes, recovers the subset, and links the visits.
 
 ---
 
