@@ -198,6 +198,11 @@ The tracker can do this in three ways.
    const id = bits.join(''); // '10110…'
    ```
 
+   **Example.** A tracker's frame on a news site finds nothing stored, mints a
+   32-bit identifier, and stores its own files for the bits that are set. A week
+   later the same frame on an unrelated shopping site reads those 32 hashes
+   back, recovers the pattern, and attributes both visits to one device.
+
 2. **Through the Public Hash List.** A tracker running as the site's own script
    writes under that site's origin, unreadable elsewhere. Reaching it from a
    second site requires [Public Hash List](public-hash-list/phl-explainer.md)
@@ -235,6 +240,9 @@ The tracker can do this in three ways.
      }
    }
    ```
+
+   **Example.** The same two visits, with the tracker running as each site's own
+   script and the carriers drawn from the PHL.
 
 3. **Through the list scope.** The tracker authors the carrier files itself, so
    their hashes exist nowhere else and no organic cache hit can fake a positive.
@@ -276,11 +284,10 @@ The tracker can do this in three ways.
    const recovered = await Promise.all(mintedHashes.map(has));
    ```
 
-### Example
-
-A tracker on a news site stores 32 files, selecting the subset at random for
-this device. A week later, on an unrelated shopping site, it queries those 32
-hashes, recovers the subset, and links the visits.
+   **Example.** `newspaper.example` and `magazine.example` belong to one
+   publisher, which is what lets the newspaper's response header authorize the
+   magazine's origin. A reader marked while reading the newspaper is recognized
+   on the magazine, with no shared cookie and no frame on either site.
 
 ## Attack 2: Cache-based fingerprinting
 
