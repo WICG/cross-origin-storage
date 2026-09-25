@@ -153,6 +153,23 @@ because relaxing that property would reopen it.
 | [Attack 9: Existence oracle through in-progress writes](#attack-9-existence-oracle-through-in-progress-writes)                 | Learn whether the device holds a file in the cases where a read refuses to say.                            | By design                |
 | [Attack 10: Timing side channel](#attack-10-timing-side-channel)                                                               | Read the answer a refusal withholds, out of how long the refusal takes.                                    | By design                |
 
+### Shared setup
+
+Every sample below assumes these two declarations, and names a hash the way
+`requestFileHandle()` takes it.
+
+```js
+const cos = navigator.crossOriginStorage;
+
+// One probe. True when the browser holds the file and will disclose it to
+// this origin, false when it refuses for any reason. The attacker cannot tell
+// the reasons apart, which is what Attack 10 tries to change.
+const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
+
+// Hashes appear as this pair throughout, with the digest truncated.
+const example = { algorithm: 'SHA-256', value: '8f43…' };
+```
+
 ## Attack 1: Supercookie
 
 ### Objective
@@ -183,8 +200,6 @@ Public Hash List, GREASE'ing, and the `origins` grants entirely.
 
 ```js
 // Inside the frame, so every call runs as tracker.example, on every site.
-const cos = navigator.crossOriginStorage;
-const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 
 // One small file the tracker serves per bit of the identifier.
 const trackerHashes = [
@@ -228,8 +243,8 @@ This variant is noisier: organic cache hits produce false positives, and
 GREASE'ing produces false negatives, so the tracker adds redundancy.
 
 ```js
-// Same `cos` and `has()` as above. The carriers have to be on the PHL, so
-// the tracker picks small ones that few devices are likely to hold.
+// The carriers have to be on the PHL, so the tracker picks small ones that
+// few devices are likely to hold.
 const phlHashes = [
   { algorithm: 'SHA-256', value: 'e3b0…' },
   // …31 or more, for redundancy
@@ -325,10 +340,10 @@ linking. Correlated files reduce the yield, since a font family's subsets and a
 model's shards arrive together and are effectively one observation.
 
 ```js
-// Same `cos` and `has()` as above. Nothing is written, so the probe set is
-// chosen purely for yield: PHL hashes the tracker measured near one half
-// prevalence on its own panel, and one file per correlated family, so that a
-// font's subsets do not count as several observations.
+// Nothing is written, so the probe set is chosen purely for yield: PHL hashes
+// the tracker measured near one half prevalence on its own panel, and one file
+// per correlated family, so a font's subsets do not count as several
+// observations.
 const probes = [
   { algorithm: 'SHA-256', value: 'c1f5…' },
   // …59 more
@@ -364,8 +379,8 @@ shipped by one application implies use of that application. Presence alone
 assigns the cohort.
 
 ```js
-// Same `has()` as above. Each probe is picked for what holding the file
-// implies about the user, and carries the attribute it evidences.
+// Each probe is picked for what holding the file implies about the user, and
+// carries the attribute it evidences.
 const semantics = [
   { value: 'd31b…', attribute: 'runs local inference' },
   { value: '6ea0…', attribute: 'reads Japanese' },
@@ -431,10 +446,10 @@ public crawls like the [HTTP Archive](https://httparchive.org/) and
 understates where a file appears.
 
 ```js
-// Same `cos` and `has()` as above. Each probe is a file whose deployment the
-// attacker mapped beforehand, so a hit says the device visited at least one
-// origin in that set. Every one of these files is widely deployed, so each
-// passes PHL admission. The sets are truncated here.
+// Each probe is a file whose deployment the attacker mapped beforehand, so a
+// hit says the device visited at least one origin in that set. Every one of
+// these files is widely deployed, so each passes PHL admission. The sets are
+// truncated here.
 const engineGames = ['https://game1.example', 'https://game67.example'];
 const cookieBanner = ['https://game12.example', 'https://game67.example'];
 const adSdk = ['https://game67.example', 'https://shop.example'];
@@ -486,9 +501,9 @@ files whose spurious re-download would be disproportionate, so the answer is
 noise-free exactly where it is most identifying.
 
 ```js
-// Same `has()` as above. One hash: a model held by a few thousand devices
-// worldwide, so its prevalence is around 10⁻⁴, and the attacker has reason to
-// think this particular person holds it.
+// One hash: a model held by a few thousand devices worldwide, so its
+// prevalence is around 10⁻⁴, and the attacker has reason to think this
+// particular person holds it.
 const target = { algorithm: 'SHA-256', value: '0b8e…' };
 
 // On a page the suspected account is reading, a positive is some 13 bits of
@@ -658,8 +673,8 @@ browser verifies them against the hash, and `requestFileHandle()` with
 complete, the hash reads as absent, identically to one never written.
 
 ```js
-// Same `cos` as above. Whoever stored this file named a short list of partner
-// origins, and this attacker is not one of them, so an ordinary read refuses.
+// Whoever stored this file named a short list of partner origins, and this
+// attacker is not one of them, so an ordinary read refuses.
 const target = { algorithm: 'SHA-256', value: '7f2e…' };
 
 // Creating names the same hash and applies no scope, PHL, or GREASE'ing
@@ -698,8 +713,8 @@ COS requires the refusal to be identical in content and timing across all of its
 causes: absent, out of scope, or withheld.
 
 ```js
-// Same `cos` as above. Every one of these rejects, so the returned value
-// carries nothing and the elapsed time is all the attacker has to work with.
+// Every one of these rejects, so the returned value carries nothing and the
+// elapsed time is all the attacker has to work with.
 const time = async (hash) => {
   const t = performance.now();
   await cos.requestFileHandle(hash).catch(() => {});
