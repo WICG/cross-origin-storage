@@ -296,13 +296,16 @@ Attack 4.
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
 // tracker mapped beforehand, so a hit says the device visited at least one
 // origin in that file's set.
+// The three deployment sets, truncated here. Each of these files is widely
+// deployed on its own, so each one passes PHL admission.
+const engineGames = ['https://game1.example', 'https://game67.example'];
+const germanPack = ['https://game12.example', 'https://game67.example'];
+const adSdk = ['https://game67.example', 'https://shop.example'];
+
 const deployments = new Map([
-  // The engine build, shipped by all hundred games and nothing else.
-  ['a7c2…', ['https://game1.example', 'https://game100.example']],
-  // A German UI pack, on thousands of sites, three of them in that hundred.
-  ['9f04…', ['https://game12.example', 'https://game67.example']],
-  // An ad SDK bundle, on thousands more, one of them in that hundred.
-  ['5b31…', ['https://game67.example', 'https://shop.example']],
+  ['a7c2…', engineGames], // the engine build, all hundred games
+  ['9f04…', germanPack], // the German UI pack, Games 12, 67, and 88
+  ['5b31…', adSdk], // an ad SDK bundle, Game 67 and thousands of others
 ]);
 
 const hits = [];
