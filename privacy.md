@@ -34,11 +34,12 @@ section of the explainer.
 
 ## Glossary
 
-**Sharing scope.** The `origins` value a write declares, which decides who can
-later learn that the entry exists. A storing origin can always read back what it
-wrote, mirroring the Cache API, and that access needs no declaration. The grants
-add up and are never removed, so a scope only ever widens. See
-[COS entry](README.md#cos-entry) and
+### Sharing scope
+
+The `origins` value a write declares, which decides who can later learn that the
+entry exists. A storing origin can always read back what it wrote, mirroring the
+Cache API, and that access needs no declaration. The grants add up and are never
+removed, so a scope only ever widens. See [COS entry](README.md#cos-entry) and
 [Availability gating](README.md#availability-gating). A write declares one of
 three scopes.
 
@@ -72,17 +73,21 @@ three scopes.
   });
   ```
 
-**Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
-resources deployed widely enough that confirming their presence says nothing
-about an individual. That k-anonymity argument is settled once, when a hash is
-admitted, so the browser never repeats it at query time. It gates the global
-scope alone. See the [PHL explainer](public-hash-list/phl-explainer.md).
+### Public Hash List (PHL)
 
-**GREASE'ing.** The browser occasionally reporting a file as absent although it
-holds it, so a site cannot read a negative answer as proof of absence. It
-applies only to reads that qualify through the global scope, and browsers
-withhold it for files whose size would make a spurious re-download
-disproportionate. See the [explainer's GREASE'ing section](README.md#greaseing).
+A shared, vendor-neutral allowlist of hashes for resources deployed widely
+enough that confirming their presence says nothing about an individual. That
+k-anonymity argument is settled once, when a hash is admitted, so the browser
+never repeats it at query time. It gates the global scope alone. See the
+[PHL explainer](public-hash-list/phl-explainer.md).
+
+### GREASE'ing
+
+The browser occasionally reporting a file as absent although it holds it, so a
+site cannot read a negative answer as proof of absence. It applies only to reads
+that qualify through the global scope, and browsers withhold it for files whose
+size would make a spurious re-download disproportionate. See the
+[explainer's GREASE'ing section](README.md#greaseing).
 
 ## Background
 
