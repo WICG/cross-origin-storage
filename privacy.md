@@ -126,8 +126,7 @@ target the rate limiting that constrains the rest.
 
 The tracker picks a set of small files and stores a per-device subset on the
 first site, one bit per file. A query for the same set on a second site recovers
-the subset. Clearing cookies has no effect, since the identifier lives in the
-shared cache. Eviction and the per-origin storage limit bound its lifetime and
+the subset. Eviction and the per-origin storage limit bound its lifetime and
 size, and the tracker refreshes it on each visit.
 
 The tracker can do this in two ways.
