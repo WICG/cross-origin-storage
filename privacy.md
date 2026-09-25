@@ -292,6 +292,12 @@ for (const { value, attribute } of semantics) {
 Sensitivity varies with the file. A model distributed by a mental health or
 addiction support application supports a strong inference about the user, and
 the browser has no basis for distinguishing that query from a query for a font.
+Keeping such a model off the global scope is the PHL's job, and its
+[current criteria](public-hash-list/phl-explainer.md#inclusion-criteria-and-exclusion-filters)
+would admit it: they test ubiquity and exclude resources whose purpose is
+tracking, so a model on a recognized hub with ten thousand downloads qualifies
+however sensitive the inference from holding it. Screening for that needs a
+criterion the list does not yet have.
 
 ---
 
