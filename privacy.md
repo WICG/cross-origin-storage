@@ -204,7 +204,7 @@ Public Hash List, GREASE'ing, and the `origins` grants entirely.
 // One small file the tracker serves per bit of the identifier.
 const trackerHashes = [
   { algorithm: 'SHA-256', value: '4d7a…' },
-  // …31 more
+  /* …31 more */
 ];
 
 // Read first: a storing origin sees whatever it stored on any earlier site.
@@ -247,7 +247,7 @@ GREASE'ing produces false negatives, so the tracker adds redundancy.
 // few devices are likely to hold.
 const phlHashes = [
   { algorithm: 'SHA-256', value: 'e3b0…' },
-  // …31 or more, for redundancy
+  /* …31 or more, for redundancy */
 ];
 
 // Runs as each site's own script. The read reaches entries another site
@@ -294,7 +294,7 @@ way and nothing resembling a network.
 // The tracker's own files, so these hashes exist nowhere else on the web.
 const mintedHashes = [
   { algorithm: 'SHA-256', value: 'b40d…' },
-  // …31 more
+  /* …31 more */
 ];
 
 // On site A, as site A's own origin: mint the identifier and name site B as
@@ -346,7 +346,7 @@ model's shards arrive together and are effectively one observation.
 // observations.
 const probes = [
   { algorithm: 'SHA-256', value: 'c1f5…' },
-  // …59 more
+  /* …59 more */
 ];
 
 // The pattern of hits is the fingerprint. The same script on another site
@@ -384,7 +384,7 @@ assigns the cohort.
 const semantics = [
   { value: 'd31b…', attribute: 'runs local inference' },
   { value: '6ea0…', attribute: 'reads Japanese' },
-  // …6 more
+  /* …6 more */
 ];
 
 // The positives are the cohort. Nothing is written, and nothing here
@@ -451,14 +451,26 @@ understates where a file appears.
 // these files is widely deployed, so each passes PHL admission, and each set
 // below runs to hundreds or thousands of entries, truncated to two here.
 
-// About 200 games ship this engine build.
-const engineGames = ['https://game1.example', 'https://game67.example'];
+// The engine build, which about 200 games ship.
+const engineGames = [
+  'https://game1.example',
+  /* …198 more */
+  'https://game67.example',
+];
 
-// Some 2,000 pages embed this cookie banner library, three of them games.
-const cookieBanner = ['https://game12.example', 'https://game67.example'];
+// The cookie banner library, on some 2,000 pages, three of them games.
+const cookieBanner = [
+  'https://game12.example',
+  /* …1,998 more */
+  'https://game67.example',
+];
 
-// Thousands of pages carry this ad SDK bundle, one of them a game.
-const adSdk = ['https://game67.example', 'https://shop.example'];
+// The ad SDK bundle, on thousands of pages, one of them a game.
+const adSdk = [
+  'https://game67.example',
+  /* …thousands more */
+  'https://shop.example',
+];
 
 const deployments = new Map([
   ['a7c2…', engineGames],
