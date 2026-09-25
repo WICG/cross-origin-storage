@@ -144,22 +144,26 @@ The tracker can do this in two ways.
    ```
 
    ```js
-   // Inside the frame, so every call runs as tracker.example.
+   // Inside the frame, so every call runs as tracker.example, on every site.
    const cos = navigator.crossOriginStorage;
    const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 
-   // Site A: store the file for each bit that is set.
-   for (const [i, hash] of hashes.entries()) {
-     if (!((id >> i) & 1)) continue;
-     const handle = await cos.requestFileHandle(hash, { create: true });
-     const w = await handle.createWritable();
-     await w.write(bytes[i]);
-     await w.close();
-   }
-
-   // Site B: the same origin reads its own entries back.
+   // Read first: a storing origin sees whatever it stored on any earlier site.
    const bits = await Promise.all(hashes.map(has));
-   const recovered = bits.reduce((n, b, i) => n | (b << i), 0);
+   let id = bits.reduce((n, b, i) => n | (b << i), 0) >>> 0;
+
+   // Nothing came back, so this is a new device. Mint an identifier and
+   // store the file for each bit that is set.
+   if (id === 0) {
+     id = crypto.getRandomValues(new Uint32Array(1))[0];
+     for (const [i, hash] of hashes.entries()) {
+       if (!((id >>> i) & 1)) continue;
+       const handle = await cos.requestFileHandle(hash, { create: true });
+       const w = await handle.createWritable();
+       await w.write(bytes[i]);
+       await w.close();
+     }
+   }
    ```
 
 2. **Through the Public Hash List.** A tracker running as the site's own script
