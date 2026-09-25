@@ -263,24 +263,34 @@ inclusion, and it leaves nothing a user could find or clear.
 ## Attack 3: History sniffing
 
 The cache-based analogue of the `:visited` leaks, over file presence in place of
-link styling.
+link styling. One probe yields one statement about where the device has been:
+holding the file means it visited at least one of the sites that deploy it.
 
-A hash deployed across two hundred sites narrows history to those two hundred, a
-k-anonymity bound of 200. Composition erodes it: where one file appears on the
-two hundred sites running one game engine and another on two hundred sites
-covering a region, holding both narrows the candidates to the intersection.
-Per-resource k-anonymity gives no guarantee over conjunctions.
+What that statement is worth is the size of the deployment set. A file served by
+a single site turns one probe into a direct reading of one history entry, which
+is what the PHL's k-anonymity admission exists to prevent. A file on two hundred
+sites yields a set of two hundred candidates, a bound of 200.
 
-**Example.** A game engine ships a distinctive WebAssembly build deployed on
-roughly three hundred sites, establishing that the device visited one of them. A
-second query, for a German-language UI pack, is also positive. Four sites deploy
-both, so the tracker narrows the history to four candidates. The cohort the same
-two answers imply, a German-speaking player, is Attack 4.
+Composition erodes the bound. Two positives over sets of two hundred are
+consistent with one visit to a site in their overlap, and equally consistent
+with two unrelated visits, one to each set. The tracker weighs the two
+explanations: where the overlap is four sites, a single visit accounts for both
+answers far more economically than two independent ones, and the reasoning
+sharpens the fewer sites the person visits in the period. Per-resource
+k-anonymity carries no guarantee over conjunctions, and the overlap is evidence
+of a visit rather than proof of one.
+
+**Example.** A game engine's WebAssembly build is deployed on roughly three
+hundred sites and its German-language UI pack on two hundred. Both probes are
+positive, and four sites deploy both. The tracker takes those four as the
+likeliest history, weighed against the alternative that two separate visits
+produced the same pair of answers. The cohort the same two answers imply, a
+German-speaking player, is Attack 4.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
-// tracker crawled, so a hit maps to the origins known to serve it. Narrow
-// deployments are what pay off here.
+// tracker crawled, so a hit says the device visited at least one origin in
+// that file's set. Narrow sets are worth the most.
 const deployments = new Map([
   // ~300 sites embedding the same build of one game engine.
   ['a7c2…', ['https://play.example', 'https://arcade.example']],
@@ -288,14 +298,17 @@ const deployments = new Map([
   ['9f04…', ['https://spiele.example', 'https://arcade.example']],
 ]);
 
-// Every hit constrains the history further, and the intersection of the
-// matched sets is the candidate list: here, the German-language sites
-// running that engine.
-let candidates = null;
+const hits = [];
 for (const [value, sites] of deployments) {
-  if (!(await has({ algorithm: 'SHA-256', value }))) continue;
-  candidates = candidates?.filter((site) => sites.includes(site)) ?? sites;
+  if (await has({ algorithm: 'SHA-256', value })) hits.push(sites);
 }
+
+// The overlap is the shortest history consistent with every hit, and it is a
+// hypothesis: visits to a different site in each set produce the same answers,
+// so the tracker weighs that against how much browsing it expects.
+const overlap = hits.length
+  ? hits.reduce((a, b) => a.filter((site) => b.includes(site)))
+  : [];
 ```
 
 ---
