@@ -140,8 +140,6 @@ through 10 are **XS-Leaks** over the existence oracle the cache exposes. Attacks
 ones the current design already answers, and they appear here because relaxing
 either property would reopen them.
 
----
-
 ## Attack 1: Supercookie
 
 ### Objective
@@ -276,8 +274,6 @@ A tracker on a news site stores 32 files, selecting the subset at random for
 this device. A week later, on an unrelated shopping site, it queries those 32
 hashes, recovers the subset, and links the visits.
 
----
-
 ## Attack 2: Cache-based fingerprinting
 
 ### Objective
@@ -321,8 +317,6 @@ The same analytics script on a recipe blog and a local newspaper queries the
 same 60 libraries and fonts. The patterns match across both visits, so the
 script attributes them to one device and merges the browsing records.
 
----
-
 ## Attack 3: Attribute inference
 
 ### Objective
@@ -365,8 +359,6 @@ An advertising script queries eight in-browser AI models and finds one,
 establishing that the device runs local inference. A query for the Japanese
 subset of a common font is also positive, establishing a language attribute.
 Eight lookups, two accurate targeting attributes, no identifier.
-
----
 
 ## Attack 4: History sniffing
 
@@ -441,8 +433,6 @@ An ad network's script on an unrelated news site runs the three probes and gets
 three positives. It records the reader as having been on `game67.example`, a
 site that never loaded that script and never consented to the disclosure.
 
----
-
 ## Attack 5: Targeted de-anonymization
 
 ### Objective
@@ -484,8 +474,6 @@ runs a forum where that researcher is suspected of posting anonymously, and adds
 one probe for the model's hash to the pages the account is reading. It comes
 back positive, which is substantial grounds for tying the account to the
 researcher.
-
----
 
 ## Attack 6: Sybil attack on the budget
 
@@ -611,8 +599,6 @@ of them reach its server. The eleven producing no request are the files the
 device already held. Thirty-two answers, no call to `requestFileHandle()`. This
 is why a budget has to count all four integration points.
 
----
-
 ## Attack 9: Existence oracle through in-progress writes
 
 ### Objective
@@ -664,8 +650,6 @@ differs from the answer for a hash nobody holds, and the site learns that this
 device belongs to a customer of that bank, which is what a phishing campaign
 needs to pick its targets. COS answers identically either way.
 
----
-
 ## Attack 10: Timing side channel
 
 ### Objective
@@ -698,8 +682,6 @@ A tracker times a few hundred refusals for a hash GREASE'ing may be withholding
 and a few hundred for a hash the device certainly lacks. A difference in the two
 distributions would recover the bit that the refusal was designed to hide, and
 averaging over repetitions would recover it however small the difference is.
-
----
 
 ## The mitigation problem
 
