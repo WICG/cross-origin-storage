@@ -39,9 +39,18 @@ required: any party holding the bytes can compute the hash and query it. The
 addressable set is therefore the entire public web, plus anything the attacker
 authors.
 
-Each lookup returns one bit. Roughly **32 independent bits distinguish one
-device among several billion**, which is the quantity every attack below
-accumulates and every mitigation tries to bound.
+Each COS lookup (or probe) returns one bit. Roughly **32 independent bits
+distinguish one device among several billion**, since 2³² is about 4.3 billion,
+and that is the quantity every attack below accumulates and every mitigation
+tries to bound. Measuring tracking capacity in bits of identifying information
+is the standard treatment for browser fingerprinting.[^eckersley]
+
+[^eckersley]:
+    Peter Eckersley,
+    [How Unique Is Your Web Browser?](https://doi.org/10.1007/978-3-642-14527-8_1),
+    Privacy Enhancing Technologies Symposium (PETS) 2010, which quantifies
+    browser fingerprints as bits of identifying information and measures at
+    least 18.1 bits of entropy across its sample.
 
 Attack 1 is stateful tracking: the tracker writes the identifier and reads it
 back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
