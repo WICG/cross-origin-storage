@@ -461,11 +461,14 @@ several origins at once.
 
 ### Description
 
-An attacker multiplies a budget keyed to the requesting origin by the number of
-origins it brings. Wildcard DNS makes subdomains free, so one tracker presents
-as several origins, embeds each as a frame, partitions the work, and collects
-the answers in the parent through `postMessage`. Independent trackers on one
-page can pool allowances the same way, making this collusion as well as Sybil.
+A [Sybil attack](https://doi.org/10.1007/3-540-45748-8_24) is one party posing
+as many, which defeats any quota that assumes one allowance per participant.
+Here the attacker multiplies a budget keyed to the requesting origin by the
+number of origins it brings. Wildcard DNS makes subdomains free, so one tracker
+presents as several origins, embeds each as a frame, partitions the work, and
+collects the answers in the parent through `postMessage`. Independent trackers
+on one page can pool allowances the same way, making this collusion as well as
+Sybil.
 
 ```html
 <!-- Four attacker-controlled subdomains, so four separate allowances. -->
