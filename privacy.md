@@ -133,9 +133,11 @@ and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
 Attack 1 is stateful tracking: the tracker writes the identifier and reads it
-back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
-are **XS-Leaks** over the existence oracle the cache exposes. Attacks 6 and 7
-target the rate limiting that constrains the rest.
+back, which makes the cache a **supercookie**. Attacks 2 through 5, Attack 8,
+and Attacks 9 and 10 are **XS-Leaks** over the existence oracle the cache
+exposes. Attacks 6 and 7 target the rate limiting that constrains the rest.
+Attacks 9 and 10 are the two the current design already answers, and they appear
+here because relaxing either property would reopen them.
 
 ---
 
@@ -578,10 +580,14 @@ is why a budget has to count all four surfaces.
 
 ---
 
-## Existence oracle through in-progress writes
+## Attack 9: Existence oracle through in-progress writes
+
+### Objective
 
 The objective is a yes-or-no answer about any hash at all, storing nothing and
 clearing no gate.
+
+### Description
 
 Registering an entry when a write begins would let any origin distinguish "write
 in progress" from "never stored," a noiseless one-bit oracle over an arbitrary
@@ -592,12 +598,35 @@ COS adds an entry only after a writer supplies the complete contents and the
 browser verifies them against the hash. Until then the hash reads as absent,
 identically to one never written.
 
+```js
+// Same `cos` and `has()` as above. Open a write for a hash the attacker has
+// no bytes for, and never finish it.
+const handle = await cos.requestFileHandle(target, { create: true });
+await handle.createWritable(); // nothing written, nothing closed
+
+// A design that registered the entry here would answer this differently from
+// a hash nobody ever touched, and that difference is the oracle.
+const bit = await has(target);
+```
+
+### Example
+
+A script opens a write for the hash of a file it has never possessed and keeps
+the stream open. Under a placeholder design, a second origin asking about that
+hash gets an answer distinguishable from "never stored", which is one free bit
+about any hash the attacker cares to name, over and over. COS answers both cases
+identically.
+
 ---
 
-## Timing side channel
+## Attack 10: Timing side channel
+
+### Objective
 
 The objective is to read the answer a refusal withholds, out of how long the
 refusal takes.
+
+### Description
 
 A refusal that resolved faster for a genuinely absent file than for a withheld
 one would disclose the answer through elapsed time and bypass everything above.
@@ -605,6 +634,23 @@ Timing is the most common substrate for XS-Leaks on the web.
 
 COS requires the refusal to be identical in content and timing across all of its
 causes: absent, out of scope, or withheld.
+
+```js
+// Same `cos` as above. Every one of these rejects, so the returned value
+// carries nothing and the elapsed time is all the attacker has to work with.
+const time = async (hash) => {
+  const t = performance.now();
+  await cos.requestFileHandle(hash).catch(() => {});
+  return performance.now() - t;
+};
+```
+
+### Example
+
+A tracker times a few hundred refusals for a hash GREASE'ing may be withholding
+and a few hundred for a hash the device certainly lacks. A difference in the two
+distributions would recover the bit that the refusal was designed to hide, and
+averaging over repetitions would recover it however small the difference is.
 
 ---
 
