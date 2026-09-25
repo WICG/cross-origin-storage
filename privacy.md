@@ -156,138 +156,142 @@ size, and the tracker refreshes it on each visit.
 
 The tracker can do this in three ways.
 
-1. **Through an embedded frame.** Both sites embed an iframe from
-   `tracker.example` and grant it `allow="cross-origin-storage"`, so the tracker
-   writes under its own origin. A storing origin can always read its own
-   entries, so the recovery bypasses the Public Hash List, GREASE'ing, and the
-   `origins` grants entirely.
+#### Variant 1: Through an embedded frame
 
-   ```html
-   <!-- On every embedding site. -->
-   <iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
-   ```
+Both sites embed an iframe from `tracker.example` and grant it
+`allow="cross-origin-storage"`, so the tracker writes under its own origin. A
+storing origin can always read its own entries, so the recovery bypasses the
+Public Hash List, GREASE'ing, and the `origins` grants entirely.
 
-   ```js
-   // Inside the frame, so every call runs as tracker.example, on every site.
-   const cos = navigator.crossOriginStorage;
-   const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
+```html
+<!-- On every embedding site. -->
+<iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
+```
 
-   // One small file the tracker serves per bit of the identifier.
-   const trackerHashes = [
-     { algorithm: 'SHA-256', value: '4d7a…' },
-     // …31 more
-   ];
+```js
+// Inside the frame, so every call runs as tracker.example, on every site.
+const cos = navigator.crossOriginStorage;
+const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 
-   // Read first: a storing origin sees whatever it stored on any earlier site.
-   // One hit or miss per hash, and those 32 answers are the identifier.
-   let bits = await Promise.all(trackerHashes.map(has));
+// One small file the tracker serves per bit of the identifier.
+const trackerHashes = [
+  { algorithm: 'SHA-256', value: '4d7a…' },
+  // …31 more
+];
 
-   // Nothing came back, so this is a new device. Mint an identifier and
-   // store the file for each bit that is set, fetching bytes only for those.
-   if (!bits.includes(true)) {
-     bits = randomBits(trackerHashes.length);
-     for (const [i, hash] of trackerHashes.entries()) {
-       if (!bits[i]) continue;
-       const handle = await cos.requestFileHandle(hash, { create: true });
-       const w = await handle.createWritable();
-       await w.write(await loadTrackerFile(i));
-       await w.close();
-     }
-   }
+// Read first: a storing origin sees whatever it stored on any earlier site.
+// One hit or miss per hash, and those 32 answers are the identifier.
+let bits = await Promise.all(trackerHashes.map(has));
 
-   const id = bits.join(''); // '10110…'
-   ```
+// Nothing came back, so this is a new device. Mint an identifier and
+// store the file for each bit that is set, fetching bytes only for those.
+if (!bits.includes(true)) {
+  bits = randomBits(trackerHashes.length);
+  for (const [i, hash] of trackerHashes.entries()) {
+    if (!bits[i]) continue;
+    const handle = await cos.requestFileHandle(hash, { create: true });
+    const w = await handle.createWritable();
+    await w.write(await loadTrackerFile(i));
+    await w.close();
+  }
+}
 
-   **Example.** A tracker's frame on a news site finds nothing stored, mints a
-   32-bit identifier, and stores its own files for the bits that are set. A week
-   later the same frame on an unrelated shopping site reads those 32 hashes
-   back, recovers the pattern, and attributes both visits to one device.
+const id = bits.join(''); // '10110…'
+```
 
-2. **Through the Public Hash List.** A tracker running as the site's own script
-   writes under that site's origin, unreadable elsewhere. Reaching it from a
-   second site requires [Public Hash List](public-hash-list/phl-explainer.md)
-   hashes written with `origins: '*'`. The tracker therefore carries the
-   identifier in a subset of listed files that are small and, despite being on
-   the PHL, comparatively rare. This variant is noisier: organic cache hits
-   produce false positives, and GREASE'ing produces false negatives, so the
-   tracker adds redundancy.
+**Example.** A tracker's frame on a news site finds nothing stored, mints a
+32-bit identifier, and stores its own files for the bits that are set. A week
+later the same frame on an unrelated shopping site reads those 32 hashes back,
+recovers the pattern, and attributes both visits to one device.
 
-   ```js
-   // Same `cos` and `has()` as above. The carriers have to be on the PHL, so
-   // the tracker picks small ones that few devices are likely to hold.
-   const phlHashes = [
-     { algorithm: 'SHA-256', value: 'e3b0…' },
-     // …31 or more, for redundancy
-   ];
+#### Variant 2: Through the Public Hash List
 
-   // Runs as each site's own script. The read reaches entries another site
-   // wrote, because the global scope covers unrelated origins.
-   let bits = await Promise.all(phlHashes.map(has));
+A tracker running as the site's own script writes under that site's origin,
+unreadable elsewhere. Reaching it from a second site requires
+[Public Hash List](public-hash-list/phl-explainer.md) hashes written with
+`origins: '*'`. The tracker therefore carries the identifier in a subset of
+listed files that are small and, despite being on the PHL, comparatively rare.
+This variant is noisier: organic cache hits produce false positives, and
+GREASE'ing produces false negatives, so the tracker adds redundancy.
 
-   // Organic cache hits set a few bits on any device, so the test for an
-   // unmarked device relies on the redundancy the identifier carries.
-   if (!looksMarked(bits)) {
-     bits = randomBits(phlHashes.length);
-     for (const [i, hash] of phlHashes.entries()) {
-       if (!bits[i]) continue;
-       // `origins: '*'` is what the next site's read needs, and the browser
-       // only honors it for hashes on the Public Hash List.
-       const opts = { create: true, origins: '*' };
-       const handle = await cos.requestFileHandle(hash, opts);
-       const w = await handle.createWritable();
-       await w.write(await loadPhlFile(i));
-       await w.close();
-     }
-   }
-   ```
+```js
+// Same `cos` and `has()` as above. The carriers have to be on the PHL, so
+// the tracker picks small ones that few devices are likely to hold.
+const phlHashes = [
+  { algorithm: 'SHA-256', value: 'e3b0…' },
+  // …31 or more, for redundancy
+];
 
-   **Example.** The same two visits, with the tracker running as each site's own
-   script and the carriers drawn from the PHL.
+// Runs as each site's own script. The read reaches entries another site
+// wrote, because the global scope covers unrelated origins.
+let bits = await Promise.all(phlHashes.map(has));
 
-3. **Through the list scope.** The tracker authors the carrier files itself, so
-   their hashes exist nowhere else and no organic cache hit can fake a positive.
-   A minted hash never reaches the PHL, so the global scope is closed to it, and
-   the list scope carries the read instead: it works for any hash, and
-   GREASE'ing leaves it alone. The tracker runs first-party on both sites, so no
-   frame and no `allow="cross-origin-storage"` is involved.
+// Organic cache hits set a few bits on any device, so the test for an
+// unmarked device relies on the redundancy the identifier carries.
+if (!looksMarked(bits)) {
+  bits = randomBits(phlHashes.length);
+  for (const [i, hash] of phlHashes.entries()) {
+    if (!bits[i]) continue;
+    // `origins: '*'` is what the next site's read needs, and the browser
+    // only honors it for hashes on the Public Hash List.
+    const opts = { create: true, origins: '*' };
+    const handle = await cos.requestFileHandle(hash, opts);
+    const w = await handle.createWritable();
+    await w.write(await loadPhlFile(i));
+    await w.close();
+  }
+}
+```
 
-   Two things bound it. Site A's write has to name site B ahead of time, and the
-   declared list is intersected with what site A's own
-   [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
-   response header authorizes, which injected script cannot forge. That list is
-   capped at a handful of origins, so a tracker can wire up a few site pairs
-   this way and nothing resembling a network.
+**Example.** The same two visits as in Variant 1, with the tracker running as
+each site's own script and the carriers drawn from the PHL.
 
-   ```js
-   // The tracker's own files, so these hashes exist nowhere else on the web.
-   const mintedHashes = [
-     { algorithm: 'SHA-256', value: 'b40d…' },
-     // …31 more
-   ];
+#### Variant 3: Through the list scope
 
-   // On site A, as site A's own origin: mint the identifier and name site B as
-   // the one origin allowed to read it back.
-   const bits = randomBits(mintedHashes.length);
-   const opts = { create: true, origins: ['https://siteb.example'] };
-   for (const [i, hash] of mintedHashes.entries()) {
-     if (!bits[i]) continue;
-     const handle = await cos.requestFileHandle(hash, opts);
-     const w = await handle.createWritable();
-     await w.write(await mintTrackerFile(i));
-     await w.close();
-   }
-   ```
+The tracker authors the carrier files itself, so their hashes exist nowhere else
+and no organic cache hit can fake a positive. A minted hash never reaches the
+PHL, so the global scope is closed to it, and the list scope carries the read
+instead: it works for any hash, and GREASE'ing leaves it alone. The tracker runs
+first-party on both sites, so no frame and no `allow="cross-origin-storage"` is
+involved.
 
-   ```js
-   // Later on site B, first-party as https://siteb.example, the origin site A
-   // named. The answers are noiseless, because nobody else holds these bytes.
-   const recovered = await Promise.all(mintedHashes.map(has));
-   ```
+Two things bound it. Site A's write has to name site B ahead of time, and the
+declared list is intersected with what site A's own
+[`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
+response header authorizes, which injected script cannot forge. That list is
+capped at a handful of origins, so a tracker can wire up a few site pairs this
+way and nothing resembling a network.
 
-   **Example.** `newspaper.example` and `magazine.example` belong to one
-   publisher, which is what lets the newspaper's response header authorize the
-   magazine's origin. A reader marked while reading the newspaper is recognized
-   on the magazine, with no shared cookie and no frame on either site.
+```js
+// The tracker's own files, so these hashes exist nowhere else on the web.
+const mintedHashes = [
+  { algorithm: 'SHA-256', value: 'b40d…' },
+  // …31 more
+];
+
+// On site A, as site A's own origin: mint the identifier and name site B as
+// the one origin allowed to read it back.
+const bits = randomBits(mintedHashes.length);
+const opts = { create: true, origins: ['https://siteb.example'] };
+for (const [i, hash] of mintedHashes.entries()) {
+  if (!bits[i]) continue;
+  const handle = await cos.requestFileHandle(hash, opts);
+  const w = await handle.createWritable();
+  await w.write(await mintTrackerFile(i));
+  await w.close();
+}
+```
+
+```js
+// Later on site B, first-party as https://siteb.example, the origin site A
+// named. The answers are noiseless, because nobody else holds these bytes.
+const recovered = await Promise.all(mintedHashes.map(has));
+```
+
+**Example.** `newspaper.example` and `magazine.example` belong to one publisher,
+which is what lets the newspaper's response header authorize the magazine's
+origin. A reader marked while reading the newspaper is recognized on the
+magazine, with no shared cookie and no frame on either site.
 
 ## Attack 2: Cache-based fingerprinting
 
