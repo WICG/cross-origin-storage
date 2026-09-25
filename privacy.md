@@ -131,17 +131,17 @@ target the rate limiting that constrains the rest.
 
 ## Attack 1: Supercookie
 
+### Objective
+
 The objective is to recognize the same device across unrelated sites, through an
 identifier the tracker plants and later reads back.
+
+### Description
 
 The tracker picks a set of small files and stores a per-device subset on the
 first site, one bit per file. A query for the same set on a second site recovers
 the subset. Eviction and the per-origin storage limit bound its lifetime and
 size, and the tracker refreshes it on each visit.
-
-**Example.** A tracker on a news site stores 32 files, selecting the subset at
-random for this device. A week later, on an unrelated shopping site, it queries
-those 32 hashes, recovers the subset, and links the visits.
 
 The tracker can do this in two ways.
 
@@ -225,12 +225,22 @@ The tracker can do this in two ways.
    }
    ```
 
+### Example
+
+A tracker on a news site stores 32 files, selecting the subset at random for
+this device. A week later, on an unrelated shopping site, it queries those 32
+hashes, recovers the subset, and links the visits.
+
 ---
 
 ## Attack 2: Cache-based fingerprinting
 
+### Objective
+
 The objective is to recognize the same device across unrelated sites, through
 the files it already happens to hold.
+
+### Description
 
 The distinguishing signal is whatever the device accumulated through ordinary
 browsing. The tracker writes nothing.
@@ -240,10 +250,6 @@ contribute nothing and the informative ones are those roughly half of devices
 hold. Enough of them yield a pattern unique to a device, supporting cross-site
 linking. Correlated files reduce the yield, since a font family's subsets and a
 model's shards arrive together and are effectively one observation.
-
-**Example.** The same analytics script on a recipe blog and a local newspaper
-queries the same 60 libraries and fonts. The patterns match across both visits,
-so the script attributes them to one device and merges the browsing records.
 
 ```js
 // Same `cos` and `has()` as above. Nothing is written, so the probe set is
@@ -264,22 +270,27 @@ Reliability is lower than Attack 1, because the tracker works with whatever the
 device holds. It needs no cooperation from the embedding sites beyond script
 inclusion, and it leaves nothing a user could find or clear.
 
+### Example
+
+The same analytics script on a recipe blog and a local newspaper queries the
+same 60 libraries and fonts. The patterns match across both visits, so the
+script attributes them to one device and merges the browsing records.
+
 ---
 
 ## Attack 3: Attribute inference
 
+### Objective
+
 The objective is to assign the user to a targeting cohort, with no identifier
 involved at any point.
+
+### Description
 
 Files carry semantics: a Japanese font subset implies a reading language, a game
 engine implies browser gaming, a speech model implies dictation, and a model
 shipped by one application implies use of that application. Presence alone
 assigns the cohort.
-
-**Example.** An advertising script queries eight in-browser AI models and finds
-one, establishing that the device runs local inference. A query for the Japanese
-subset of a common font is also positive, establishing a language attribute.
-Eight lookups, two accurate targeting attributes, no identifier.
 
 ```js
 // Same `has()` as above. Each probe is picked for what holding the file
@@ -303,18 +314,30 @@ addiction support application supports a strong inference about the user, and
 the browser has no basis for distinguishing that query from a query for a font.
 Keeping such a model off the global scope is the PHL's job.
 
+### Example
+
+An advertising script queries eight in-browser AI models and finds one,
+establishing that the device runs local inference. A query for the Japanese
+subset of a common font is also positive, establishing a language attribute.
+Eight lookups, two accurate targeting attributes, no identifier.
+
 ---
 
 ## Attack 4: History sniffing
 
-The objective is to establish that a device was on `game67.example`, with no
+### Objective
+
+The objective is to establish that a device visited one particular site, with no
 cooperation from that site.
 
-`game67.example` is built with Unity, and the tracker has observed 123 other
-games shipping the same engine build. A probe on that hash comes back positive,
-which places the device on one of the 124 and stays silent about which. That
-same answer already supports the weaker claim of Attack 3, that this is someone
-who plays browser games. Naming the site takes more probes.
+### Description
+
+Take `game67.example` as the site in question. It is built with Unity, and the
+tracker has observed 123 other games shipping the same engine build. A probe on
+that hash comes back positive, which places the device on one of the 124 and
+stays silent about which. That same answer already supports the weaker claim of
+Attack 3, that this is someone who plays browser games. Naming the site takes
+more probes.
 
 Composing probes narrows it, and every file probed is widely deployed in its own
 right, so each one passes admission. `game67.example` also embeds a cookie
@@ -334,11 +357,6 @@ the sites carrying it, and from public crawls like the
 [HTTP Archive](https://httparchive.org/) and
 [Common Crawl](https://commoncrawl.org/), neither of them complete, so a map
 understates where a file appears.
-
-**Example.** An ad network's script on an unrelated news site runs the three
-probes and gets three positives. It records the reader as having been on
-`game67.example`, a site that never loaded that script and never consented to
-the disclosure.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
@@ -369,12 +387,22 @@ const overlap = hits.length
   : [];
 ```
 
+### Example
+
+An ad network's script on an unrelated news site runs the three probes and gets
+three positives. It records the reader as having been on `game67.example`, a
+site that never loaded that script and never consented to the disclosure.
+
 ---
 
 ## Attack 5: Targeted de-anonymization
 
+### Objective
+
 The objective is to decide whether an anonymous visitor is one specific person
 the attacker already knows.
+
+### Description
 
 The relevant quantity here is surprisal: a positive answer on a hash with
 prevalence 10⁻⁴ carries 13 bits. Where a tracker knows a specific person holds
@@ -385,12 +413,6 @@ Large AI models suit this well. Few devices hold any given one, they persist
 across long intervals, and the size-proportionate rule withholds GREASE'ing from
 files whose spurious re-download would be disproportionate, so the answer is
 noise-free exactly where it is most identifying.
-
-**Example.** A researcher signs in to a specialist site and fetches an uncommon
-medical imaging model held by a few thousand devices worldwide. The same
-operator later queries that hash on an unauthenticated forum, gets a positive,
-and has substantial grounds to associate the forum account with the
-authenticated identity.
 
 ```js
 // Same `has()` as above. A single hash, recorded while the person was signed
@@ -405,28 +427,35 @@ const target = { algorithm: 'SHA-256', value: '0b8e…' };
 if (await has(target)) linkToAccount(knownAccount);
 ```
 
+### Example
+
+A researcher signs in to a specialist site and fetches an uncommon medical
+imaging model held by a few thousand devices worldwide. The same operator later
+queries that hash on an unauthenticated forum, gets a positive, and has
+substantial grounds to associate the forum account with the authenticated
+identity.
+
 ---
 
-## Attacks against the lookup budget
+## The lookup budget
 
 The explainer proposes bounding the number of cross-site lookups a site may
-perform. These three attacks target that bound.
+perform. The three attacks that follow target that bound.
 
-### Attack 6: Sybil attack on the budget
+## Attack 6: Sybil attack on the budget
+
+### Objective
 
 The objective is to spend more lookups than the budget allows, by presenting as
 several origins at once.
+
+### Description
 
 An attacker multiplies a budget keyed to the requesting origin by the number of
 origins it brings. Wildcard DNS makes subdomains free, so one tracker presents
 as several origins, embeds each as a frame, partitions the work, and collects
 the answers in the parent through `postMessage`. Independent trackers on one
 page can pool allowances the same way, making this collusion as well as Sybil.
-
-**Example.** At eight lookups per origin per window, four frames on four
-attacker-controlled subdomains spend eight each on disjoint sets, yielding 32
-answers in one page view. This is why the explainer keys the budget to the
-top-level site, shared across every frame.
 
 ```html
 <!-- Four attacker-controlled subdomains, so four separate allowances. -->
@@ -446,18 +475,25 @@ const answers = [];
 addEventListener('message', (e) => answers.push(...e.data));
 ```
 
-### Attack 7: Rate-limit evasion by reload
+### Example
+
+At eight lookups per origin per window, four frames on four attacker-controlled
+subdomains spend eight each on disjoint sets, yielding 32 answers in one page
+view. This is why the explainer keys the budget to the top-level site, shared
+across every frame.
+
+## Attack 7: Rate-limit evasion by reload
+
+### Objective
 
 The objective is to spend more lookups than the budget allows, by resetting the
 counter that holds it.
 
+### Description
+
 A counter bound to a context the attacker controls is a counter the attacker
 resets. A page reloads itself without user interaction, and a per-page-load
 allowance is fresh on each load.
-
-**Example.** At eight lookups per page load, four silent reloads inside two
-seconds yield 32 answers. This is why the count has to persist across reloads
-and navigations.
 
 ```js
 // Spend this load's allowance on a slice of the same `probes` as Attack 2,
@@ -471,10 +507,19 @@ sessionStorage.round = round + 1;
 if (round < 3) location.reload();
 ```
 
-### Attack 8: Cross-site leak through the loading path
+### Example
+
+At eight lookups per page load, four silent reloads inside two seconds yield 32
+answers. This is why the count has to persist across reloads and navigations.
+
+## Attack 8: Cross-site leak through the loading path
+
+### Objective
 
 The objective is to obtain lookups the budget never counts, by taking a path to
 the cache that no script calls.
+
+### Description
 
 The imperative API is one of four paths to the cache. The
 [HTML](README.md#html-integration),
@@ -485,11 +530,6 @@ integrations consult it as well, and return no value to the page.
 The site recovers the bit from its own server logs, the standard XS-Leak pattern
 of reading a side effect in place of a return value: a cache hit produces no
 request, and that silence is the same bit.
-
-**Example.** A tracker places 32 ordinary resource references on its page and
-records which of them reach its server. The eleven producing no request are the
-files the device already held. Thirty-two answers, no call to
-`requestFileHandle()`. This is why a budget has to count all four surfaces.
 
 ```html
 <!-- No COS call anywhere on the page. Ordinary references consult the same
@@ -509,6 +549,13 @@ files the device already held. Thirty-two answers, no call to
 // and silence means it held it. The page never sees the answer.
 const bits = probes.map((probe) => !requestLog.has(probe.path));
 ```
+
+### Example
+
+A tracker places 32 ordinary resource references on its page and records which
+of them reach its server. The eleven producing no request are the files the
+device already held. Thirty-two answers, no call to `requestFileHandle()`. This
+is why a budget has to count all four surfaces.
 
 ---
 
