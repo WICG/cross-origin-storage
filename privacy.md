@@ -455,7 +455,7 @@ understates where a file appears.
 const engineGames = [
   'https://game1.example',
   /* …and many more games */
-  'https://game67.example',
+  'https://game67.example', // ← the target
   'https://game88.example',
   /* …and many more games */
 ];
@@ -465,7 +465,7 @@ const cookieBanner = [
   'https://blog.example',
   'https://game12.example',
   /* …and many more pages */
-  'https://game67.example',
+  'https://game67.example', // ← the target
   'https://forum.example',
   /* …and many more pages */
 ];
@@ -475,7 +475,7 @@ const adSdk = [
   'https://shop.example',
   'https://news.example',
   /* …and many more pages */
-  'https://game67.example',
+  'https://game67.example', // ← the target
   'https://video.example',
   /* …and many more pages */
 ];
