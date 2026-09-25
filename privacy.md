@@ -262,11 +262,11 @@ inclusion, and it leaves nothing a user could find or clear.
 
 ## Attack 3: History sniffing
 
-The goal is the one the `:visited` leaks served: establishing that a device
-visited a particular site, with no cooperation from that site. Say a hundred
-browser games ship the same engine build, and the objective is to establish that
-this device was on Game 67. A probe on the engine's hash comes back positive,
-which places the device on one of the hundred and stays silent about which.
+The objective is to establish that a device was on Game 67, with no cooperation
+from Game 67. That is what the `:visited` leaks did, one URL at a time. Say a
+hundred browser games ship the same engine build. A probe on the engine's hash
+comes back positive, which places the device on one of the hundred and stays
+silent about which.
 
 Composing probes gets there, and every file it probes is widely deployed in its
 own right, so each one passes admission. A German UI pack shipped across
