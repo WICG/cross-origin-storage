@@ -35,21 +35,42 @@ section of the explainer.
 ## Glossary
 
 **Sharing scope.** The `origins` value a write declares, which decides who can
-later learn that the entry exists. The grants add up and are never removed, so a
-scope only ever widens. See [COS entry](README.md#cos-entry) and
-[Availability gating](README.md#availability-gating).
+later learn that the entry exists. A storing origin can always read back what it
+wrote, mirroring the Cache API, and that access needs no declaration. The grants
+add up and are never removed, so a scope only ever widens. See
+[COS entry](README.md#cos-entry) and
+[Availability gating](README.md#availability-gating). A write declares one of
+three things.
 
-- **Storing origin.** An origin that wrote the entry can always read it back,
-  mirroring the Cache API.
-- **Same site.** Same-site origins of a storing origin can read it. This is the
-  default when a write declares nothing.
-- **Explicit list.** Origins named in an `origins` list can read it, whether or
-  not the hash is on the PHL. The list is capped in length and bounded by the
+- **Nothing**, the default, which keeps the entry same-site: only same-site
+  origins of a storing origin can read it.
+
+  ```js
+  await navigator.crossOriginStorage.requestFileHandle(hash, { create: true });
+  ```
+
+- **A list of origins**, which only those origins can read, whether or not the
+  hash is on the PHL. The list is capped in length and bounded by the
   byte-supplying origin's
   [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
   header.
-- **Global, `origins: '*'`.** Any origin can read it, provided the hash is on
-  the PHL. GREASE'ing may still withhold it.
+
+  ```js
+  await navigator.crossOriginStorage.requestFileHandle(hash, {
+    create: true,
+    origins: ['https://calculate.example', 'https://write.example'],
+  });
+  ```
+
+- **`'*'`**, the global scope, which any origin can read, provided the hash is
+  on the PHL. GREASE'ing may still withhold it.
+
+  ```js
+  await navigator.crossOriginStorage.requestFileHandle(hash, {
+    create: true,
+    origins: '*',
+  });
+  ```
 
 **Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
 resources deployed widely enough that confirming their presence says nothing
