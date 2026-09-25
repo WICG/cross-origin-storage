@@ -37,6 +37,17 @@ section of the explainer.
 Any party holding a file's bytes can compute its hash and query it, so the
 addressable set spans the public web and anything the attacker authors.
 
+Almost every attack below runs on the global grant, `origins: '*'`, the only
+scope under which an unrelated origin learns that an entry exists, and then only
+for hashes on the PHL. The narrower scopes carry nothing across a site boundary:
+the same-site default keeps reads inside one site, and an explicit `origins`
+list is capped in length and bounded by the byte-supplying origin's
+[`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
+header, so a tracker can neither approximate the web with it nor name origins
+the operator never authorized. Attack 1's embedded frame is the exception: it
+reads back its own entries as a storing origin, which is why it needs
+`allow="cross-origin-storage"` from each embedding site.
+
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion. That is the scale every
 attack below accumulates toward and every mitigation tries to bound. How much an
