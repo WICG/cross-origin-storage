@@ -37,11 +37,12 @@ section of the explainer.
 Any party holding a file's bytes can compute its hash and query it, so the
 addressable set spans the public web and anything the attacker authors.
 
-Almost every attack below runs on the global grant, `origins: '*'`, the only
-scope under which an unrelated origin learns that an entry exists, and then only
-for hashes on the PHL. The narrower scopes carry nothing across a site boundary:
-the same-site default keeps reads inside one site, and an explicit `origins`
-list is capped in length and bounded by the byte-supplying origin's
+Almost every attack below runs on the global grant, `origins: '*'`, the broadest
+of the [sharing scopes an entry can carry](README.md#cos-entry) and the only one
+under which an unrelated origin learns that an entry exists, and then only for
+hashes on the PHL. The narrower scopes carry nothing across a site boundary: the
+same-site default keeps reads inside one site, and an explicit `origins` list is
+capped in length and bounded by the byte-supplying origin's
 [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
 header, so a tracker can neither approximate the web with it nor name origins
 the operator never authorized. Attack 1's embedded frame is the exception: it
