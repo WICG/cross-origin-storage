@@ -115,10 +115,10 @@ Almost every attack below runs on the global scope, the one under which an
 origin with no prior relationship to an entry learns that it exists. A tracker
 cannot approximate the web with an explicit list, and the same-site default
 carries nothing across a site boundary. Attack 1 supplies the two exceptions,
-and each costs the tracker something every embedding site has to supply: its
+and each costs the tracker something every participating site has to supply: its
 embedded frame reads back its own entries as a storing origin, which takes
 `allow="cross-origin-storage"` from each site, and its list-scoped variant takes
-a response header from each site naming the tracker's origin.
+a response header from the writing site naming the reading one.
 
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion. That is the scale every
@@ -238,16 +238,17 @@ The tracker can do this in three ways.
 
 3. **Through the list scope.** The tracker authors the carrier files itself, so
    their hashes exist nowhere else and no organic cache hit can fake a positive.
-   A freshly minted hash never reaches the PHL, so the global scope is closed to
-   it, and the list scope carries the read instead: it works for any hash, and
-   GREASE'ing leaves it alone. This variant is noiseless, and it needs no
-   `allow="cross-origin-storage"` from the embedding sites. What it does need is
-   a
+   A minted hash never reaches the PHL, so the global scope is closed to it, and
+   the list scope carries the read instead: it works for any hash, and
+   GREASE'ing leaves it alone. The tracker runs first-party on both sites, so no
+   frame and no `allow="cross-origin-storage"` is involved.
+
+   Two things bound it. Site A's write has to name site B ahead of time, and the
+   declared list is intersected with what site A's own
    [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
-   header on each participating site's own document response naming the
-   tracker's origin, since the declared list is intersected with what that
-   header authorizes and injected script cannot forge it. A tracker's
-   integration instructions are a plausible way for that header to appear.
+   response header authorizes, which injected script cannot forge. That list is
+   capped at a handful of origins, so a tracker can wire up a few site pairs
+   this way and nothing resembling a network.
 
    ```js
    // The tracker's own files, so these hashes exist nowhere else on the web.
@@ -256,9 +257,10 @@ The tracker can do this in three ways.
      // …31 more
    ];
 
-   // On each participating site, running as that site's own origin. `bits` is
-   // minted as in the frame variant.
-   const opts = { create: true, origins: ['https://tracker.example'] };
+   // On site A, as site A's own origin: mint the identifier and name site B as
+   // the one origin allowed to read it back.
+   const bits = randomBits(mintedHashes.length);
+   const opts = { create: true, origins: ['https://siteb.example'] };
    for (const [i, hash] of mintedHashes.entries()) {
      if (!bits[i]) continue;
      const handle = await cos.requestFileHandle(hash, opts);
@@ -269,8 +271,8 @@ The tracker can do this in three ways.
    ```
 
    ```js
-   // Later, running as https://tracker.example, which every site named. The
-   // answers are noiseless, because nobody else on the web holds these bytes.
+   // Later on site B, first-party as https://siteb.example, the origin site A
+   // named. The answers are noiseless, because nobody else holds these bytes.
    const recovered = await Promise.all(mintedHashes.map(has));
    ```
 
