@@ -155,25 +155,23 @@ The tracker can do this in two ways.
    ];
 
    // Read first: a storing origin sees whatever it stored on any earlier site.
-   const bits = await Promise.all(trackerHashes.map(has));
-
-   // Pack the hit/miss answers into one 32-bit integer.
-   let id = bits.reduce((n, b, i) => n | (b << i), 0) >>> 0;
+   // One hit or miss per hash, and those 32 answers are the identifier.
+   let bits = await Promise.all(trackerHashes.map(has));
 
    // Nothing came back, so this is a new device. Mint an identifier and
    // store the file for each bit that is set, fetching bytes only for those.
-   if (id === 0) {
-     id = randomIdentifier();
+   if (!bits.includes(true)) {
+     bits = randomBits(trackerHashes.length);
      for (const [i, hash] of trackerHashes.entries()) {
-       // id >>> i moves bit i down to the low position and & 1 isolates it,
-       // so this skips every hash whose bit is not set.
-       if (!((id >>> i) & 1)) continue;
+       if (!bits[i]) continue;
        const handle = await cos.requestFileHandle(hash, { create: true });
        const w = await handle.createWritable();
        await w.write(await loadTrackerFile(i));
        await w.close();
      }
    }
+
+   const id = bits.join(''); // '10110…'
    ```
 
 2. **Through the Public Hash List.** A tracker running as the site's own script
@@ -185,7 +183,7 @@ The tracker can do this in two ways.
    and GREASE'ing produces false negatives, so the tracker adds redundancy.
 
    ```js
-   // Same cos, has, and id as above, but the carriers have to be on the PHL,
+   // Same cos, has, and bits as above, but the carriers have to be on the PHL,
    // so the tracker picks well-known public files and serves their real bytes.
    const phlHashes = [
      { algorithm: 'SHA-256', value: 'e3b0…' },
@@ -195,8 +193,7 @@ The tracker can do this in two ways.
    // Site A, as the site's own origin: the global scope is what makes the
    // entry readable from anywhere else.
    for (const [i, hash] of phlHashes.entries()) {
-     // Again, only the hashes whose bit is set.
-     if (!((id >>> i) & 1)) continue;
+     if (!bits[i]) continue;
      const opts = { create: true, origins: '*' };
      const handle = await cos.requestFileHandle(hash, opts);
      const w = await handle.createWritable();
@@ -206,7 +203,7 @@ The tracker can do this in two ways.
 
    // Site B, a different origin: the read succeeds through the global scope,
    // which only applies to hashes on the Public Hash List.
-   const bits = await Promise.all(phlHashes.map(has));
+   const recovered = await Promise.all(phlHashes.map(has));
    ```
 
 **Example.** A tracker on a news site stores 32 files, selecting the subset at
