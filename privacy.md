@@ -179,13 +179,13 @@ The tracker can do this in two ways.
    second site requires globally readable entries, meaning
    [Public Hash List](public-hash-list/phl-explainer.md) hashes written with
    `origins: '*'`. The tracker therefore carries the identifier in a subset of
-   well-known public files. This variant is noisier: organic cache hits produce
-   false positives, and GREASE'ing produces false negatives, so the tracker adds
-   redundancy.
+   listed files that are small and, despite being on the PHL, comparatively
+   rare. This variant is noisier: organic cache hits produce false positives,
+   and GREASE'ing produces false negatives, so the tracker adds redundancy.
 
    ```js
    // Same cos, has, and bits as above, but the carriers have to be on the PHL,
-   // so the tracker picks well-known public files and serves their real bytes.
+   // so the tracker picks small ones that few devices are likely to hold.
    const phlHashes = [
      { algorithm: 'SHA-256', value: 'e3b0…' },
      // …31 more
