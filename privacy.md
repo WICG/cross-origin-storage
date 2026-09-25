@@ -262,11 +262,10 @@ inclusion, and it leaves nothing a user could find or clear.
 
 ## Attack 3: Attribute inference
 
-The tracker establishes no identifier, which is what makes this resistant to
-every mitigation aimed at identifiers. Files carry semantics: a Japanese font
-subset implies a reading language, a game engine implies browser gaming, a
-speech model implies dictation, and a model shipped by one application implies
-use of that application. Presence alone assigns the cohort.
+Files carry semantics: a Japanese font subset implies a reading language, a game
+engine implies browser gaming, a speech model implies dictation, and a model
+shipped by one application implies use of that application. Presence alone
+assigns the cohort.
 
 **Example.** An advertising script queries eight in-browser AI models and finds
 one, establishing that the device runs local inference. A query for the Japanese
