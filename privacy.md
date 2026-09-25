@@ -6,14 +6,14 @@
 # Privacy and Cross-Origin Storage
 
 [Cross-Origin Storage](README.md) (COS) is a content-addressable cache shared
-across origins. A file is identified by the cryptographic hash of its contents,
+across origins. COS identifies a file by the cryptographic hash of its contents,
 with no reference to where those contents came from, so identical bytes converge
 on a single entry however each site obtained them. The hash doubles as an
 integrity guarantee: the browser verifies the bytes against it at write time, so
 a site can use an entry some other origin stored without having to trust that
 origin. A site requests a file by hash, and the browser serves it without a
 network request when _(i)_ it already has bytes matching that hash, and _(ii)_
-the requesting origin is permitted to see them.
+the entry's grants permit the requesting origin to see them.
 
 The benefit is the elimination of redundant downloads. A file fetched on one
 site is available immediately on the next, reducing bandwidth, load latency,
@@ -63,16 +63,16 @@ The tracker constructs the identifier, so this attack is independent of the
 device's existing contents and of the prevalence distribution the read-side
 attacks depend on.
 
-A set of small files is chosen, and a per-device subset is stored on the first
-site, one bit per file. A query for the same set on a second site recovers the
-subset. Clearing cookies has no effect, since the identifier lives in the shared
-cache. Eviction and the per-origin storage limit bound its lifetime and size,
-and the tracker refreshes it on each visit.
+The tracker picks a set of small files and stores a per-device subset on the
+first site, one bit per file. A query for the same set on a second site recovers
+the subset. Clearing cookies has no effect, since the identifier lives in the
+shared cache. Eviction and the per-origin storage limit bound its lifetime and
+size, and the tracker refreshes it on each visit.
 
-**Through an embedded frame.** An iframe from `tracker.example` on both sites,
-granted `allow="cross-origin-storage"` by each, writes under its own origin. A
-storing origin can always read its own entries, so recovery is exact: the Public
-Hash List, GREASE'ing, and the `origins` grants are all bypassed.
+**Through an embedded frame.** Both sites embed an iframe from `tracker.example`
+and grant it `allow="cross-origin-storage"`, so the tracker writes under its own
+origin. A storing origin can always read its own entries, so the recovery
+bypasses the Public Hash List, GREASE'ing, and the `origins` grants entirely.
 
 **Through the Public Hash List.** A tracker running as the site's own script
 writes under that site's origin, unreadable elsewhere. Reaching it from a second
@@ -91,8 +91,8 @@ the interval is irrelevant.
 
 ## Attack 2: Cache-based fingerprinting
 
-The distinguishing signal is the set of files accumulated through ordinary
-browsing. No writes are involved.
+The distinguishing signal is the set of files the device accumulated through
+ordinary browsing. The tracker writes nothing.
 
 Entropy per query peaks at a prevalence near one half, so near-universal files
 contribute nothing and the informative ones are those roughly half of devices
@@ -124,17 +124,17 @@ no guarantee over conjunctions.
 **Example.** A hobby-blog plugin ships a distinctive stylesheet deployed on
 roughly three hundred sites, establishing that the device visited one of them. A
 second query, for a file specific to a German-language theme, is also positive.
-Four sites deploy both, so history is narrowed to four candidates.
+Four sites deploy both, so the tracker narrows the history to four candidates.
 
 ---
 
 ## Attack 4: Attribute inference
 
-No identifier is established, which is what makes this resistant to every
-mitigation aimed at identifiers. Files carry semantics: a Japanese font subset
-implies a reading language, a game engine implies browser gaming, a speech model
-implies dictation, and a model shipped by one application implies use of that
-application. Cohort assignment follows directly from presence.
+The tracker establishes no identifier, which is what makes this resistant to
+every mitigation aimed at identifiers. Files carry semantics: a Japanese font
+subset implies a reading language, a game engine implies browser gaming, a
+speech model implies dictation, and a model shipped by one application implies
+use of that application. Presence alone assigns the cohort.
 
 **Example.** An advertising script queries eight in-browser AI models and finds
 one, establishing that the device runs local inference. A query for the Japanese
@@ -174,8 +174,8 @@ perform. These three attacks target that bound.
 
 ### Attack 6: Sybil attack on the budget
 
-A budget keyed to the requesting origin is multiplied by the number of origins
-the attacker brings. Wildcard DNS makes subdomains free, so one tracker presents
+An attacker multiplies a budget keyed to the requesting origin by the number of
+origins it brings. Wildcard DNS makes subdomains free, so one tracker presents
 as several origins, embeds each as a frame, partitions the work, and collects
 the answers in the parent through `postMessage`. Independent trackers on one
 page can pool allowances the same way, making this collusion as well as Sybil.
@@ -208,15 +208,15 @@ of reading a side effect in place of a return value: a cache hit produces no
 request, and that silence is the same bit.
 
 **Example.** A tracker places 32 ordinary resource references on its page and
-records which its server is asked for. The eleven producing no request are the
-files already held. Thirty-two answers, no call to `requestFileHandle()`. This
-is why a budget has to count all four surfaces.
+records which of them reach its server. The eleven producing no request are the
+files the device already held. Thirty-two answers, no call to
+`requestFileHandle()`. This is why a budget has to count all four surfaces.
 
 ---
 
 ## Attacks the design rules out
 
-Both are recorded because they reopen if these properties are relaxed.
+Both appear here because relaxing these properties would reopen them.
 
 ### Existence oracle through in-progress writes
 
