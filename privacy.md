@@ -129,6 +129,10 @@ first site, one bit per file. A query for the same set on a second site recovers
 the subset. Eviction and the per-origin storage limit bound its lifetime and
 size, and the tracker refreshes it on each visit.
 
+**Example.** A tracker on a news site stores 32 files, selecting the subset at
+random for this device. A week later, on an unrelated shopping site, it queries
+those 32 hashes, recovers the subset, and links the visits.
+
 The tracker can do this in two ways.
 
 1. **Through an embedded frame.** Both sites embed an iframe from
@@ -210,10 +214,6 @@ The tracker can do this in two ways.
      }
    }
    ```
-
-**Example.** A tracker on a news site stores 32 files, selecting the subset at
-random for this device. A week later, on an unrelated shopping site, it queries
-those 32 hashes, recovers the subset, and links the visits.
 
 ---
 
