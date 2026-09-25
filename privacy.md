@@ -276,6 +276,24 @@ roughly three hundred sites, establishing that the device visited one of them. A
 second query, for a file specific to a German-language theme, is also positive.
 Four sites deploy both, so the tracker narrows the history to four candidates.
 
+```js
+// Same `cos` and `has()` as above. Each probe is a file whose deployment the
+// tracker crawled, so a hit maps to the set of sites known to ship it. Narrow
+// deployments are what pay off here.
+const deployments = new Map([
+  ['a7c2…', hobbyBlogs], // ~300 sites running one blog plugin
+  ['9f04…', germanSites], // ~200 sites using a German-language theme
+]);
+
+// Every hit constrains the history further, and the intersection of the
+// matched sets is the candidate list.
+let candidates = null;
+for (const [value, sites] of deployments) {
+  if (!(await has({ algorithm: 'SHA-256', value }))) continue;
+  candidates = candidates?.filter((site) => sites.includes(site)) ?? sites;
+}
+```
+
 ---
 
 ## Attack 4: Attribute inference
@@ -290,6 +308,23 @@ use of that application. Presence alone assigns the cohort.
 one, establishing that the device runs local inference. A query for the Japanese
 subset of a common font is also positive, establishing a language attribute.
 Eight lookups, two accurate targeting attributes, no identifier.
+
+```js
+// Same `has()` as above. Each probe is picked for what holding the file
+// implies about the user, and carries the attribute it evidences.
+const semantics = [
+  { value: 'd31b…', attribute: 'runs local inference' },
+  { value: '6ea0…', attribute: 'reads Japanese' },
+  // …6 more
+];
+
+// The positives are the cohort. Nothing is written, and nothing here
+// separates this device from any other holding the same files.
+const cohort = [];
+for (const { value, attribute } of semantics) {
+  if (await has({ algorithm: 'SHA-256', value })) cohort.push(attribute);
+}
+```
 
 Sensitivity varies with the file. A model distributed by a mental health or
 addiction support application supports a strong inference about the user, and
@@ -315,6 +350,19 @@ operator later queries that hash on an unauthenticated forum, gets a positive,
 and has substantial grounds to associate the forum account with the
 authenticated identity.
 
+```js
+// Same `has()` as above. A single hash, recorded while the person was signed
+// in on another property the same operator runs: a model held by a few
+// thousand devices worldwide, so its prevalence is around 10⁻⁴.
+const target = { algorithm: 'SHA-256', value: '0b8e…' };
+
+// On an unauthenticated page, a positive answer is some 13 bits of evidence
+// that this is the same person. The file is large enough that the
+// size-proportionate rule withholds GREASE'ing, so the answer carries no
+// noise.
+if (await has(target)) linkToAccount(knownAccount);
+```
+
 ---
 
 ## Attacks against the lookup budget
@@ -335,6 +383,23 @@ attacker-controlled subdomains spend eight each on disjoint sets, yielding 32
 answers in one page view. This is why the explainer keys the budget to the
 top-level site, shared across every frame.
 
+```html
+<!-- Four attacker-controlled subdomains, so four separate allowances. -->
+<iframe src="https://a0.tracker.example/" allow="cross-origin-storage"></iframe>
+<iframe src="https://a1.tracker.example/" allow="cross-origin-storage"></iframe>
+<!-- …a2 and a3 -->
+```
+
+```js
+// In each frame, spending that origin's whole allowance on a disjoint slice.
+const mine = probes.slice(n * 8, n * 8 + 8);
+parent.postMessage(await Promise.all(mine.map(has)), '*');
+
+// In the parent, reassembling 32 answers out of four allowances of eight.
+const answers = [];
+addEventListener('message', (e) => answers.push(...e.data));
+```
+
 ### Attack 7: Rate-limit evasion by reload
 
 A counter bound to a context the attacker controls is a counter the attacker
@@ -344,6 +409,17 @@ allowance is fresh on each load.
 **Example.** At eight lookups per page load, four silent reloads inside two
 seconds yield 32 answers. This is why the count has to persist across reloads
 and navigations.
+
+```js
+// Spend this load's allowance, stash what came back, and reload for a fresh
+// one. Four loads inside two seconds cover the same 32 hashes.
+const round = Number(sessionStorage.round ?? 0);
+const mine = probes.slice(round * 8, round * 8 + 8);
+
+sessionStorage.setItem(round, JSON.stringify(await Promise.all(mine.map(has))));
+sessionStorage.round = round + 1;
+if (round < 3) location.reload();
+```
 
 ### Attack 8: Cross-site leak through the loading path
 
@@ -361,6 +437,25 @@ request, and that silence is the same bit.
 records which of them reach its server. The eleven producing no request are the
 files the device already held. Thirty-two answers, no call to
 `requestFileHandle()`. This is why a budget has to count all four surfaces.
+
+```html
+<!-- No COS call anywhere on the page. Ordinary references consult the same
+     cache, one per bit. -->
+<link
+  rel="stylesheet"
+  href="https://tracker.example/p0.css"
+  integrity="sha256-YWJj…"
+  crossoriginstorage="*"
+/>
+<!-- …31 more, p1 through p31 -->
+```
+
+```js
+// On the tracker's own server: a request for p7.css means the device lacked
+// that file, and silence means it held it. The page never sees the answer,
+// and never has to.
+const bits = probes.map((probe) => !requestLog.has(probe.path));
+```
 
 ---
 
