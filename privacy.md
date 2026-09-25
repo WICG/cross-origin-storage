@@ -34,17 +34,10 @@ section of the explainer.
 
 ## Preliminaries
 
-Content addressing means no prior relationship with a file's publisher is
-required: any party holding the bytes can compute the hash and query it. The
-addressable set is therefore the entire public web, plus anything the attacker
-authors.
-
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion, and that is the scale
-every attack below accumulates toward and every mitigation tries to bound. It is
-a scale with no guarantee attached: collisions keep a uniform 32-bit space from
-making everyone unique, and a device holding rare files is singled out by far
-fewer bits. How much an attacker reaches in practice is an empirical question:
+every attack below accumulates toward and every mitigation tries to bound. How
+much an attacker reaches in practice is an empirical question:
 [Gómez-Boix et al.](https://doi.org/10.1145/3178876.3186097) (WWW 2018) analyzed
 2,067,942 browser fingerprints from a top-15 French website and found 33.6% of
 them unique, against the rates above 80% that earlier, self-selected samples had
