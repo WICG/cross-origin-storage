@@ -133,6 +133,25 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
+The ten attacks, and how far a mitigation reaches against each. **Completely**
+means the mitigation the explainer proposes closes the evasion it targets.
+**Partially** means it raises the cost and slows accumulation without ending it.
+**By design** means the current design already rules the attack out, and it
+appears here because relaxing that property would reopen it.
+
+| Attack                                                                                                                         | Objective                                                                                                  | Solvable with mitigation |
+| ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------ |
+| [Attack 1: Supercookie](#attack-1-supercookie)                                                                                 | Recognize the same device across unrelated sites, through an identifier the tracker plants and reads back. | Partially                |
+| [Attack 2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                   | Recognize the same device across unrelated sites, through the files it already happens to hold.            | Partially                |
+| [Attack 3: Attribute inference](#attack-3-attribute-inference)                                                                 | Assign the user to a targeting cohort, with no identifier involved at any point.                           | Partially                |
+| [Attack 4: History sniffing](#attack-4-history-sniffing)                                                                       | Establish that a device visited one particular site, with no cooperation from that site.                   | Partially                |
+| [Attack 5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                     | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | Partially                |
+| [Attack 6: Sybil attack on the budget](#attack-6-sybil-attack-on-the-budget)                                                   | Spend more lookups than the budget allows, by presenting as several origins at once.                       | Completely               |
+| [Attack 7: Rate-limit evasion by reload](#attack-7-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | Completely               |
+| [Attack 8: Cross-site leak by combining COS integration points](#attack-8-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | Completely               |
+| [Attack 9: Existence oracle through in-progress writes](#attack-9-existence-oracle-through-in-progress-writes)                 | Learn whether the device holds a file in the cases where a read refuses to say.                            | By design                |
+| [Attack 10: Timing side channel](#attack-10-timing-side-channel)                                                               | Read the answer a refusal withholds, out of how long the refusal takes.                                    | By design                |
+
 ## Attack 1: Supercookie
 
 ### Objective
