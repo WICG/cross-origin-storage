@@ -332,12 +332,17 @@ cooperation from that site.
 
 ### Description
 
-Take `game67.example` as the site in question. It is built with a popular game
-engine, and the tracker has observed about 200 games shipping the same engine
-build. A probe on that hash comes back positive, which places the device on one
-of those 200 and stays silent about which. That same answer already supports the
-weaker claim of Attack 3, that this is someone who plays browser games. Naming
-the site takes more probes.
+The attacker starts on the target site. Loading `game67.example` and recording
+which COS-eligible resources it fetches yields the candidate hashes, and mapping
+where else each of those is deployed yields the roster that later answers are
+read against.
+
+`game67.example` is built with a popular game engine, and the tracker has
+observed about 200 games shipping the same engine build. A probe on that hash
+comes back positive, which places the device on one of those 200 and stays
+silent about which. That same answer already supports the weaker claim of Attack
+3, that this is someone who plays browser games. Naming the site takes more
+probes.
 
 Composing probes narrows it, and every file probed is widely deployed in its own
 right, so each one passes PHL admission. `game67.example` also embeds a cookie
@@ -349,12 +354,10 @@ with an unrelated visit elsewhere, so the result is evidence short of proof,
 sharpening the fewer sites a person visits. Per-resource k-anonymity carries no
 guarantee over conjunctions.
 
-None of this works without the roster. The attacker has to know which games ship
-that engine build and which three of them carry the cookie banner library, since
-an answer about contents says nothing about a site until a deployment map names
-the sites. Trackers build one from what their own script sees load across the
-sites carrying it, and from public crawls like the
-[HTTP Archive](https://httparchive.org/) and
+Building that roster is the expensive half, since an answer about contents says
+nothing about a site until a deployment map names the sites. Trackers assemble
+one from what their own script sees load across the sites carrying it, and from
+public crawls like the [HTTP Archive](https://httparchive.org/) and
 [Common Crawl](https://commoncrawl.org/), neither of them complete, so a map
 understates where a file appears.
 
