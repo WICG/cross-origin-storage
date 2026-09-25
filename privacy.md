@@ -239,6 +239,21 @@ model's shards arrive together and are effectively one observation.
 queries the same 60 libraries and fonts. The patterns match across both visits,
 so the script attributes them to one device and merges the browsing records.
 
+```js
+// Same `cos` and `has()` as above. Nothing is written, so the probe set is
+// chosen purely for yield: PHL hashes the tracker measured near one half
+// prevalence on its own panel, and one file per correlated family, so that a
+// font's subsets do not count as several observations.
+const probes = [
+  { algorithm: 'SHA-256', value: 'c1f5…' },
+  // …59 more
+];
+
+// The pattern of hits is the fingerprint. The same script on another site
+// computes it again and compares.
+const fingerprint = (await Promise.all(probes.map(has))).join('');
+```
+
 Reliability is lower than Attack 1, because the tracker works with whatever the
 device holds. It needs no cooperation from the embedding sites beyond script
 inclusion, and it leaves nothing a user could find or clear.
