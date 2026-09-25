@@ -407,10 +407,11 @@ the attacker already knows.
 
 ### Description
 
-The relevant quantity here is surprisal: a positive answer on a hash with
-prevalence 10⁻⁴ carries 13 bits. Where a tracker knows a specific person holds
-an unusual file, observed during an authenticated session, one query elsewhere
-approximates a test for that person.
+What matters here is how much a single positive answer tells the attacker. A hit
+on a file that one device in ten thousand holds carries about 13 bits, and a hit
+on a file most devices hold carries almost none. Where a tracker knows that a
+specific person holds an unusual file, observed during an authenticated session,
+one query elsewhere approximates a test for that person.
 
 Large AI models suit this well. Few devices hold any given one, they persist
 across long intervals, and the size-proportionate rule withholds GREASE'ing from
@@ -433,10 +434,10 @@ if (await has(target)) linkToAccount(knownAccount);
 ### Example
 
 A researcher signs in to a specialist site and fetches an uncommon medical
-imaging model held by a few thousand devices worldwide. The same operator later
-queries that hash on an unauthenticated forum, gets a positive, and has
-substantial grounds to associate the forum account with the authenticated
-identity.
+imaging model held by a few thousand devices worldwide. That site's operator
+also runs a script on an unauthenticated forum, queries the same hash there,
+gets a positive, and has substantial grounds to tie the forum account to the
+researcher's signed-in identity.
 
 ---
 
