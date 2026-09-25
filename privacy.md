@@ -280,6 +280,18 @@ sharpens the fewer sites the person visits in the period. Per-resource
 k-anonymity carries no guarantee over conjunctions, and the overlap is evidence
 of a visit rather than proof of one.
 
+Mapping hashes to deployment sets is the preparatory work this attack requires,
+and a tracker has three ways to do it. A script running on a large number of
+sites observes what each of them loads, which yields a map over exactly the
+population the tracker can act on. Public crawls cover the rest: the
+[HTTP Archive](https://httparchive.org/) publishes response bodies and their
+hashes for millions of pages monthly, and
+[Common Crawl](https://commoncrawl.org/) reaches further with less detail. The
+PHL itself supplies candidate hashes, since admission requires the wide
+deployment that makes a file worth crawling for. No such map is complete, so it
+understates where a file appears, and a tracker treating its computed overlap as
+exhaustive is more confident than the evidence supports.
+
 **Example.** A game engine's WebAssembly build is deployed on roughly three
 hundred sites and its German-language UI pack on two hundred. Both probes are
 positive, and four sites deploy both. The tracker takes those four as the
@@ -289,8 +301,8 @@ German-speaking player, is Attack 4.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
-// tracker crawled, so a hit says the device visited at least one origin in
-// that file's set. Narrow sets are worth the most.
+// tracker mapped beforehand, so a hit says the device visited at least one
+// origin in that file's set. Narrow sets are worth the most.
 const deployments = new Map([
   // ~300 sites embedding the same build of one game engine.
   ['a7c2…', ['https://play.example', 'https://arcade.example']],
