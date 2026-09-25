@@ -444,11 +444,11 @@ if (await has(target)) linkToAccount(knownAccount);
 ### Example
 
 A researcher's work involves an uncommon medical imaging model that a few
-thousand devices worldwide hold, so their browser has it stored. An attacker
-suspects that a particular anonymous forum account belongs to that researcher,
-and needs only script on a page the account loads, which an ad slot supplies.
-One probe for the model's hash comes back positive, which is substantial grounds
-for tying the account to the researcher.
+thousand devices worldwide hold, so their browser has it stored. The attacker
+runs a forum where that researcher is suspected of posting anonymously, and adds
+one probe for the model's hash to the pages the account is reading. It comes
+back positive, which is substantial grounds for tying the account to the
+researcher.
 
 ---
 
