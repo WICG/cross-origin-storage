@@ -69,6 +69,10 @@ the subset. Clearing cookies has no effect, since the identifier lives in the
 shared cache. Eviction and the per-origin storage limit bound its lifetime and
 size, and the tracker refreshes it on each visit.
 
+The tracker can do this in two ways. They differ in how it runs on the page,
+which grant carries the read on the second site, and what each one needs from
+the embedding sites.
+
 **Through an embedded frame.** Both sites embed an iframe from `tracker.example`
 and grant it `allow="cross-origin-storage"`, so the tracker writes under its own
 origin. A storing origin can always read its own entries, so the recovery
