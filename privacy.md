@@ -296,9 +296,8 @@ is Attack 4.
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
 // tracker mapped beforehand, so a hit says the device visited at least one
-// origin in that file's set.
-// The three deployment sets, truncated here. Each of these files is widely
-// deployed on its own, so each one passes PHL admission.
+// origin in that set. Every one of these files is widely deployed, so each
+// passes PHL admission. The sets are truncated here.
 const unityGames = ['https://game1.example', 'https://game67.example'];
 const cookieBanner = ['https://game12.example', 'https://game67.example'];
 const adSdk = ['https://game67.example', 'https://shop.example'];
@@ -315,9 +314,9 @@ for (const [value, sites] of deployments) {
 }
 
 // The overlap is the shortest history consistent with every hit, here just
-// `game67.example`. It is a hypothesis: visits to a different site in each set produce
-// the same answers, so the tracker weighs that against how much it expects
-// this device to browse.
+// `game67.example`. It is a hypothesis: visits to a different site in each
+// set produce the same answers, so the tracker weighs that against how much
+// it expects this device to browse.
 const overlap = hits.length
   ? hits.reduce((a, b) => a.filter((site) => b.includes(site)))
   : [];
