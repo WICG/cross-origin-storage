@@ -262,34 +262,36 @@ inclusion, and it leaves nothing a user could find or clear.
 
 ## Attack 3: History sniffing
 
-The objective is to establish that a device was on Game 67, with no cooperation
-from Game 67. That is what the `:visited` leaks did, one URL at a time. Say a
-hundred browser games ship the same engine build. A probe on the engine's hash
-comes back positive, which places the device on one of the hundred and stays
-silent about which.
+The objective is to establish that a device was on `game67.example`, with no
+cooperation from that site.
 
-Composing probes gets there, and every file it probes is widely deployed in its
-own right, so each one passes admission. A German UI pack shipped across
-thousands of German-language sites narrows the hundred to the three that carry
-it, Game 12, Game 67, and Game 88. An ad SDK bundle present on thousands of
-sites more, Game 67 among them, leaves one. Each positive is also consistent
-with an unrelated visit elsewhere, so the result is evidence short of proof,
-sharpening the fewer sites a person visits. Per-resource k-anonymity carries no
-guarantee over conjunctions.
+`game67.example` is built with Unity, and the tracker has observed 123 other
+games shipping the same engine build. A probe on that hash comes back positive,
+which places the device on one of the 124 and stays silent about which.
 
-None of this works without the roster. The attacker has to know that those
-hundred games ship that engine and which three carry the UI pack, since an
-answer about contents says nothing about a site until a deployment map names the
-sites. Trackers build one from what their own script sees load across the sites
-carrying it, and from public crawls like the
+Composing probes narrows it, and every file probed is widely deployed in its own
+right, so each one passes admission. `game67.example` also embeds a cookie
+banner library served identically to some 2,000 pages, three of them among the
+124 Unity games. A positive on that hash leaves `game12.example`,
+`game67.example`, and `game88.example`. A third probe, on an ad SDK bundle
+present on thousands of pages and used by `game67.example`, leaves one. Each
+positive is also consistent with an unrelated visit elsewhere, so the result is
+evidence short of proof, sharpening the fewer sites a person visits.
+Per-resource k-anonymity carries no guarantee over conjunctions.
+
+None of this works without the roster. The attacker has to know which 124 games
+ship that engine build and which three of them carry the cookie banner library,
+since an answer about contents says nothing about a site until a deployment map
+names the sites. Trackers build one from what their own script sees load across
+the sites carrying it, and from public crawls like the
 [HTTP Archive](https://httparchive.org/) and
 [Common Crawl](https://commoncrawl.org/), neither of them complete, so a map
 understates where a file appears.
 
-**Example.** Three probes take the field from a hundred candidates to one, and
-an ad network records a visit to Game 67 from a page that has nothing to do with
-gaming. The cohort the same answers imply, a German-speaking player, is
-Attack 4.
+**Example.** Three probes take the field from 124 candidates to one, and an ad
+network records a visit to `game67.example` from a page that has nothing to do
+with gaming. The cohort the same answers imply, someone who plays browser games,
+is Attack 4.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
@@ -297,14 +299,14 @@ Attack 4.
 // origin in that file's set.
 // The three deployment sets, truncated here. Each of these files is widely
 // deployed on its own, so each one passes PHL admission.
-const engineGames = ['https://game1.example', 'https://game67.example'];
-const germanPack = ['https://game12.example', 'https://game67.example'];
+const unityGames = ['https://game1.example', 'https://game67.example'];
+const cookieBanner = ['https://game12.example', 'https://game67.example'];
 const adSdk = ['https://game67.example', 'https://shop.example'];
 
 const deployments = new Map([
-  ['a7c2…', engineGames], // the engine build, all hundred games
-  ['9f04…', germanPack], // the German UI pack, Games 12, 67, and 88
-  ['5b31…', adSdk], // an ad SDK bundle, Game 67 and thousands of others
+  ['a7c2…', unityGames], // the Unity build, 124 games
+  ['9f04…', cookieBanner], // the cookie banner library, some 2,000 pages
+  ['5b31…', adSdk], // an ad SDK bundle, thousands of pages
 ]);
 
 const hits = [];
@@ -313,7 +315,7 @@ for (const [value, sites] of deployments) {
 }
 
 // The overlap is the shortest history consistent with every hit, here just
-// Game 67. It is a hypothesis: visits to a different site in each set produce
+// `game67.example`. It is a hypothesis: visits to a different site in each set produce
 // the same answers, so the tracker weighs that against how much it expects
 // this device to browse.
 const overlap = hits.length
