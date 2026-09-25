@@ -454,22 +454,24 @@ understates where a file appears.
 // The engine build, which about 200 games ship.
 const engineGames = [
   'https://game1.example',
-  /* …198 more */
+  /* …and many more games */
   'https://game67.example',
 ];
 
 // The cookie banner library, on some 2,000 pages, three of them games.
 const cookieBanner = [
+  'https://blog.example',
   'https://game12.example',
-  /* …1,998 more */
+  /* …and many more pages */
   'https://game67.example',
 ];
 
 // The ad SDK bundle, on thousands of pages, one of them a game.
 const adSdk = [
-  'https://game67.example',
-  /* …thousands more */
   'https://shop.example',
+  'https://news.example',
+  /* …and many more pages */
+  'https://game67.example',
 ];
 
 const deployments = new Map([
