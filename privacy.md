@@ -131,6 +131,9 @@ target the rate limiting that constrains the rest.
 
 ## Attack 1: Supercookie
 
+The objective is to recognize the same device across unrelated sites, through an
+identifier the tracker plants and later reads back.
+
 The tracker picks a set of small files and stores a per-device subset on the
 first site, one bit per file. A query for the same set on a second site recovers
 the subset. Eviction and the per-origin storage limit bound its lifetime and
@@ -226,8 +229,11 @@ The tracker can do this in two ways.
 
 ## Attack 2: Cache-based fingerprinting
 
-The distinguishing signal is the set of files the device accumulated through
-ordinary browsing. The tracker writes nothing.
+The objective is to recognize the same device across unrelated sites, through
+the files it already happens to hold.
+
+The distinguishing signal is whatever the device accumulated through ordinary
+browsing. The tracker writes nothing.
 
 Entropy per query peaks at a prevalence near one half, so near-universal files
 contribute nothing and the informative ones are those roughly half of devices
@@ -261,6 +267,9 @@ inclusion, and it leaves nothing a user could find or clear.
 ---
 
 ## Attack 3: Attribute inference
+
+The objective is to assign the user to a targeting cohort, with no identifier
+involved at any point.
 
 Files carry semantics: a Japanese font subset implies a reading language, a game
 engine implies browser gaming, a speech model implies dictation, and a model
@@ -364,6 +373,9 @@ const overlap = hits.length
 
 ## Attack 5: Targeted de-anonymization
 
+The objective is to decide whether an anonymous visitor is one specific person
+the attacker already knows.
+
 The relevant quantity here is surprisal: a positive answer on a hash with
 prevalence 10⁻⁴ carries 13 bits. Where a tracker knows a specific person holds
 an unusual file, observed during an authenticated session, one query elsewhere
@@ -402,6 +414,9 @@ perform. These three attacks target that bound.
 
 ### Attack 6: Sybil attack on the budget
 
+The objective is to spend more lookups than the budget allows, by presenting as
+several origins at once.
+
 An attacker multiplies a budget keyed to the requesting origin by the number of
 origins it brings. Wildcard DNS makes subdomains free, so one tracker presents
 as several origins, embeds each as a frame, partitions the work, and collects
@@ -433,6 +448,9 @@ addEventListener('message', (e) => answers.push(...e.data));
 
 ### Attack 7: Rate-limit evasion by reload
 
+The objective is to spend more lookups than the budget allows, by resetting the
+counter that holds it.
+
 A counter bound to a context the attacker controls is a counter the attacker
 resets. A page reloads itself without user interaction, and a per-page-load
 allowance is fresh on each load.
@@ -454,6 +472,9 @@ if (round < 3) location.reload();
 ```
 
 ### Attack 8: Cross-site leak through the loading path
+
+The objective is to obtain lookups the budget never counts, by taking a path to
+the cache that no script calls.
 
 The imperative API is one of four paths to the cache. The
 [HTML](README.md#html-integration),
@@ -497,6 +518,9 @@ Both appear here because relaxing these properties would reopen them.
 
 ### Existence oracle through in-progress writes
 
+The objective is a yes-or-no answer about any hash at all, storing nothing and
+clearing no gate.
+
 Registering an entry when a write begins would let any origin distinguish "write
 in progress" from "never stored," a noiseless one-bit oracle over an arbitrary
 hash, obtained without storing bytes for the storage limit to bound and without
@@ -507,6 +531,9 @@ browser verifies them against the hash. Until then the hash reads as absent,
 identically to one never written.
 
 ### Timing side channel
+
+The objective is to read the answer a refusal withholds, out of how long the
+refusal takes.
 
 A refusal that resolved faster for a genuinely absent file than for a withheld
 one would disclose the answer through elapsed time and bypass everything above.
