@@ -32,17 +32,34 @@ motivates the feature. This document covers the attacks; the mitigations COS
 proposes are in the [Privacy considerations](README.md#privacy-considerations)
 section of the explainer.
 
+## Glossary
+
+**Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
+resources deployed widely enough that confirming their presence says nothing
+about an individual. That k-anonymity argument is settled once, when a hash is
+admitted, so the browser never repeats it at query time. An entry written with
+the global [sharing scope](README.md#cos-entry) `origins: '*'` is readable by an
+unrelated origin only if its hash is on the list. See
+[Availability gating](README.md#availability-gating) in the explainer and the
+[PHL explainer](public-hash-list/phl-explainer.md).
+
+**GREASE'ing.** The browser occasionally reporting a file as absent although it
+holds it, so a site cannot read a negative answer as proof of absence. It
+applies only to reads that qualify through `origins: '*'`, and browsers withhold
+it for files whose size would make a spurious re-download disproportionate. See
+the [explainer's GREASE'ing section](README.md#greaseing).
+
 ## Background
 
 Any party holding a file's bytes can compute its hash and query it, so the
 addressable set spans the public web and anything the attacker authors.
 
 Almost every attack below runs on the global grant, `origins: '*'`, the broadest
-of the [sharing scopes an entry can carry](README.md#cos-entry) and the only one
-under which an unrelated origin learns that an entry exists, and then only for
-hashes on the PHL. The narrower scopes carry nothing across a site boundary: the
-same-site default keeps reads inside one site, and an explicit `origins` list is
-capped in length and bounded by the byte-supplying origin's
+of the scopes an entry can carry and the only one under which an unrelated
+origin learns that an entry exists, and then only for hashes on the PHL. The
+narrower scopes carry nothing across a site boundary: the same-site default
+keeps reads inside one site, and an explicit `origins` list is capped in length
+and bounded by the byte-supplying origin's
 [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
 header, so a tracker can neither approximate the web with it nor name origins
 the operator never authorized. Attack 1's embedded frame is the exception: it
@@ -66,22 +83,6 @@ Attack 1 is stateful tracking: the tracker writes the identifier and reads it
 back, which makes the cache a **supercookie**. Attacks 2 through 5 and Attack 8
 are **XS-Leaks** over the existence oracle the cache exposes. Attacks 6 and 7
 target the rate limiting that constrains the rest.
-
-## Glossary
-
-**Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
-resources deployed widely enough that confirming their presence says nothing
-about an individual. That k-anonymity argument is settled once, when a hash is
-admitted, so the browser never repeats it at query time. An entry written with
-`origins: '*'` is readable by an unrelated origin only if its hash is on the
-list. See [Availability gating](README.md#availability-gating) in the explainer
-and the [PHL explainer](public-hash-list/phl-explainer.md).
-
-**GREASE'ing.** The browser occasionally reporting a file as absent although it
-holds it, so a site cannot read a negative answer as proof of absence. It
-applies only to reads that qualify through `origins: '*'`, and browsers withhold
-it for files whose size would make a spurious re-download disproportionate. See
-the [explainer's GREASE'ing section](README.md#greaseing).
 
 ---
 
