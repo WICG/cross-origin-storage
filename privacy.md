@@ -332,22 +332,22 @@ cooperation from that site.
 
 ### Description
 
-Take `game67.example` as the site in question. It is built with Unity, and the
-tracker has observed 123 other games shipping the same engine build. A probe on
-that hash comes back positive, which places the device on one of the 124 and
-stays silent about which. That same answer already supports the weaker claim of
-Attack 3, that this is someone who plays browser games. Naming the site takes
-more probes.
+Take `game67.example` as the site in question. It is built with a popular game
+engine, and the tracker has observed 123 other games shipping the same engine
+build. A probe on that hash comes back positive, which places the device on one
+of the 124 and stays silent about which. That same answer already supports the
+weaker claim of Attack 3, that this is someone who plays browser games. Naming
+the site takes more probes.
 
 Composing probes narrows it, and every file probed is widely deployed in its own
 right, so each one passes PHL admission. `game67.example` also embeds a cookie
 banner library served identically to some 2,000 pages, three of them among the
-124 Unity games. A positive on that hash leaves `game12.example`,
-`game67.example`, and `game88.example`. A third probe, on an ad SDK bundle
-present on thousands of pages and used by `game67.example`, leaves one. Each
-positive is also consistent with an unrelated visit elsewhere, so the result is
-evidence short of proof, sharpening the fewer sites a person visits.
-Per-resource k-anonymity carries no guarantee over conjunctions.
+124 games. A positive on that hash leaves `game12.example`, `game67.example`,
+and `game88.example`. A third probe, on an ad SDK bundle present on thousands of
+pages and used by `game67.example`, leaves one. Each positive is also consistent
+with an unrelated visit elsewhere, so the result is evidence short of proof,
+sharpening the fewer sites a person visits. Per-resource k-anonymity carries no
+guarantee over conjunctions.
 
 None of this works without the roster. The attacker has to know which 124 games
 ship that engine build and which three of them carry the cookie banner library,
@@ -363,12 +363,12 @@ understates where a file appears.
 // tracker mapped beforehand, so a hit says the device visited at least one
 // origin in that set. Every one of these files is widely deployed, so each
 // passes PHL admission. The sets are truncated here.
-const unityGames = ['https://game1.example', 'https://game67.example'];
+const engineGames = ['https://game1.example', 'https://game67.example'];
 const cookieBanner = ['https://game12.example', 'https://game67.example'];
 const adSdk = ['https://game67.example', 'https://shop.example'];
 
 const deployments = new Map([
-  ['a7c2…', unityGames], // the Unity build, 124 games
+  ['a7c2…', engineGames], // the engine build, 124 games
   ['9f04…', cookieBanner], // the cookie banner library, some 2,000 pages
   ['5b31…', adSdk], // an ad SDK bundle, thousands of pages
 ]);
