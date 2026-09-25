@@ -60,7 +60,8 @@ target the rate limiting that constrains the rest.
 ## Attack 1: Supercookie
 
 The tracker constructs the identifier, so this attack does not depend on what
-the device already holds, or on how common those files are across devices.
+the device already holds, or on prevalence (the share of devices holding a given
+file).
 
 The tracker picks a set of small files and stores a per-device subset on the
 first site, one bit per file. A query for the same set on a second site recovers
@@ -93,12 +94,11 @@ the interval is irrelevant.
 The distinguishing signal is the set of files the device accumulated through
 ordinary browsing. The tracker writes nothing.
 
-A file's prevalence is the share of devices holding it, and entropy per query
-peaks near one half, so near-universal files contribute nothing and the
-informative ones are those roughly half of devices hold. Enough of them yield a
-pattern unique to a device, supporting cross-site linking. Correlated files
-reduce the yield, since a font family's subsets and a model's shards arrive
-together and are effectively one observation.
+Entropy per query peaks at a prevalence near one half, so near-universal files
+contribute nothing and the informative ones are those roughly half of devices
+hold. Enough of them yield a pattern unique to a device, supporting cross-site
+linking. Correlated files reduce the yield, since a font family's subsets and a
+model's shards arrive together and are effectively one observation.
 
 **Example.** The same analytics script on a recipe blog and a local newspaper
 queries the same 60 libraries and fonts. The patterns match across both visits,
