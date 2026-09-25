@@ -5,13 +5,13 @@
 
 # Privacy and Cross-Origin Storage
 
-Cross-Origin Storage lets the browser keep one copy of a large file and share it
-with every site that needs it. Download a four-gigabyte AI model on one website,
-and a different website can use it a moment later with no download at all. The
-same goes for a WebAssembly module, a popular JavaScript library, a game engine,
-or a web font. For the user that means less waiting, less mobile data, less disk
-space, and less battery. For the web as a whole it means the same bytes are not
-shipped across the planet over and over again.
+[Cross-Origin Storage](README.md) lets the browser keep one copy of a large file
+and share it with every site that needs it. Download a four-gigabyte AI model on
+one website, and a different website can use it a moment later with no download
+at all. The same goes for a WebAssembly module, a popular JavaScript library, a
+game engine, or a web font. For the user that means less waiting, less mobile
+data, less disk space, and less battery. For the web as a whole it means the
+same bytes are not shipped across the planet over and over again.
 
 That benefit comes from one fact: the cache is shared between websites that have
 nothing to do with each other. The same fact is what creates the privacy risk. A
