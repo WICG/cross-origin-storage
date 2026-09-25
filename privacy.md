@@ -470,6 +470,8 @@ collects the answers in the parent through `postMessage`. Independent trackers
 on one page can pool allowances the same way, making this collusion as well as
 Sybil.
 
+The orchestrator page embeds one frame per origin.
+
 ```html
 <!-- Four attacker-controlled subdomains, so four separate allowances. -->
 <iframe src="https://a0.tracker.example/" allow="cross-origin-storage"></iframe>
@@ -477,13 +479,17 @@ Sybil.
 <!-- …a2 and a3 -->
 ```
 
+Each frame spends its own origin's whole allowance on a disjoint slice.
+
 ```js
-// In each frame, spending that origin's whole allowance on a disjoint slice
-// of the same `probes` as Attack 2. `n` is the frame's index, 0 through 3.
+// `n` is this frame's index, 0 through 3, over the same `probes` as Attack 2.
 const mine = probes.slice(n * 8, n * 8 + 8);
 parent.postMessage(await Promise.all(mine.map(has)), '*');
+```
 
-// In the parent, reassembling 32 answers out of four allowances of eight.
+The orchestrator reassembles 32 answers out of four allowances of eight.
+
+```js
 const answers = [];
 addEventListener('message', (e) => answers.push(...e.data));
 ```
