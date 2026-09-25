@@ -34,37 +34,47 @@ section of the explainer.
 
 ## Glossary
 
+**Sharing scope.** The `origins` value a write declares, which decides who can
+later learn that the entry exists. The grants add up and are never removed, so a
+scope only ever widens. See [COS entry](README.md#cos-entry) and
+[Availability gating](README.md#availability-gating).
+
+- **Storing origin.** An origin that wrote the entry can always read it back,
+  mirroring the Cache API.
+- **Same site.** Same-site origins of a storing origin can read it. This is the
+  default when a write declares nothing.
+- **Explicit list.** Origins named in an `origins` list can read it, whether or
+  not the hash is on the PHL. The list is capped in length and bounded by the
+  byte-supplying origin's
+  [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
+  header.
+- **Global, `origins: '*'`.** Any origin can read it, provided the hash is on
+  the PHL. GREASE'ing may still withhold it.
+
 **Public Hash List (PHL).** A shared, vendor-neutral allowlist of hashes for
 resources deployed widely enough that confirming their presence says nothing
 about an individual. That k-anonymity argument is settled once, when a hash is
-admitted, so the browser never repeats it at query time. An entry written with
-the global [sharing scope](README.md#cos-entry) `origins: '*'` is readable by an
-unrelated origin only if its hash is on the list. See
-[Availability gating](README.md#availability-gating) in the explainer and the
-[PHL explainer](public-hash-list/phl-explainer.md).
+admitted, so the browser never repeats it at query time. It gates the global
+scope alone. See the [PHL explainer](public-hash-list/phl-explainer.md).
 
 **GREASE'ing.** The browser occasionally reporting a file as absent although it
 holds it, so a site cannot read a negative answer as proof of absence. It
-applies only to reads that qualify through `origins: '*'`, and browsers withhold
-it for files whose size would make a spurious re-download disproportionate. See
-the [explainer's GREASE'ing section](README.md#greaseing).
+applies only to reads that qualify through the global scope, and browsers
+withhold it for files whose size would make a spurious re-download
+disproportionate. See the [explainer's GREASE'ing section](README.md#greaseing).
 
 ## Background
 
 Any party holding a file's bytes can compute its hash and query it, so the
 addressable set spans the public web and anything the attacker authors.
 
-Almost every attack below runs on the global grant, `origins: '*'`, the broadest
-of the scopes an entry can carry and the only one under which an unrelated
-origin learns that an entry exists, and then only for hashes on the PHL. The
-narrower scopes carry nothing across a site boundary: the same-site default
-keeps reads inside one site, and an explicit `origins` list is capped in length
-and bounded by the byte-supplying origin's
-[`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
-header, so a tracker can neither approximate the web with it nor name origins
-the operator never authorized. Attack 1's embedded frame is the exception: it
-reads back its own entries as a storing origin, which is why it needs
-`allow="cross-origin-storage"` from each embedding site.
+Almost every attack below runs on the global scope, the only one under which an
+unrelated origin learns that an entry exists. The narrower scopes carry nothing
+across a site boundary, and a tracker can neither approximate the web with an
+explicit list nor name origins the operator never authorized. Attack 1's
+embedded frame is the exception: it reads back its own entries as a storing
+origin, which is why it needs `allow="cross-origin-storage"` from each embedding
+site.
 
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion. That is the scale every
