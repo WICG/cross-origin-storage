@@ -262,23 +262,27 @@ inclusion, and it leaves nothing a user could find or clear.
 
 ## Attack 3: History sniffing
 
-The cache-based analogue of the `:visited` leaks, over file presence in place of
-link styling. One probe yields one statement about where the device has been:
-holding the file means it visited at least one of the sites that deploy it.
+The goal is the one the `:visited` leaks served: establishing that a device has
+been to a particular site, with no cooperation from that site. Styled links
+answered it exactly, one URL at a time. COS answers it coarsely, because a probe
+tests contents, and every site deploying a file serves those same contents. A
+positive therefore establishes a visit to one member of that file's deployment
+set and stays silent about which member.
 
-What that statement is worth is the size of the deployment set. A file served by
-a single site turns one probe into a direct reading of one history entry, which
-is what the PHL's k-anonymity admission exists to prevent. A file on two hundred
-sites yields a set of two hundred candidates, a bound of 200.
+The size of that set is the whole attack surface. A file one site serves makes a
+probe equivalent to the `:visited` leak, and the PHL's k-anonymity admission
+exists to keep such files off the global scope, since a listed hash is deployed
+widely enough that its set is large. Working that set back down to something
+small is what this attack consists of.
 
-Composition erodes the bound. Two positives over sets of two hundred are
-consistent with one visit to a site in their overlap, and equally consistent
-with two unrelated visits, one to each set. The tracker weighs the two
-explanations: where the overlap is four sites, a single visit accounts for both
-answers far more economically than two independent ones, and the reasoning
-sharpens the fewer sites the person visits in the period. Per-resource
-k-anonymity carries no guarantee over conjunctions, and the overlap is evidence
-of a visit rather than proof of one.
+Composing probes does it. Two positives over sets of two hundred are consistent
+with one visit to a site in their overlap, and equally consistent with two
+unrelated visits, one to each set. The tracker weighs the two explanations:
+where the overlap is four sites, a single visit accounts for both answers far
+more economically than two independent ones, and the reasoning sharpens the
+fewer sites the person visits in the period. Per-resource k-anonymity carries no
+guarantee over conjunctions, and the overlap it leaves is evidence of a visit,
+short of proof.
 
 Mapping hashes to deployment sets is the preparatory work this attack requires,
 and a tracker has three ways to do it. A script running on a large number of
@@ -296,8 +300,10 @@ exhaustive is more confident than the evidence supports.
 hundred sites and its German-language UI pack on two hundred. Both probes are
 positive, and four sites deploy both. The tracker takes those four as the
 likeliest history, weighed against the alternative that two separate visits
-produced the same pair of answers. The cohort the same two answers imply, a
-German-speaking player, is Attack 4.
+produced the same pair of answers. The residual ambiguity costs little when the
+four are alike: all four are German-language gaming sites, so every candidate
+supports the same conclusion about the person. The cohort the same two answers
+imply, a German-speaking player, is Attack 4.
 
 ```js
 // Same `cos` and `has()` as above. Each probe is a file whose deployment the
