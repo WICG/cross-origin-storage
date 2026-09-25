@@ -533,20 +533,20 @@ if (round < 3) location.reload();
 At eight lookups per page load, four silent reloads inside two seconds yield 32
 answers. This is why the count has to persist across reloads and navigations.
 
-## Attack 8: Cross-site leak through the loading path
+## Attack 8: Cross-site leak by combining COS integration points
 
 ### Objective
 
-The objective is to obtain lookups the budget never counts, by taking a path to
-the cache that no script calls.
+The objective is to obtain lookups the budget never counts, by spreading them
+across the COS integration points that return nothing to the page.
 
 ### Description
 
-The imperative API is one of four paths to the cache. The
+The imperative API is one of four COS integration points. The
 [HTML](README.md#html-integration),
 [import attribute](README.md#javascript-import-attribute-integration),
 [CSS](README.md#css-integration), and [fetch](README.md#fetch-integration)
-integrations consult it as well, and return no value to the page.
+integrations consult the cache as well, and return no value to the page.
 
 The site recovers the bit from its own server logs, the standard XS-Leak pattern
 of reading a side effect in place of a return value: a cache hit produces no
@@ -576,7 +576,7 @@ const bits = probes.map((probe) => !requestLog.has(probe.path));
 A tracker places 32 ordinary resource references on its page and records which
 of them reach its server. The eleven producing no request are the files the
 device already held. Thirty-two answers, no call to `requestFileHandle()`. This
-is why a budget has to count all four surfaces.
+is why a budget has to count all four integration points.
 
 ---
 
