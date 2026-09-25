@@ -250,8 +250,14 @@ The tracker can do this in three ways.
    integration instructions are a plausible way for that header to appear.
 
    ```js
-   // On each participating site, as that site's own origin. `bits` is minted
-   // as in the frame variant, and the bytes are the tracker's own invention.
+   // The tracker's own files, so these hashes exist nowhere else on the web.
+   const mintedHashes = [
+     { algorithm: 'SHA-256', value: 'b40d…' },
+     // …31 more
+   ];
+
+   // On each participating site, running as that site's own origin. `bits` is
+   // minted as in the frame variant.
    const opts = { create: true, origins: ['https://tracker.example'] };
    for (const [i, hash] of mintedHashes.entries()) {
      if (!bits[i]) continue;
