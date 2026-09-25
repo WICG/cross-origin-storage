@@ -623,12 +623,12 @@ hash is not on the Public Hash List, or GREASE'ing withheld the answer.
 
 ### Description
 
-A read clears three checks. The sharing scope has to cover the requesting
+A read has to clear three checks: the sharing scope must cover the requesting
 origin, the global scope additionally requires PHL membership, and GREASE'ing
-can still withhold a positive. A write clears none of them, because storing
-bytes discloses nothing by itself. Anything the write path lets through about
-the registry is therefore an answer to the question those three checks exist to
-control, delivered without noise, for any hash the attacker names.
+can still withhold a positive. A write has to clear none of them, because
+storing bytes discloses nothing by itself. Anything the write path lets through
+about the registry is therefore an answer to the question those three checks
+exist to control, delivered without noise, for any hash the attacker names.
 
 Asking to create costs nothing and supplies no bytes. A browser that consulted
 the registry on that call, or registered a placeholder that a later read could
