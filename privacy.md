@@ -589,33 +589,35 @@ bytes and without passing any of the checks that gate a read.
 
 ### Description
 
-Registering an entry when a write begins would let any origin distinguish "write
-in progress" from "never stored," a noiseless one-bit oracle over an arbitrary
-hash, obtained without storing bytes for the storage limit to bound and without
-passing `origins`, the Public Hash List, or GREASE'ing.
+Any observable difference on the write path is a read that no gate applies to.
+Asking to create a hash costs nothing, names an arbitrary hash, and passes
+neither `origins`, nor the Public Hash List, nor GREASE'ing. A browser that
+consulted the registry on that call, or registered a placeholder that a later
+read could tell apart from "never stored", would answer it differently for a
+hash the device already holds, and that difference is a noiseless bit.
 
 COS adds an entry only after a writer supplies the complete contents and the
-browser verifies them against the hash. Until then the hash reads as absent,
-identically to one never written.
+browser verifies them against the hash, and `requestFileHandle()` with
+`create: true` neither reads nor writes the registry. Until an entry is
+complete, the hash reads as absent, identically to one never written.
 
 ```js
-// Same `cos` and `has()` as above. Open a write for a hash the attacker has
-// no bytes for, and never finish it.
+// Same `cos` as above. Ask to create a hash the attacker holds no bytes for,
+// on a path where no scope, PHL, or GREASE'ing check applies.
 const handle = await cos.requestFileHandle(target, { create: true });
 await handle.createWritable(); // nothing written, nothing closed
 
-// A design that registered the entry here would answer this differently from
-// a hash nobody ever touched, and that difference is the oracle.
-const bit = await has(target);
+// A design that consulted the registry on either call would have to answer
+// differently for a hash the device already holds, and that is the oracle.
 ```
 
 ### Example
 
-A script opens a write for the hash of a file it has never possessed and keeps
-the stream open. Under a placeholder design, a second origin asking about that
-hash gets an answer distinguishable from "never stored", which is one free bit
-about any hash the attacker cares to name, over and over. COS answers both cases
-identically.
+A script asks to create the hash of a medical imaging model it has never
+possessed and supplies no bytes. Under a placeholder design it learns whether
+the device already holds that model, for any hash it cares to name and as often
+as it likes, with none of the checks that a read would have to clear. COS
+answers identically whether the entry exists or not.
 
 ---
 
