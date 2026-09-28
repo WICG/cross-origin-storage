@@ -124,26 +124,6 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
-### Actors
-
-Two parties appear in what follows. The attacker supplies the probe, and it is a
-tracker, an ad network's script, or a forum operator. A second party supplies
-the thing worth probing, and in Attacks 6 and 7 that party is attacking nobody:
-a bank that stores a charting library on its signed-in dashboard has made an
-ordinary engineering decision whose disclosure it has no reason to anticipate.
-Deliberate collusion is the easier case to reason about, since two sites that
-both want to collude, in a browser where third-party cookies remain available,
-already have a better instrument than COS. What COS adds on top of that is
-concentrated in the leaks nobody intended.
-
-That split decides where a mitigation can act. The lookup budget, a permission
-prompt, and flagging known-malicious sites all act on the party doing the
-asking. PHL admission, the gesture gate, and developer guidance act on the party
-doing the storing. An attack that needs both parties can be addressed from
-either side. Attack 5 asks about a file the user acquired through ordinary use,
-so there is no storing party whose behavior could be corrected, and the asking
-side is all that is left to act on.
-
 ### Overview
 
 The following sections present fourteen attacks, each with its objective and how
@@ -1166,10 +1146,10 @@ accepted.
 Two limits come with it. A browser that has already removed third-party cookies
 cannot apply this at all, so the mitigation is absent exactly where the rest of
 the privacy work is furthest along, and COS in those browsers rests on the other
-mitigations listed here. The comparison also covers deliberate trackers only.
-The unintended leaks of the [Actors](#actors) section happen between parties
-that never set a cookie for each other, and a reader of one of those learns
-something a third-party cookie would never have told them.
+mitigations listed here. The comparison also covers deliberate trackers only. An
+unintended leak happens between parties that never set a cookie for each other,
+and a reader of one of those learns something a third-party cookie would never
+have told them.
 
 ### Mitigation 6: Permission prompts
 
@@ -1206,12 +1186,11 @@ already has, and it is also the one that scales worst.
 ### Mitigation 7: Developer guidance
 
 The user agent tells developers what a write exposes, at the moment they write
-it, through the DevTools Issues panel or a console warning. The
-[Actors](#actors) section is what earns this a place among the mitigations:
-Attacks 6 and 7 need a site whose storage varies with its users' state, that
-site is attacking nobody, and nothing in its own telemetry will ever show that
-it leaked. Guidance is the only mitigation here aimed at the supply of leaky
-writes.
+it, through the DevTools Issues panel or a console warning. This earns a place
+among the mitigations because Attacks 6 and 7 need a site whose storage varies
+with its users' state, that site is attacking nobody, and nothing in its own
+telemetry will ever show that it leaked. Guidance is the only mitigation here
+aimed at the supply of leaky writes.
 
 Cases worth a message: a write declaring `origins: '*'` for a hash the PHL does
 not carry, which the user agent silently narrows to same-site; a write whose
