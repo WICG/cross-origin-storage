@@ -99,7 +99,7 @@ and counts every surface that reaches the cache.
 The share of devices holding a given file, which sets what one answer about it
 is worth. A file half of devices hold yields the most entropy per query, a
 near-universal file yields almost none, and a positive answer on a rare file is
-worth the most of all, though it seldom comes.
+worth the most of all.
 
 ## Background
 
