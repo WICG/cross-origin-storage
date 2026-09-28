@@ -124,17 +124,6 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
-Naming one device out of the whole web is the most expensive of the tasks below,
-and 32 bits is its price. The rest cost less, because an attacker works against
-the population it already sees. Simulation over the published Public Hash List
-puts a well-chosen 64-probe set at 15.3 bits of margin, enough for rank-1
-identification against a gallery of 2,000 devices, with 16 probes already at
-0.718, and the same budget spent on randomly chosen files is worth roughly fifty
-times less (see the
-[probing attack model](public-hash-list/research/probing-attack-model.md)).
-Selection is what buys that, so treating 32 bits as the target overstates how
-much a small allowance protects.
-
 ### Actors
 
 Two parties appear in what follows. The attacker supplies the probe, and it is a
