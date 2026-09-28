@@ -1261,7 +1261,7 @@ mitigation can supply.
 
 ## Coverage gaps
 
-| Attack                                                                                                                    | Reached by                | Degree                                              |
+| Attack                                                                                                                    | Covered by                | Degree                                              |
 | ------------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------------------------------------------- |
 | [1: Supercookie](#attack-1-supercookie)                                                                                   | Mitigations 1, 2, 3, 5, 6 | Partially, and Variant 1 escapes 1 and 2            |
 | [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Mitigations 1, 3, 5, 6    | Partially                                           |
