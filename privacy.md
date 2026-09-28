@@ -1089,8 +1089,6 @@ writing the entry, and the write path itself.
 
 ### Mitigation 1: Cross-site lookup budget
 
-#### Mechanism
-
 Every lookup that could reveal what another site stored counts against a small
 allowance, on the order of 8 to 16 per time window, whether or not it finds the
 file. Both numbers are the user agent's to choose. Lookups for files the
@@ -1112,8 +1110,6 @@ the page draws from the same one.
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                              | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                       |
 
 ### Mitigation 2: A user gesture before an entry becomes shareable
-
-#### Mechanism
 
 A written file becomes readable by other sites only after a user gesture on the
 page. The writing page itself can use the file right away, so the performance
@@ -1140,8 +1136,6 @@ top-level site.
 
 ### Mitigation 3: A count that survives reloads and tabs
 
-#### Mechanism
-
 The lookup count persists across page reloads for the whole top-level site, and
 across tabs.
 
@@ -1158,8 +1152,6 @@ across tabs.
 
 ### Mitigation 4: Tighter limits for sites known to be malicious
 
-#### Mechanism
-
 A user agent can restrict `requestFileHandle()` further for sites it already
 knows to be malicious, from a source such as Safe Browsing.
 
@@ -1174,8 +1166,6 @@ This is containment for cases already identified, and on its own it bounds none
 of the attacks above.
 
 ### Mitigation 5: Availability tied to third-party cookies
-
-#### Mechanism
 
 A user agent that still supports third-party cookies can make COS's cross-site
 disclosure follow that setting. Where third-party cookies are on, COS answers as
@@ -1209,8 +1199,6 @@ something a third-party cookie would never have told them.
 
 ### Mitigation 6: Permission prompts
 
-#### Mechanism
-
 A user agent can ask the user before letting a site read what other sites
 stored. Three granularities have been considered: one grant per browser, one per
 requesting origin, and one per resource, the last plausibly attached to a
@@ -1242,8 +1230,6 @@ that can be explained concretely, naming the multi-gigabyte model the user
 already has, and it is also the one that scales worst.
 
 ### Mitigation 7: Developer guidance
-
-#### Mechanism
 
 The user agent tells developers what a write exposes, at the moment they write
 it, through the DevTools Issues panel or a console warning. The
@@ -1280,8 +1266,6 @@ cooperation, and withdrawing that cooperation is a defense no demand-side
 mitigation can supply.
 
 ### Mitigation 8: A write budget weighted by size
-
-#### Mechanism
 
 Writes count as well as reads. Small writes count one by one against an
 allowance, and large ones are metered by total bytes, so a site storing one
