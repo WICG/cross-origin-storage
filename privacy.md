@@ -29,13 +29,6 @@ maintaining the usefulness of the feature.** Restrictions severe enough to
 eliminate every attack described here would also eliminate the sharing that
 motivates the feature.
 
-We welcome discussion and input on whether this is the right set of tradeoffs.
-Different browsers can reasonably settle on different ones, including different
-answers to when the API is enabled at all, and we would like to hear what level
-of exposure other implementers consider appropriate. Aligning those answers
-where they can be aligned is what keeps the API interoperable across the
-browsers that ship it.
-
 ## Glossary
 
 ### Sharing scope
