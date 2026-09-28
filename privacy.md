@@ -25,17 +25,16 @@ sites the user visited and what those sites stored, so every answer crosses a
 site boundary.
 
 **Mitigations need to carefully balance between ensuring the user's privacy and
-maintaining the usefulness of the feature.** The two quantities are what the
-exposed information is worth to a would-be attacker, and what the sharing is
-worth to the user. Restrictions severe enough to eliminate every attack
-described here would also eliminate the sharing that motivates the feature. This
-document is scoped to the privacy side of it, covering the attacks, the
-mitigations proposed against them, and what those mitigations leave open; the
-[explainer](README.md) carries the use cases and the developer demand that
-motivate making the tradeoff at all. Mitigations 1 through 4 are the ones the
-explainer's [Privacy considerations](README.md#privacy-considerations) already
-list, and Mitigations 5 through 8 are under discussion, gathered here so their
-reach can be read against the same attacks.
+maintaining the usefulness of the feature.** Restrictions severe enough to
+eliminate every attack described here would also eliminate the sharing that
+motivates the feature. This document is scoped to the privacy side of it,
+covering the attacks, the mitigations proposed against them, and what those
+mitigations leave open; the [explainer](README.md) carries the use cases and the
+developer demand that motivate making the tradeoff at all. Mitigations 1 through
+4 are the ones the explainer's
+[Privacy considerations](README.md#privacy-considerations) already list, and
+Mitigations 5 through 8 are under discussion, gathered here so their reach can
+be read against the same attacks.
 
 We welcome discussion and input on whether this is the right set of tradeoffs.
 Different browsers can reasonably settle on different ones, including different
