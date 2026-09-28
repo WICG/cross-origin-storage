@@ -768,9 +768,10 @@ request, so the browser sees each one, knows which origin made it and which hash
 it named, and can count it, delay it, or decline it.
 
 The browser therefore knows exactly where to look, in advance and in one place.
-That turns mitigation into accounting, and the protection is worth exactly what
-the accounting is worth, which is why Attacks 6 through 8 warrant the same
-attention as the identification attacks above them.
+That reduces the problem to bookkeeping: count every request that could disclose
+what another site stored, and decide which of them to answer. The protection is
+then worth exactly what the bookkeeping is worth, which is why Attacks 6 through
+8 warrant the same attention as the identification attacks above them.
 
 ### Mitigation 1: Cross-site lookup budget
 
