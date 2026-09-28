@@ -28,9 +28,9 @@ boundary.
 **Mitigations need to carefully balance between ensuring the user's privacy and
 maintaining the usefulness of the feature.** Restrictions severe enough to
 eliminate every attack described here would also eliminate the sharing that
-motivates the feature. This document covers the attacks; the mitigations COS
-proposes are in the [Privacy considerations](README.md#privacy-considerations)
-section of the explainer.
+motivates the feature. This document covers the attacks, the mitigations the
+explainer's [Privacy considerations](README.md#privacy-considerations) propose
+against them, and what those mitigations leave open.
 
 ## Glossary
 
@@ -136,9 +136,11 @@ and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 The following sections present ten attacks, each with its objective and how far
 a mitigation reaches against it. **Partially** means the mitigation the
 explainer proposes raises the cost and slows accumulation without ending the
-attack. **Completely** means it closes the evasion it targets. **By design**
-means the current design already rules the attack out, and it appears here
-because relaxing that property would reopen it.
+attack. **Completely** means it closes the evasion it targets. **Not addressed**
+means no mitigation the explainer proposes reaches the attack at all. **By
+design** means the current design already rules the attack out, and it appears
+here because relaxing that property would reopen it.
+[Coverage gaps](#coverage-gaps) works through each verdict.
 
 | Attack                                                                                                                         | Objective                                                                                                  | Solvable with mitigation |
 | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------ |
@@ -146,7 +148,7 @@ because relaxing that property would reopen it.
 | [Attack 2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                   | Recognize the same device across unrelated sites, through the files it already happens to hold.            | Partially                |
 | [Attack 3: Attribute inference](#attack-3-attribute-inference)                                                                 | Assign the user to a targeting cohort, with no identifier involved at any point.                           | Partially                |
 | [Attack 4: History sniffing](#attack-4-history-sniffing)                                                                       | Establish that a device visited one particular site, with no cooperation from that site.                   | Partially                |
-| [Attack 5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                     | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | Partially                |
+| [Attack 5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                     | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | Not addressed            |
 | [Attack 6: Sybil attack on the budget](#attack-6-sybil-attack-on-the-budget)                                                   | Spend more lookups than the budget allows, by presenting as several origins at once.                       | Completely               |
 | [Attack 7: Rate-limit evasion by reload](#attack-7-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | Completely               |
 | [Attack 8: Cross-site leak by combining COS integration points](#attack-8-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | Completely               |
@@ -766,3 +768,124 @@ That is what makes the problem tractable, and it locates the difficulty
 precisely. The protection is worth exactly what the accounting is worth, which
 is why Attacks 6 through 8 warrant the same attention as the identification
 attacks above them.
+
+## Proposed mitigations
+
+The explainer's [Potential mitigations](README.md#potential-mitigations) lists
+four. Each is set out below with what it does and how far it reaches.
+
+### Mitigation 1: Cross-site lookup budget
+
+#### Mechanism
+
+Every lookup that could reveal what another site stored counts against a small
+allowance, on the order of 8 to 16 per time window, whether or not it finds the
+file. Both numbers are the user agent's to choose. Lookups for files the
+requesting site stored itself stay free. The allowance belongs to the top-level
+site the user is visiting, by scheme and registrable domain, and every frame on
+the page draws from the same one.
+
+#### Coverage
+
+Each lookup carries at most one bit, so an allowance of 8 concedes 8 bits per
+window against the roughly 32 an identifier needs. That is the mitigation doing
+its intended work, and it is why Attacks 2, 3, and 4 come out bounded without
+being closed: a patient attacker accumulates across windows, paced by the user's
+own visits.
+
+Keying the allowance to the top-level site closes Attack 6 outright, since extra
+origins and extra frames all draw from one allowance, so adding them mints
+nothing. Counting any lookup that could reveal what another site stored, with no
+regard for which surface performed it, is what closes Attack 8, provided
+implementations read that to include the declarative integration points
+alongside `requestFileHandle()`.
+
+Two attacks slip past. Attack 5 needs one probe, so an allowance of 8 never
+binds. And Attack 1's frame variant reads entries its own origin stored, which
+the exemption for files the requesting site stored itself leaves free, so the
+variant the explainer describes as linking visits the way a third-party cookie
+would is the one the budget does not count. Its only gate is the
+`allow="cross-origin-storage"` that each embedding site has to grant.
+
+### Mitigation 2: A user gesture before an entry becomes shareable
+
+#### Mechanism
+
+A written file becomes readable by other sites only after a user gesture on the
+page. The writing page itself can use the file right away, so the performance
+benefit survives intact, and what waits for the gesture is the cross-site
+disclosure.
+
+#### Coverage
+
+This is the only mitigation on the write side, so it reaches Attack 1 and
+nothing else: Attacks 2 through 5 write nothing, and Attacks 6 through 8 concern
+reads. It rules out marking a device during a silent reload, which pairs with
+Mitigation 3 against Attack 7, since a page that reloads itself cannot write on
+each pass.
+
+Against Attack 1 it is a partial bound. A gesture is one click, and a tracker
+embedded on a site the user interacts with will get one. Variant 1 raises the
+same question as above: a storing origin reading its own entries widens no
+scope, so whether the gate applies to it depends on reading "shareable with
+other sites" to cover use under a different top-level site.
+
+### Mitigation 3: A count that survives reloads and tabs
+
+#### Mechanism
+
+The lookup count persists across page reloads for the whole top-level site, and
+across tabs.
+
+#### Coverage
+
+This closes Attack 7 completely. Without it, Mitigation 1 would bound only what
+a single page load can ask, and a page reloading itself four times in two
+seconds would collect four allowances. Persistence is what makes the budget a
+budget, so it also carries every partial result Mitigation 1 achieves against
+Attacks 1 through 4.
+
+### Mitigation 4: Tighter limits for sites known to be malicious
+
+#### Mechanism
+
+A user agent can restrict `requestFileHandle()` further for sites it already
+knows to be malicious, from a source such as Safe Browsing.
+
+#### Coverage
+
+This reaches every read-side attack in principle and few in practice, because it
+applies only where the site is already flagged. The attacks in this document run
+from ordinary sites: an analytics script on a recipe blog, an ad network's
+script on a news site, a forum the attacker operates. None of those is a Safe
+Browsing match. It is containment for cases already identified, and it bounds
+none of the attacks above on its own.
+
+## Coverage gaps
+
+| Attack                                                                                                                  | Reached by          | Degree                                          |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------- |
+| [1: Supercookie](#attack-1-supercookie)                                                                                 | Mitigations 1, 2, 3 | Partially, and Variant 1 escapes 1 and 2        |
+| [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                   | Mitigations 1, 3    | Partially                                       |
+| [3: Attribute inference](#attack-3-attribute-inference)                                                                 | Mitigations 1, 3    | Partially, and 8 lookups already yield a cohort |
+| [4: History sniffing](#attack-4-history-sniffing)                                                                       | Mitigations 1, 3    | Partially                                       |
+| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                     | None                | Not addressed                                   |
+| [6: Sybil attack on the budget](#attack-6-sybil-attack-on-the-budget)                                                   | Mitigation 1        | Completely                                      |
+| [7: Rate-limit evasion by reload](#attack-7-rate-limit-evasion-by-reload)                                               | Mitigations 2, 3    | Completely                                      |
+| [8: Cross-site leak by combining COS integration points](#attack-8-cross-site-leak-by-combining-cos-integration-points) | Mitigation 1        | Completely                                      |
+| [9: Existence oracle through in-progress writes](#attack-9-existence-oracle-through-in-progress-writes)                 | None needed         | Ruled out by design                             |
+| [10: Timing side channel](#attack-10-timing-side-channel)                                                               | None needed         | Ruled out by design                             |
+
+Attack 5 is the one no listed mitigation reaches. All four bound something the
+attack does not need: volume (Mitigations 1 and 3), the write side (Mitigation
+2), or sites already known to be bad (Mitigation 4). Targeted de-anonymization
+spends one probe, writes nothing, and runs from a site nobody has flagged, so it
+passes through all four untouched.
+
+GREASE'ing is the design feature that would answer it, by making a single
+negative unreliable. The size-proportionate rule withholds GREASE'ing from files
+whose spurious re-download would be disproportionate, which is exactly the class
+of large, rare files the attack is strongest on, so the answer stays noise-free
+where it identifies best. Closing this one calls for a mitigation that none of
+the four supplies: a bound keyed to how much a single answer discloses, since
+all four bound how many answers a site may collect.
