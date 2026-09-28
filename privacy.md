@@ -769,9 +769,8 @@ it named, and can count it, delay it, or decline it.
 
 The browser therefore knows exactly where to look, in advance and in one place.
 That reduces the problem to bookkeeping: count every request that could disclose
-what another site stored, and decide which of them to answer. The protection is
-then worth exactly what the bookkeeping is worth, which is why Attacks 6 through
-8 warrant the same attention as the identification attacks above them.
+what another site stored, and decide which of them to answer. Attacks 6 through
+8 all target that bookkeeping, and a gap in it costs the whole protection.
 
 ### Mitigation 1: Cross-site lookup budget
 
