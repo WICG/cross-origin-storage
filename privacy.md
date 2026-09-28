@@ -109,12 +109,7 @@ addressable set spans the public web and anything the attacker authors.
 Almost every attack below runs on the global scope, the one under which an
 origin with no prior relationship to an entry learns that it exists. A tracker
 cannot approximate the web with an explicit list, and the same-site default
-carries nothing across a site boundary. Attack 1 supplies the two exceptions,
-and each costs the tracker something a participating site has to supply: its
-embedded frame reads back its own entries as a storing origin, which takes
-`allow="cross-origin-storage"` from each site, and its list-scoped variant takes
-a response header from the writing site naming the reading one. Attack 8 reads
-nothing at all, and writes to change what the other attacks find.
+carries nothing across a site boundary.
 
 Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion. That is the scale every
