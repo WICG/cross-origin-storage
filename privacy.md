@@ -90,10 +90,10 @@ size would make a spurious re-download disproportionate.
 
 A cap the explainer proposes on how many cross-site lookups a site may perform
 in a time window, on the order of 8 to 16. Lookups for files the requesting site
-stored itself stay free. The budget belongs to the top-level site and every
-frame on the page draws from it, it persists across reloads and tabs, and it
-counts every surface that reaches the cache. Attacks 9 through 11 target those
-three properties in turn. See
+stored itself stay free. The budget belongs to the top-level site, so every
+frame on the page draws from the same one; it persists across reloads and tabs;
+and it counts every surface that reaches the cache. Attacks 9 through 11 target
+those three properties in turn. See
 [Potential mitigations](README.md#potential-mitigations).
 
 ### Prevalence
