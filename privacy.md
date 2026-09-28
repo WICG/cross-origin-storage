@@ -32,7 +32,7 @@ motivates the feature. This document covers the attacks, the mitigations
 proposed against them, and what those mitigations leave open. Mitigations 1
 through 4 are the ones the explainer's
 [Privacy considerations](README.md#privacy-considerations) already list, and
-Mitigations 5 through 7 are under discussion, gathered here so their reach can
+Mitigations 5 through 8 are under discussion, gathered here so their reach can
 be read against the same attacks.
 
 ## Glossary
@@ -89,7 +89,9 @@ never repeats it at query time. It gates the global scope alone. See the
 The browser occasionally reporting a file as absent although it holds it, so a
 site cannot read a negative answer as proof of absence. It applies only to reads
 that qualify through the global scope, and browsers withhold it for files whose
-size would make a spurious re-download disproportionate. See the
+size would make a spurious re-download disproportionate. The explainer does not
+say what the coin is keyed on, and [Attack 12](#attack-12-greaseing-evasion)
+turns on that choice. See the
 [explainer's GREASE'ing section](README.md#greaseing).
 
 ### Lookup budget
@@ -137,6 +139,17 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
+Naming one device out of the whole web is the most expensive of the tasks below,
+and 32 bits is its price. The rest cost less, because an attacker works against
+the population it already sees. Simulation over the published Public Hash List
+puts a well-chosen 64-probe set at 15.3 bits of margin, enough for rank-1
+identification against a gallery of 2,000 devices, with 16 probes already at
+0.718, and the same budget spent on randomly chosen files is worth roughly fifty
+times less (see the
+[probing attack model](public-hash-list/research/probing-attack-model.md)).
+Selection is what buys that, so treating 32 bits as the target overstates how
+much a small allowance protects.
+
 ### Actors
 
 Two parties appear in what follows. The attacker supplies the probe, and it is a
@@ -159,7 +172,7 @@ side is all that is left to act on.
 
 ### Overview
 
-The following sections present thirteen attacks, each with its objective and how
+The following sections present fourteen attacks, each with its objective and how
 far a mitigation reaches against it. **Partially** means the mitigations raise
 the cost and slow accumulation without ending the attack. **Completely** means
 they close the evasion the attack targets. **Not addressed** means no mitigation
@@ -180,8 +193,9 @@ reopen it. [Coverage gaps](#coverage-gaps) works through each verdict.
 | [Attack 9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | Spend more lookups than the budget allows, by presenting as several origins at once.                       | Completely               |
 | [Attack 10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | Completely               |
 | [Attack 11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | Completely               |
-| [Attack 12: Existence oracle through in-progress writes](#attack-12-existence-oracle-through-in-progress-writes)                 | Learn whether the device holds a file in the cases where a read refuses to say.                            | By design                |
-| [Attack 13: Timing side channel](#attack-13-timing-side-channel)                                                                 | Read the answer a refusal withholds, out of how long the refusal takes.                                    | By design                |
+| [Attack 12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | Partially                |
+| [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | Learn whether the device holds a file in the cases where a read refuses to say.                            | By design                |
+| [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                                 | Read the answer a refusal withholds, out of how long the refusal takes.                                    | By design                |
 
 ### Shared setup
 
@@ -193,7 +207,7 @@ const cos = navigator.crossOriginStorage;
 
 // One probe. True when the browser holds the file and will disclose it to
 // this origin, false when it refuses for any reason. The attacker cannot tell
-// the reasons apart, which is what Attack 13 tries to change.
+// the reasons apart, which is what Attack 14 tries to change.
 const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 
 // Hashes appear as this pair throughout, with the digest truncated.
@@ -873,7 +887,99 @@ of them reach its server. The eleven producing no request are the files the
 device already held. Thirty-two answers, no call to `requestFileHandle()`. This
 is why a budget has to count all four integration points.
 
-## Attack 12: Existence oracle through in-progress writes
+## Attack 12: GREASE'ing evasion
+
+### Objective
+
+The objective is to recover the answers GREASE'ing withholds, by arranging for
+the noise to cancel, to repeat identically, or never to apply.
+
+### Description
+
+GREASE'ing is the one mitigation that makes a single answer unreliable, which is
+why [Coverage gaps](#coverage-gaps) reaches for it against Attack 5. Its
+strength rests on a detail the explainer leaves open: what the coin is keyed on.
+The [probing attack model](public-hash-list/research/probing-attack-model.md)
+works through four keyings consistent with the current wording and finds three
+of them worth little or nothing, and it finds that the size-proportionate rule
+opens a channel under every one of them.
+
+The attacker can do this in three ways.
+
+#### Variant 1: Repetition against a fresh coin
+
+A browser drawing a new coin on every call makes the noise independent per
+probe, so the same question asked `r` times is withheld only when every draw
+goes the browser's way. The false-negative rate falls to `g^r`, and GREASE'ing
+only ever turns a file that is present into one reported absent, so a single
+positive anywhere in the run is the true answer.
+
+```js
+// Ask the same question until it answers or the repeats run out.
+const hasDespiteGrease = async (hash, r = 4) => {
+  for (let i = 0; i < r; i++) if (await has(hash)) return true;
+  return false;
+};
+```
+
+**Example.** At `g = 0.5`, four repeats cut the miss rate from one in two to one
+in sixteen, at a cost of four lookups per answer. Under this keying GREASE'ing
+is a multiplier on the lookup budget, worth exactly as much as the allowance
+behind it.
+
+#### Variant 2: A fixed origin against a deterministic mask
+
+Deriving the coin from the device, the requesting origin, and the hash stops
+Variant 1, since the same call then always returns the same thing. It also makes
+the mask a fixed function of the requesting origin, so an attacker that holds
+that origin constant sees one mask everywhere. An embedded frame does exactly
+that, and the answers on site A and site B then pass through a single
+deterministic map and link as cleanly as on a channel with no noise at all.
+
+```html
+<!-- One origin on every embedding site, so the mask never changes. -->
+<iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
+```
+
+This keying leaves the attacker better off than no GREASE'ing at all. The masked
+file is rarer than the real one, so a surviving positive carries
+`log₂(1/p) + log₂(1/(1−g))` where a noiseless channel carries `log₂(1/p)`.
+Simulation over the published list confirms the sign, measuring a higher linking
+margin at `g = 0.5` than with GREASE'ing switched off.
+
+**Example.** Keying the coin on the device and the hash alone is worse again.
+Every origin sees one mask forever, which hides a fixed fraction of the device's
+cache from everybody and links exactly as well as no noise would.
+
+#### Variant 3: Selection above the size threshold
+
+GREASE'ing is withheld from files whose spurious re-download would be
+disproportionate, so an attacker probes only files above that threshold. Those
+answers carry no noise, and the exempt set is the one worth probing anyway:
+large files are the rarest, so a positive is worth the most, and the most
+persistent, so the answer holds from one visit to the next.
+
+```js
+// Every probe is over the size threshold, so no draw is ever made. The Hugging
+// Face section of the PHL alone carries six figures of candidates.
+const probes = largePhlHashes.slice(0, 64);
+const fingerprint = (await Promise.all(probes.map(has))).join('');
+```
+
+**Example.** Past a certain probability, raising `g` changes nothing, because
+the attacker has already moved to the exempt subset. Attack 5 is this variant
+with a single probe.
+
+### The keying choice
+
+Variants 1 and 2 answer to one choice: derive the coin from the device, the
+requesting origin, the hash, and a time epoch. Repeats inside an epoch then
+return one answer, and two visits in different epochs see independent noise. The
+explainer does not say, so an implementation can satisfy its current wording
+with a keying worth nothing, and this is the detail to settle. Variant 3
+survives every keying, since it never causes a draw.
+
+## Attack 13: Existence oracle through in-progress writes
 
 ### Objective
 
@@ -924,7 +1030,7 @@ differs from the answer for a hash nobody holds, and the site learns that this
 device belongs to a customer of that bank, which is what a phishing campaign
 needs to pick its targets. COS answers identically either way.
 
-## Attack 13: Timing side channel
+## Attack 14: Timing side channel
 
 ### Objective
 
@@ -973,11 +1079,13 @@ The browser therefore knows exactly where to look, in advance and in one place.
 That reduces the problem to bookkeeping: count every request that could disclose
 what another site stored, and decide which of them to answer. Attacks 9 through
 11 all target that bookkeeping, and a gap in it costs the whole protection.
+Attack 12 targets the other half, the noise the browser adds to the answers it
+does give.
 
 Mitigations 1 through 4 are the ones the explainer lists today. Mitigations 5
-through 7 are under discussion, and each acts on a surface the first four leave
-alone: the browser's own third-party cookie setting, the user, and the developer
-writing the entry.
+through 8 are under discussion, and each acts on a surface the first four leave
+alone: the browser's own third-party cookie setting, the user, the developer
+writing the entry, and the write path itself.
 
 ### Mitigation 1: Cross-site lookup budget
 
@@ -1017,6 +1125,7 @@ await cos.requestFileHandle(ownModelHash);
 | [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing) | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                             |
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                 | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                  |
 | [Attack 1](#attack-1-supercookie)                                                                                                   | Variants 2 and 3 count against the allowance. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie. |
+| [Attack 12](#attack-12-greaseing-evasion)                                                                                           | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so `n` probes at `r` repeats have to fit one allowance. Variants 2 and 3 need no repeats.                                       |
 | [Attack 5](#attack-5-targeted-de-anonymization), [Attack 6](#attack-6-induced-write-as-a-state-oracle)                              | Untouched. One probe suffices for Attack 5 and two bracket Attack 6's induced load, so an allowance of 8 never binds.                                                                                         |
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                              | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                       |
 
@@ -1053,6 +1162,7 @@ button.addEventListener('click', () => cos.requestFileHandle(hash, opts));
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                                                  | Closed in practice, and this is the mitigation aimed at it. Every question needs an induced load on a URL the attacker chose, which the user has no reason to touch, so the victim site's write stays same-site. |
 | [Attack 6](#attack-6-induced-write-as-a-state-oracle)                                                                                                                                | Bounded the same way on the induced half. An entry written during a genuine, gesture-bearing visit stays shareable, so a passive variant survives that reads the state as of that visit.                         |
 | [Attack 9](#attack-9-sybil-attack-on-the-budget), [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points)                                                        | Out of reach. Both concern reads.                                                                                                                                                                                |
+| [Attack 12](#attack-12-greaseing-evasion)                                                                                                                                            | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                 |
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                               | Out of reach. Flooding needs no entry to be shareable, since a same-site write consumes the same space and forces the same eviction.                                                                             |
 
 Variant 1 of Attack 1 raises the same question the budget does: a storing origin
@@ -1092,6 +1202,7 @@ if (round < 3) location.reload();
 | [Attack 1](#attack-1-supercookie), [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing) | Carries Mitigation 1's partial bounds. Without persistence the allowance would cover one page load, and any of these could reload for another. |
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                                    | Closes the refresh that would otherwise give each question its own allowance, since the attacker's page can reload between induced loads.      |
 | [Attack 5](#attack-5-targeted-de-anonymization), [Attack 6](#attack-6-induced-write-as-a-state-oracle)                                                                 | Untouched, for the same reason the budget misses it.                                                                                           |
+| [Attack 12](#attack-12-greaseing-evasion)                                                                                                                              | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                             |
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                 | Out of reach, for the same reason the budget misses it: the count tracks lookups, and this attack writes.                                      |
 
 ### Mitigation 4: Tighter limits for sites known to be malicious
@@ -1111,10 +1222,10 @@ const found = await has(hash); // false on a flagged site, whatever is stored
 
 #### Coverage
 
-| Attacks                                                                                                                             | Description                                                                                                                                                                                    |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie) through [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points), in principle | Reached. A flagged site can be refused ahead of any counting, which bounds every attack that needs the API.                                                                                    |
-| The same attacks in practice                                                                                                        | Not reached. They run from ordinary sites: an analytics script on a recipe blog, an ad network's script on a news site, a forum the attacker operates. None of those is a Safe Browsing match. |
+| Attacks                                                                                           | Description                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-supercookie) through [Attack 12](#attack-12-greaseing-evasion), in principle | Reached. A flagged site can be refused ahead of any counting, which bounds every attack that needs the API.                                                                                    |
+| The same attacks in practice                                                                      | Not reached. They run from ordinary sites: an analytics script on a recipe blog, an ad network's script on a news site, a forum the attacker operates. None of those is a Safe Browsing match. |
 
 This is containment for cases already identified, and on its own it bounds none
 of the attacks above.
@@ -1157,8 +1268,8 @@ await cos.requestFileHandle(ownModelHash);
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Attack 1](#attack-1-supercookie), [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference)                                                                                      | Reached by comparison. All three link a device across the sites carrying the tracker, which is what a third-party cookie does more reliably, so wherever the lookups work the attacker held a better instrument already.                                                                                        |
 | [Attack 4](#attack-4-history-sniffing), [Attack 5](#attack-5-targeted-de-anonymization), [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching) | The comparison fails. A third-party cookie reports the sites that carry the tracker, and these four reach sites it never touched: a game it is absent from, a model the user fetched elsewhere, a bank the attacker only opened in a popup. Where third-party cookies are off, the gate removes them wholesale. |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction) through [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points)                                                                          | Removed wherever third-party cookies are off, since nothing crosses a site boundary there. Unaffected wherever they are on.                                                                                                                                                                                     |
-| [Attack 12](#attack-12-existence-oracle-through-in-progress-writes), [Attack 13](#attack-13-timing-side-channel)                                                                                                    | Unaffected. Both are properties of the design and hold in either state.                                                                                                                                                                                                                                         |
+| [Attack 8](#attack-8-cache-flooding-to-force-eviction) through [Attack 12](#attack-12-greaseing-evasion)                                                                                                            | Removed wherever third-party cookies are off, since nothing crosses a site boundary there. Unaffected wherever they are on, and [Attack 8](#attack-8-cache-flooding-to-force-eviction) survives in both states, since a same-site write fills the same cache.                                                   |
+| [Attack 13](#attack-13-existence-oracle-through-in-progress-writes), [Attack 14](#attack-14-timing-side-channel)                                                                                                    | Unaffected. Both are properties of the design and hold in either state.                                                                                                                                                                                                                                         |
 
 Two limits come with it. A browser that has already removed third-party cookies
 cannot apply this at all, so the mitigation is absent exactly where the rest of
@@ -1196,11 +1307,11 @@ useModelButton.addEventListener('click', async () => {
 
 #### Coverage
 
-| Attacks                                                                                                                             | Description                                                                                                                                                                                                                |
-| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie) through [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points), in principle | Reached. An origin without a grant learns nothing another site stored, whatever it asks and by whichever surface it asks.                                                                                                  |
-| [Attack 5](#attack-5-targeted-de-anonymization)                                                                                     | Reached, and this is the only mitigation in this document that reaches it. The others bound how many answers a site may collect, and one answer is all this attack needs; a prompt bounds whether the site may ask at all. |
-| The same attacks in practice                                                                                                        | Contingent on users declining. A grant nobody can evaluate is a grant most people give.                                                                                                                                    |
+| Attacks                                                                                           | Description                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-supercookie) through [Attack 12](#attack-12-greaseing-evasion), in principle | Reached. An origin without a grant learns nothing another site stored, whatever it asks and by whichever surface it asks. [Attack 8](#attack-8-cache-flooding-to-force-eviction) is the exception, since it writes and reads nothing. |
+| [Attack 5](#attack-5-targeted-de-anonymization)                                                   | Reached, and this is the only mitigation in this document that reaches it. The others bound how many answers a site may collect, and one answer is all this attack needs; a prompt bounds whether the site may ask at all.            |
+| The same attacks in practice                                                                      | Contingent on users declining. A grant nobody can evaluate is a grant most people give.                                                                                                                                               |
 
 The cost falls on both sides. The disclosure is hard to put to a user: the grant
 has no visible effect either way, the user cannot check what was read
@@ -1248,34 +1359,83 @@ await cos.requestFileHandle(hash, { create: true, origins: '*' });
 
 #### Coverage
 
-| Attacks                                                                                                                                                                                                                                                                                                                     | Description                                                                                                                                                                                    |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                                                                                                                                  | Reached on the supply side, which nothing else here addresses. Both need a site that made its own state observable without meaning to, and a warning at write time is what tells that site so. |
-| [Attack 4](#attack-4-history-sniffing)                                                                                                                                                                                                                                                                                      | Partially, for the same reason. A site warned that a distinctive resource is going out globally may narrow its scope, which shortens the deployment map an attacker reads answers against.     |
-| [Attack 1](#attack-1-supercookie), [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 5](#attack-5-targeted-de-anonymization), [Attack 8](#attack-8-cache-flooding-to-force-eviction) through [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Not reached. A deliberate attacker reads the warning as confirmation that the write worked.                                                                                                    |
+| Attacks                                                                                                                                                                                                                                                                                   | Description                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                                                                                                | Reached on the supply side, which nothing else here addresses. Both need a site that made its own state observable without meaning to, and a warning at write time is what tells that site so. |
+| [Attack 4](#attack-4-history-sniffing)                                                                                                                                                                                                                                                    | Partially, for the same reason. A site warned that a distinctive resource is going out globally may narrow its scope, which shortens the deployment map an attacker reads answers against.     |
+| [Attack 1](#attack-1-supercookie), [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 5](#attack-5-targeted-de-anonymization), [Attack 8](#attack-8-cache-flooding-to-force-eviction) through [Attack 12](#attack-12-greaseing-evasion) | Not reached. A deliberate attacker reads the warning as confirmation that the write worked.                                                                                                    |
 
 Guidance changes what honest sites deploy and constrains an attacker not at all.
 It earns its place because the attacks it touches need an honest site's
 cooperation, and withdrawing that cooperation is a defense no demand-side
 mitigation can supply.
 
+### Mitigation 8: A write budget weighted by size
+
+#### Mechanism
+
+Writes count as well as reads. Small writes count one by one against an
+allowance, and large ones are metered by total bytes, so a site storing one
+multi-gigabyte model spends bytes and barely touches the count, and a tracker
+storing 64 files of a few hundred bytes each hits it at once. The two shapes
+separate cleanly: the files COS exists to share run from 8 MB to several
+gigabytes, and the files an identifier is made of have to be small enough to
+afford dozens of them. Switching to large carriers to escape the count means
+pushing gigabytes onto the device for 32 bits, which the storage limit stops and
+the user's bandwidth bill notices. See
+[Rule 4](public-hash-list/research/proposed-solution.md#rule-4-count-small-writes-weigh-large-ones-by-size).
+
+#### Effect
+
+```js
+// Sixty-four carriers of a few hundred bytes each. The allowance is spent well
+// before the identifier is complete, and the remaining writes reject.
+for (const hash of trackerHashes) {
+  const handle = await cos.requestFileHandle(hash, { create: true });
+  const w = await handle.createWritable();
+  await w.write(await loadTrackerFile(hash));
+  await w.close(); // QuotaExceededError once the small-write count is spent
+}
+
+// One 4 GB model, metered by its bytes and permitted, because a single large
+// write is the shape the feature exists to serve.
+await cos.requestFileHandle(modelHash, { create: true });
+```
+
+#### Coverage
+
+| Attacks                                                                                                                                                                                                      | Description                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-supercookie)                                                                                                                                                                            | Reached across all three variants, on the side the lookup budget misses. Sixty-four carriers fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
+| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                                                       | Reached, and this is the first mitigation on the list to touch it. Flooding is writing at volume, which is exactly what a size-weighted allowance meters.                                 |
+| [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                   | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                  |
+| [Attack 2](#attack-2-cache-based-fingerprinting) through [Attack 5](#attack-5-targeted-de-anonymization), [Attack 9](#attack-9-sybil-attack-on-the-budget) through [Attack 12](#attack-12-greaseing-evasion) | Out of reach. None of them writes anything.                                                                                                                                               |
+
+The write budget and the per-origin storage limit bound different things. The
+limit caps what one origin holds at any moment, and an attacker spread across
+sixteen subdomains gets sixteen of them. Keyed like the lookup budget, to the
+top-level site, a write budget is one allowance however many origins a page
+brings, which is the opening the storage limit leaves in
+[Attack 8](#attack-8-cache-flooding-to-force-eviction).
+
 ## Coverage gaps
 
-| Attack                                                                                                                    | Covered by                | Degree                                              |
-| ------------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------------------------------------------- |
-| [1: Supercookie](#attack-1-supercookie)                                                                                   | Mitigations 1, 2, 3, 5, 6 | Partially, and Variant 1 escapes 1 and 2            |
-| [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Mitigations 1, 3, 5, 6    | Partially                                           |
-| [3: Attribute inference](#attack-3-attribute-inference)                                                                   | Mitigations 1, 3, 5, 6    | Partially, and 8 lookups already yield a cohort     |
-| [4: History sniffing](#attack-4-history-sniffing)                                                                         | Mitigations 1, 3, 6, 7    | Partially                                           |
-| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Mitigation 6              | Not addressed by anything the explainer lists       |
-| [6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | Mitigations 2, 6, 7       | Partially, and the passive variant survives         |
-| [7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | Mitigations 1, 2, 3, 6, 7 | Partially, and Mitigation 2 blocks the induced load |
-| [8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | Per-origin storage limit  | Partially, and extra origins multiply the limit     |
-| [9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | Mitigation 1              | Completely                                          |
-| [10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Mitigations 2, 3          | Completely                                          |
-| [11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Mitigation 1              | Completely                                          |
-| [12: Existence oracle through in-progress writes](#attack-12-existence-oracle-through-in-progress-writes)                 | None needed               | Ruled out by design                                 |
-| [13: Timing side channel](#attack-13-timing-side-channel)                                                                 | None needed               | Ruled out by design                                 |
+| Attack                                                                                                                    | Covered by                                     | Degree                                                        |
+| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| [1: Supercookie](#attack-1-supercookie)                                                                                   | Mitigations 1, 2, 3, 5, 6, 8                   | Partially, and Variant 1 escapes 1 and 2                      |
+| [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Mitigations 1, 3, 5, 6                         | Partially                                                     |
+| [3: Attribute inference](#attack-3-attribute-inference)                                                                   | Mitigations 1, 3, 5, 6                         | Partially, and 8 lookups already yield a cohort               |
+| [4: History sniffing](#attack-4-history-sniffing)                                                                         | Mitigations 1, 3, 6, 7                         | Partially                                                     |
+| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Mitigation 6                                   | Not addressed by anything the explainer lists                 |
+| [6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | Mitigations 2, 6, 7                            | Partially, and the passive variant survives                   |
+| [7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | Mitigations 1, 2, 3, 6, 7                      | Partially, and Mitigation 2 blocks the induced load           |
+| [8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | Mitigation 8, and the per-origin storage limit | Partially, and the limit alone lets extra origins multiply it |
+| [9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | Mitigation 1                                   | Completely                                                    |
+| [10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Mitigations 2, 3                               | Completely                                                    |
+| [11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Mitigation 1                                   | Completely                                                    |
+| [12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Mitigations 1, 3, 6                            | Partially, and Variant 3 is not addressed                     |
+| [13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | None needed                                    | Ruled out by design                                           |
+| [14: Timing side channel](#attack-14-timing-side-channel)                                                                 | None needed                                    | Ruled out by design                                           |
 
 Attack 5 is the one no mitigation the explainer lists reaches. Each of
 Mitigations 1 through 4 bounds something the attack does not need: volume
@@ -1288,11 +1448,13 @@ GREASE'ing is the design feature that would answer it, by making a single
 negative unreliable. The size-proportionate rule withholds GREASE'ing from files
 whose spurious re-download would be disproportionate, which is exactly the class
 of large, rare files the attack is strongest on, so the answer stays noise-free
-where it identifies best. Among the mitigations under discussion, the permission
-prompt is the only one that reaches this attack, and it does so by bounding
-whether a site may ask at all. Everything else above bounds how many answers a
-site may collect, and one answer is all this attack needs, so closing it inside
-the API calls for a bound keyed to how much a single answer discloses.
+where it identifies best, and [Attack 12](#attack-12-greaseing-evasion) turns
+that same exemption against GREASE'ing wholesale. Among the mitigations under
+discussion, the permission prompt is the only one that reaches this attack, and
+it does so by bounding whether a site may ask at all. Everything else above
+bounds how many answers a site may collect, and one answer is all this attack
+needs, so closing it inside the API calls for a bound keyed to how much a single
+answer discloses.
 
 Mitigation 5 appears in the rows above where its argument holds, and it acts on
 all of them at once. Wherever third-party cookies are off it removes every
@@ -1302,14 +1464,23 @@ lookups held a third-party cookie already, and that comparison covers Attacks 1
 through 3. Attacks 4 through 7 reach sites the tracker never touched, which no
 third-party cookie reports, so they are the ones it leaves standing.
 
-Attack 8 is reached from outside the mitigation list, by the per-origin storage
-limit the explainer already specifies. That limit is keyed to the origin, and
-the lookup budget is keyed to the top-level site precisely because an attacker
+Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by the
+per-origin storage limit alone. That limit is keyed to the origin, and the
+lookup budget is keyed to the top-level site precisely because an attacker
 brings as many origins as it cares to
-([Attack 9](#attack-9-sybil-attack-on-the-budget)). The write path has not had
-that lesson applied to it, so sixteen subdomains buy sixteen storage limits, and
-what bounds flooding in practice is the bandwidth it takes to fill a cache sized
-for AI models.
+([Attack 9](#attack-9-sybil-attack-on-the-budget)). A write budget keyed the
+same way carries that lesson to the write path. Until one exists, sixteen
+subdomains buy sixteen storage limits, and what bounds flooding is the bandwidth
+it takes to fill a cache sized for AI models.
+
+Attack 12 is the only attack here aimed at a mitigation the rest of the document
+treats as given. Variants 1 and 2 turn on one unsettled specification detail,
+the axis the GREASE'ing coin is keyed on, and the lookup budget prices the
+repeats Variant 1 needs. Variant 3 answers to nothing on this list. The
+size-proportionate rule withholds noise from large files for a performance
+reason that stands on its own, and those are the files an attacker most wants to
+ask about, so Variant 3 and Attack 5 share one opening and will share one fix or
+none.
 
 Attacks 6 and 7 are the only two that need a party who is not attacking anyone,
 which is why Mitigation 7 reaches them and reaches nothing else. Their exposure
