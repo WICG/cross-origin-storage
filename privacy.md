@@ -7,8 +7,7 @@
 
 [Cross-Origin Storage](README.md) (COS) is a content-addressable cache shared
 across origins. COS identifies a file by the cryptographic hash of its contents,
-with no reference to where those contents came from, so identical bytes converge
-on a single entry however each site obtained them. The hash doubles as an
+with no reference to where those contents came from. The hash doubles as an
 integrity guarantee: the browser verifies the bytes against it at write time, so
 a site can use an entry some other origin stored without having to trust that
 origin. A site requests a file by hash, and the browser serves it without a
