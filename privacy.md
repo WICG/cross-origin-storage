@@ -783,27 +783,33 @@ requesting site stored itself stay free. The allowance belongs to the top-level
 site the user is visiting, by scheme and registrable domain, and every frame on
 the page draws from the same one.
 
+#### Effect
+
+```js
+// Say the allowance is 8 for this top-level site in this window. Attack 2's
+// probe set runs to 60, and every call counts whether or not it finds a file.
+const answers = [];
+for (const hash of probes) {
+  answers.push(await has(hash));
+}
+
+// The first eight answers are real. From the ninth on the allowance is spent
+// and every answer is false, whatever the device actually holds.
+
+// A read of an entry this site stored itself is exempt, so a site that caches
+// its own model keeps working however often it asks.
+await cos.requestFileHandle(ownModelHash);
+```
+
 #### Coverage
 
-Each lookup carries at most one bit, so an allowance of 8 concedes 8 bits per
-window against the roughly 32 an identifier needs. That is the mitigation doing
-its intended work, and it is why Attacks 2, 3, and 4 come out bounded without
-being closed: a patient attacker accumulates across windows, paced by the user's
-own visits.
-
-Keying the allowance to the top-level site closes Attack 6 outright, since extra
-origins and extra frames all draw from one allowance, so adding them mints
-nothing. Counting any lookup that could reveal what another site stored, with no
-regard for which surface performed it, is what closes Attack 8, provided
-implementations read that to include the declarative integration points
-alongside `requestFileHandle()`.
-
-Two attacks slip past. Attack 5 needs one probe, so an allowance of 8 never
-binds. And Attack 1's frame variant reads entries its own origin stored, which
-the exemption for files the requesting site stored itself leaves free, so the
-variant the explainer describes as linking visits the way a third-party cookie
-would is the one the budget does not count. Its only gate is the
-`allow="cross-origin-storage"` that each embedding site has to grant.
+| Attacks                                                                                                                             | Description                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 6](#attack-6-sybil-attack-on-the-budget)                                                                                    | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                 |
+| [Attack 8](#attack-8-cross-site-leak-by-combining-cos-integration-points)                                                           | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.              |
+| [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing) | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                             |
+| [Attack 1](#attack-1-supercookie)                                                                                                   | Variants 2 and 3 count against the allowance. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie. |
+| [Attack 5](#attack-5-targeted-de-anonymization)                                                                                     | Untouched. One probe suffices, so an allowance of 8 never binds.                                                                                                                                              |
 
 ### Mitigation 2: A user gesture before an entry becomes shareable
 
@@ -814,19 +820,33 @@ page. The writing page itself can use the file right away, so the performance
 benefit survives intact, and what waits for the gesture is the cross-site
 disclosure.
 
+#### Effect
+
+```js
+// On load, with no gesture yet. The write succeeds and this page can use the
+// file right away, and the entry stays same-site whatever `origins` asked for,
+// so a read from any other site still finds nothing.
+const opts = { create: true, origins: '*' };
+await cos.requestFileHandle(hash, opts);
+
+// The same call from a gesture handler, where the declared scope takes effect
+// and the entry becomes readable elsewhere.
+button.addEventListener('click', () => cos.requestFileHandle(hash, opts));
+```
+
 #### Coverage
 
-This is the only mitigation on the write side, so it reaches Attack 1 and
-nothing else: Attacks 2 through 5 write nothing, and Attacks 6 through 8 concern
-reads. It rules out marking a device during a silent reload, which pairs with
-Mitigation 3 against Attack 7, since a page that reloads itself cannot write on
-each pass.
+| Attacks                                                                                                                                                                              | Description                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-supercookie)                                                                                                                                                    | Bounded on the write side: no gesture, no cross-site entry, so a device cannot be marked during a silent load. A gesture is one click, and a tracker on a site the user interacts with will get one. |
+| [Attack 7](#attack-7-rate-limit-evasion-by-reload)                                                                                                                                   | Helps, since a page reloading itself cannot write on each pass.                                                                                                                                      |
+| [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing), [Attack 5](#attack-5-targeted-de-anonymization) | Out of reach. None of them writes anything.                                                                                                                                                          |
+| [Attack 6](#attack-6-sybil-attack-on-the-budget), [Attack 8](#attack-8-cross-site-leak-by-combining-cos-integration-points)                                                          | Out of reach. Both concern reads.                                                                                                                                                                    |
 
-Against Attack 1 it is a partial bound. A gesture is one click, and a tracker
-embedded on a site the user interacts with will get one. Variant 1 raises the
-same question as above: a storing origin reading its own entries widens no
-scope, so whether the gate applies to it depends on reading "shareable with
-other sites" to cover use under a different top-level site.
+Variant 1 of Attack 1 raises the same question the budget does: a storing origin
+reading back its own entries widens no scope, so whether the gate applies to it
+depends on reading "shareable with other sites" to cover use under a different
+top-level site.
 
 ### Mitigation 3: A count that survives reloads and tabs
 
@@ -835,13 +855,30 @@ other sites" to cover use under a different top-level site.
 The lookup count persists across page reloads for the whole top-level site, and
 across tabs.
 
+#### Effect
+
+```js
+// Attack 7's loop, against a count that persists. Each load records which
+// slice it meant to spend.
+const round = Number(sessionStorage.round ?? 0);
+sessionStorage.round = round + 1;
+
+const answers = await Promise.all(
+  probes.slice(round * 8, round * 8 + 8).map(has),
+);
+
+// Round 0 gets eight real answers. The reload arrives inside the same window
+// and against the same top-level site, so rounds 1 and up get eight refusals.
+if (round < 3) location.reload();
+```
+
 #### Coverage
 
-This closes Attack 7 completely. Without it, Mitigation 1 would bound only what
-a single page load can ask, and a page reloading itself four times in two
-seconds would collect four allowances. Persistence is what makes the budget a
-budget, so it also carries every partial result Mitigation 1 achieves against
-Attacks 1 through 4.
+| Attacks                                                                                                                                                                | Description                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 7](#attack-7-rate-limit-evasion-by-reload)                                                                                                                     | Closed. The count belongs to the top-level site and survives reloads and tabs, so a fresh load starts with the allowance already spent.        |
+| [Attack 1](#attack-1-supercookie), [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing) | Carries Mitigation 1's partial bounds. Without persistence the allowance would cover one page load, and any of these could reload for another. |
+| [Attack 5](#attack-5-targeted-de-anonymization)                                                                                                                        | Untouched, for the same reason the budget misses it.                                                                                           |
 
 ### Mitigation 4: Tighter limits for sites known to be malicious
 
@@ -850,14 +887,23 @@ Attacks 1 through 4.
 A user agent can restrict `requestFileHandle()` further for sites it already
 knows to be malicious, from a source such as Safe Browsing.
 
+#### Effect
+
+```js
+// On a site the user agent has already flagged, calls can be refused before any
+// counting happens, so the allowance never comes into it.
+const found = await has(hash); // false on a flagged site, whatever is stored
+```
+
 #### Coverage
 
-This reaches every read-side attack in principle and few in practice, because it
-applies only where the site is already flagged. The attacks in this document run
-from ordinary sites: an analytics script on a recipe blog, an ad network's
-script on a news site, a forum the attacker operates. None of those is a Safe
-Browsing match. It is containment for cases already identified, and it bounds
-none of the attacks above on its own.
+| Attacks                                                                                                                           | Description                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-supercookie) through [Attack 8](#attack-8-cross-site-leak-by-combining-cos-integration-points), in principle | Reached. A flagged site can be refused ahead of any counting, which bounds every attack that needs the API.                                                                                    |
+| The same attacks in practice                                                                                                      | Not reached. They run from ordinary sites: an analytics script on a recipe blog, an ad network's script on a news site, a forum the attacker operates. None of those is a Safe Browsing match. |
+
+This is containment for cases already identified, and on its own it bounds none
+of the attacks above.
 
 ## Coverage gaps
 
