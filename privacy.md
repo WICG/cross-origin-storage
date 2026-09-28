@@ -759,9 +759,6 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Proposed mitigations
 
-The explainer's [Potential mitigations](README.md#potential-mitigations) lists
-four. Each is set out below with what it does and how far it reaches.
-
 ### A single choke point
 
 Every attack in this document passes through one API. Fingerprinting from timing
