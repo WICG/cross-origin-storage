@@ -73,10 +73,10 @@ three scopes.
 ### Public Hash List (PHL)
 
 A shared, vendor-neutral allowlist of hashes for resources deployed widely
-enough that confirming their presence says nothing about an individual. A hash
-is admitted once that k-anonymity property has been established, so at query
-time the browser only tests list membership. The list gates the global scope and
-nothing else. See the [PHL explainer](public-hash-list/phl-explainer.md).
+enough that confirming their presence says nothing about an individual. That is
+checked when a hash is admitted, so at query time the browser only tests list
+membership. The list gates the global scope and nothing else. See the
+[PHL explainer](public-hash-list/phl-explainer.md).
 
 ### GREASE'ing
 
