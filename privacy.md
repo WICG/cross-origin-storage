@@ -84,10 +84,7 @@ scope (`origins: '*'`) and nothing else. See the
 The browser occasionally reporting a file as absent although it holds it, so a
 site cannot read a negative answer as proof of absence. It applies only to reads
 that qualify through the global scope, and browsers withhold it for files whose
-size would make a spurious re-download disproportionate. The explainer does not
-say what the coin is keyed on, and [Attack 12](#attack-12-greaseing-evasion)
-turns on that choice. See the
-[explainer's GREASE'ing section](README.md#greaseing).
+size would make a spurious re-download disproportionate.
 
 ### Lookup budget
 
