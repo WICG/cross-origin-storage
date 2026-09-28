@@ -959,7 +959,7 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Proposed mitigations
 
-### A single choke point
+### A single mediation point
 
 Every attack in this document passes through one API. Fingerprinting from timing
 variation and accumulated platform quirks draws on signals the browser never
