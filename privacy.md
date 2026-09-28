@@ -1098,24 +1098,6 @@ requesting site stored itself stay free. The allowance belongs to the top-level
 site the user is visiting, by scheme and registrable domain, and every frame on
 the page draws from the same one.
 
-#### Effect
-
-```js
-// Say the allowance is 8 for this top-level site in this window. Attack 2's
-// probe set runs to 60, and every call counts whether or not it finds a file.
-const answers = [];
-for (const hash of probes) {
-  answers.push(await has(hash));
-}
-
-// The first eight answers are real. From the ninth on the allowance is spent
-// and every answer is false, whatever the device actually holds.
-
-// A read of an entry this site stored itself is exempt, so a site that caches
-// its own model keeps working however often it asks.
-await cos.requestFileHandle(ownModelHash);
-```
-
 #### Coverage
 
 | Attacks                                                                                                                             | Description                                                                                                                                                                                                   |
@@ -1137,20 +1119,6 @@ A written file becomes readable by other sites only after a user gesture on the
 page. The writing page itself can use the file right away, so the performance
 benefit survives intact, and what waits for the gesture is the cross-site
 disclosure.
-
-#### Effect
-
-```js
-// On load, with no gesture yet. The write succeeds and this page can use the
-// file right away, and the entry stays same-site whatever `origins` asked for,
-// so a read from any other site still finds nothing.
-const opts = { create: true, origins: '*' };
-await cos.requestFileHandle(hash, opts);
-
-// The same call from a gesture handler, where the declared scope takes effect
-// and the entry becomes readable elsewhere.
-button.addEventListener('click', () => cos.requestFileHandle(hash, opts));
-```
 
 #### Coverage
 
@@ -1177,23 +1145,6 @@ top-level site.
 The lookup count persists across page reloads for the whole top-level site, and
 across tabs.
 
-#### Effect
-
-```js
-// Attack 10's loop, against a count that persists. Each load records which
-// slice it meant to spend.
-const round = Number(sessionStorage.round ?? 0);
-sessionStorage.round = round + 1;
-
-const answers = await Promise.all(
-  probes.slice(round * 8, round * 8 + 8).map(has),
-);
-
-// Round 0 gets eight real answers. The reload arrives inside the same window
-// and against the same top-level site, so rounds 1 and up get eight refusals.
-if (round < 3) location.reload();
-```
-
 #### Coverage
 
 | Attacks                                                                                                                                                                | Description                                                                                                                                    |
@@ -1211,14 +1162,6 @@ if (round < 3) location.reload();
 
 A user agent can restrict `requestFileHandle()` further for sites it already
 knows to be malicious, from a source such as Safe Browsing.
-
-#### Effect
-
-```js
-// On a site the user agent has already flagged, calls can be refused before any
-// counting happens, so the allowance never comes into it.
-const found = await has(hash); // false on a flagged site, whatever is stored
-```
 
 #### Coverage
 
@@ -1247,21 +1190,6 @@ already has a stable identifier that COS cannot improve on, so tying the two
 together keeps COS from adding to a tracking surface the browser has already
 accepted.
 
-#### Effect
-
-```js
-// With third-party cookies enabled, every sample in this document behaves as
-// written.
-await has(phlHash); // true when the device holds it and the grants allow it
-
-// With third-party cookies off or cleared for this site, the same call reports
-// absence, whatever the device holds.
-await has(phlHash); // false
-
-// A read of an entry this origin stored itself is unaffected in both states.
-await cos.requestFileHandle(ownModelHash);
-```
-
 #### Coverage
 
 | Attacks                                                                                                                                                                                                             | Description                                                                                                                                                                                                                                                                                                     |
@@ -1288,22 +1216,10 @@ stored. Three granularities have been considered: one grant per browser, one per
 requesting origin, and one per resource, the last plausibly attached to a
 browser-controlled page element so the prompt can name the file at stake. At
 every granularity the grant gates cross-site disclosure alone, and a site
-reading back its own entries never prompts.
-
-#### Effect
-
-```js
-// Illustrative shape, since the API has no such method today. Before a grant,
-// every cross-site lookup reports absence, and the lookup raises no prompt of
-// its own, so a probe loop cannot be used to summon one.
-await has(hash); // false
-
-// The grant is user-initiated, from a gesture on an element that names what is
-// at stake, so a page can neither ask on load nor ask repeatedly.
-useModelButton.addEventListener('click', async () => {
-  if (await cos.requestPermission()) await cos.requestFileHandle(hash);
-});
-```
+reading back its own entries never prompts. A lookup never raises the prompt
+itself, so a probe loop cannot be used to summon one; the grant is requested
+from a user gesture, which keeps a page from asking on load or asking
+repeatedly.
 
 #### Coverage
 
@@ -1344,18 +1260,11 @@ path that only an authenticated session reaches; and an `origins` list that the
 [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
 header trimmed. The explainer already calls for console warnings on the last of
 these (see
-[Resource visibility upgrades](README.md#resource-visibility-upgrades)).
+[Resource visibility upgrades](README.md#resource-visibility-upgrades)). For the
+first, the message has to name the outcome, since the call itself succeeded:
 
-#### Effect
-
-```js
-// The write succeeds, and the entry stays same-site, because this hash is not
-// on the Public Hash List. The browser says so where the developer will see it.
-await cos.requestFileHandle(hash, { create: true, origins: '*' });
-
-// ⚠️ Cross-Origin Storage: `origins: '*'` was requested for a hash that is not
-//    on the Public Hash List. The entry is readable by same-site origins only.
-```
+> ⚠️ Cross-Origin Storage: `origins: '*'` was requested for a hash that is not
+> on the Public Hash List. The entry is readable by same-site origins only.
 
 #### Coverage
 
@@ -1384,23 +1293,6 @@ afford dozens of them. Switching to large carriers to escape the count means
 pushing gigabytes onto the device for 32 bits, which the storage limit stops and
 the user's bandwidth bill notices. See
 [Rule 4](public-hash-list/research/proposed-solution.md#rule-4-count-small-writes-weigh-large-ones-by-size).
-
-#### Effect
-
-```js
-// Sixty-four carriers of a few hundred bytes each. The allowance is spent well
-// before the identifier is complete, and the remaining writes reject.
-for (const hash of trackerHashes) {
-  const handle = await cos.requestFileHandle(hash, { create: true });
-  const w = await handle.createWritable();
-  await w.write(await loadTrackerFile(hash));
-  await w.close(); // QuotaExceededError once the small-write count is spent
-}
-
-// One 4 GB model, metered by its bytes and permitted, because a single large
-// write is the shape the feature exists to serve.
-await cos.requestFileHandle(modelHash, { create: true });
-```
 
 #### Coverage
 
