@@ -757,22 +757,23 @@ and a few hundred for a hash the device certainly lacks. A difference in the two
 distributions would recover the bit that the refusal was designed to hide, and
 averaging over repetitions would recover it however small the difference is.
 
-## The mitigation problem
-
-Every attack here passes through one API. A tracker working from timing
-variation or accumulated platform quirks has many places to hide; a tracker
-using COS has to issue an explicit, countable request that the browser can
-count, delay, or decline.
-
-That is what makes the problem tractable, and it locates the difficulty
-precisely. The protection is worth exactly what the accounting is worth, which
-is why Attacks 6 through 8 warrant the same attention as the identification
-attacks above them.
-
 ## Proposed mitigations
 
 The explainer's [Potential mitigations](README.md#potential-mitigations) lists
 four. Each is set out below with what it does and how far it reaches.
+
+### A single choke point
+
+Every attack in this document passes through one API. Fingerprinting from timing
+variation and accumulated platform quirks draws on signals the browser never
+sees as signals, spread across the whole platform. A COS lookup is an explicit
+request, so the browser sees each one, knows which origin made it and which hash
+it named, and can count it, delay it, or decline it.
+
+The browser therefore knows exactly where to look, in advance and in one place.
+That turns mitigation into accounting, and the protection is worth exactly what
+the accounting is worth, which is why Attacks 6 through 8 warrant the same
+attention as the identification attacks above them.
 
 ### Mitigation 1: Cross-site lookup budget
 
