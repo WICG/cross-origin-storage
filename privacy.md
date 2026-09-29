@@ -887,11 +887,12 @@ worth exactly as much as the allowance behind it.
 #### Variant 2: A fixed origin against a deterministic mask
 
 Deciding from the device, the requesting origin, and the hash stops Variant 1,
-since the same call then always returns the same thing. It also makes the mask a
-fixed function of the requesting origin, so an attacker that holds that origin
-constant sees one mask everywhere. An embedded frame does exactly that, and the
-answers on site A and site B then pass through a single deterministic map and
-link as cleanly as on a channel with no noise at all.
+since the same call then always returns the same thing. It also fixes which
+files the browser lies about for that device and that origin. That pattern of
+hidden files is the mask, and an attacker holding its own origin constant meets
+the same mask on every site it runs on. An embedded frame does exactly that, so
+the answers on site A and site B pass through one deterministic map and link as
+cleanly as on a channel with no noise at all.
 
 ```html
 <!-- One origin on every embedding site, so the mask never changes. -->
