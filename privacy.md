@@ -161,10 +161,10 @@ enforces.
 
 #### Attacks the design already rules out
 
-| Attack                                                                                                           | Objective                                                                       | Solvable with mitigation                       |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes) | Learn whether the device holds a file in the cases where a read refuses to say. | **By design**. Keep `create` off the registry. |
-| [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                 | Read the answer a refusal withholds, out of how long the refusal takes.         | **By design**. Keep every refusal identical.   |
+| Attack                                                                                                           | Objective                                                                       | Solvable with mitigation                                           |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes) | Learn whether the device holds a file in the cases where a read refuses to say. | **By design**. Keep `create` off the registry.                     |
+| [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                 | Read the answer a refusal withholds, out of how long the refusal takes.         | **By design**. Keep every refusal identical in content and timing. |
 
 ### Shared setup
 
