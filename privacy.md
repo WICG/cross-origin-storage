@@ -711,8 +711,7 @@ What bounds it in practice is the transfer. Filling a cache sized for AI models
 means moving gigabytes, which takes time, appears in the network panel, and
 costs the user on a metered connection. Eviction is also indiscriminate: the
 attacker names no entry and drops everything colder than its own flood, so
-resetting one answer takes the user's whole cache with it. This is a crude
-instrument, and it is available.
+resetting one answer takes the user's whole cache with it.
 
 ### Example
 
