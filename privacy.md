@@ -864,10 +864,10 @@ proves nothing. The attacker can recover the withheld answers in three ways:
 #### Variant 1: Repetition against a per-call decision
 
 A browser that decides anew on every call makes the noise independent per probe,
-so the same question asked `r` times is withheld only when every decision goes
-the browser's way. GREASE'ing only ever reports a present file as absent, so one
-positive anywhere in the run is the true answer. Repeats stop paying once the
-answer is fixed for a period of time.
+so the same question asked multiple times is withheld only when every decision
+goes the browser's way. GREASE'ing only ever reports a present file as absent,
+so one positive anywhere in the run is the true answer. Repeats stop paying once
+the answer is fixed for a period of time.
 
 ```js
 // Ask the same question until it answers or the repeats run out.
