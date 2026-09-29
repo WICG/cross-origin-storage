@@ -869,7 +869,9 @@ A browser that decides whether to lie anew on every call makes the noise
 independent per probe, so the same question asked `r` times is withheld only
 when every one of those decisions goes the browser's way. GREASE'ing only ever
 turns a file that is present into one reported absent, so a single positive
-anywhere in the run is the true answer.
+anywhere in the run is the true answer. Repeats stop paying once the answer is
+fixed for a period of time, since every repeat inside one period then returns
+what the first one did.
 
 ```js
 // Ask the same question until it answers or the repeats run out.
@@ -914,7 +916,9 @@ browser never lied.
 
 Leaving the requesting origin out is worse again. Every origin then sees one
 mask forever, which hides a fixed share of the device's cache from everybody and
-links exactly as well as no lying would.
+links exactly as well as no lying would. Adding a period of time to the inputs
+is what reaches this variant, because the mask then changes from one period to
+the next, and two visits far enough apart see hiding with nothing in common.
 
 **Example.** `tracker.example` runs in an iframe on a news site and on a
 shopping site, so its requesting origin is the same in both places. The browser
@@ -928,11 +932,13 @@ GREASE'ing is withheld from files whose spurious re-download would be
 disproportionate, so an attacker probes only files above that threshold. Those
 answers carry no noise, and the exempt set is the one worth probing anyway:
 large files are the rarest, so a positive is worth the most, and the most
-persistent, so the answer holds from one visit to the next.
+persistent, so the answer holds from one visit to the next. No choice of inputs
+reaches this, because nothing is ever hidden from these files for any of them to
+act on.
 
 ```js
-// Every probe is over the size threshold, so nothing is ever withheld. The Hugging
-// Face section of the PHL alone carries six figures of candidates.
+// Every probe is over the size threshold, so nothing is ever withheld. The
+// Hugging Face section of the PHL alone carries six figures of candidates.
 const probes = largePhlHashes.slice(0, 64);
 const fingerprint = (await Promise.all(probes.map(has))).join('');
 ```
@@ -941,15 +947,6 @@ const fingerprint = (await Promise.all(probes.map(has))).join('');
 past the size threshold. The browser lies about none of them, so all 64 answers
 are exact, and lying more often about everything else would not change one of
 them. Attack 5 is this variant with a single probe.
-
-### The inputs to settle
-
-Variants 1 and 2 answer to one choice: make whether to lie depend on the device,
-the requesting origin, the hash, and a time epoch. Repeats inside an epoch then
-return one answer, and two visits in different epochs see independent noise. The
-explainer does not say, so an implementation can satisfy its current wording
-with a choice of inputs worth nothing, and this is the detail to settle. Variant
-3 survives every choice, since nothing is withheld from it in the first place.
 
 ## Attack 13: Existence oracle through in-progress writes
 
