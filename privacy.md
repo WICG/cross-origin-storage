@@ -858,7 +858,7 @@ GREASE'ing is the one mitigation that makes a single answer unreliable. The
 browser lies at random about what it holds, so one negative answer proves
 nothing.
 
-The attacker can do this in three ways:
+The attacker can recover the withheld answers in three ways:
 [repetition](#variant-1-repetition-against-a-per-call-decision),
 [a fixed origin](#variant-2-a-fixed-origin-against-a-deterministic-mask), and
 [selection above the size threshold](#variant-3-selection-above-the-size-threshold).
