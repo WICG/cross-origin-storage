@@ -129,10 +129,10 @@ and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 The following sections present fourteen attacks, each with its objective and how
 far a mitigation reaches against it. **Partially** means the mitigations raise
 the cost and slow accumulation without ending the attack. **Completely** means
-they close the evasion the attack targets. **Not addressed** means no mitigation
-below reaches the attack at all. **By design** means the current design already
-rules the attack out, and it appears here because relaxing that property would
-reopen it. [Coverage gaps](#coverage-gaps) works through each verdict.
+they close the evasion the attack targets. **No** means no mitigation below
+reaches the attack at all. **By design** means the current design already rules
+the attack out, and it appears here because relaxing that property would reopen
+it. [Coverage gaps](#coverage-gaps) works through each verdict.
 
 The two groups below differ in what closes an attack. The design narrows several
 in the first group without ending any of them: availability gating is what
@@ -150,7 +150,7 @@ enforces.
 | [Attack 2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Recognize the same device across unrelated sites, through the files it already happens to hold.            | **Partially**. Cap the cross-site lookups.                                                            |
 | [Attack 3: Attribute inference](#attack-3-attribute-inference)                                                                   | Assign the user to a targeting cohort, with no identifier involved at any point.                           | **Partially**. Cap the cross-site lookups, and keep revealing files off the PHL.                      |
 | [Attack 4: History sniffing](#attack-4-history-sniffing)                                                                         | Establish that a device visited one particular site, with no cooperation from that site.                   | **Partially**. Cap the cross-site lookups, and narrow the sharing scopes sites declare.               |
-| [Attack 5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | **Not addressed**. Cap how much a single lookup reveals.                                              |
+| [Attack 5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | **No**. Only a user prompt, or lying about large files, would reach it.                               |
 | [Attack 6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | Learn the state of a user's account on another site, by making that site write and asking whether it did.  | **Partially**. Apply the declared sharing scope only after a user gesture.                            |
 | [Attack 7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | Read private data out of another site, by choosing what that site is asked.                                | **Partially**. Apply the declared sharing scope only after a gesture, and cap the cross-site lookups. |
 | [Attack 8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | Control what the device holds, by filling the cache until the browser reclaims space.                      | **Partially**. Cap the writes by size.                                                                |
@@ -1285,7 +1285,7 @@ brings, which is the opening the storage limit leaves in
 | [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Mitigations 1, 3, 5, 6                         | Partially                                                     |
 | [3: Attribute inference](#attack-3-attribute-inference)                                                                   | Mitigations 1, 3, 5, 6                         | Partially, and 8 lookups already yield a cohort               |
 | [4: History sniffing](#attack-4-history-sniffing)                                                                         | Mitigations 1, 3, 6, 7                         | Partially                                                     |
-| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Mitigation 6                                   | Not addressed by anything the explainer lists                 |
+| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Mitigation 6                                   | Reached by nothing the explainer lists                        |
 | [6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | Mitigations 2, 6, 7                            | Partially, and the passive variant survives                   |
 | [7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | Mitigations 1, 2, 3, 6, 7                      | Partially, and Mitigation 2 blocks the induced load           |
 | [8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | Mitigation 8, and the per-origin storage limit | Partially, and the limit alone lets extra origins multiply it |
