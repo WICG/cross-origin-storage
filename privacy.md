@@ -568,15 +568,14 @@ scope, so the hash has to be on the PHL, which the site's logo or any other file
 unique to it never reaches. What passes that filter is the widely deployed
 resource that one state alone pulls in: the charting library, a common player
 bundle, a font subset. Thousands of devices hold those files for unrelated
-reasons, so a single positive answer is confounded.
+reasons, so a single positive answer is ambiguous.
 
-The attacker removes the confound by arranging the baseline. It probes first,
-and a positive ends the attempt, which is why
-[Attack 8](#attack-8-cache-flooding-to-force-eviction) is worth the gigabytes it
-costs. It then makes the victim site run inside the user's own session, which a
-popup or a framed navigation does, carrying the user's cookies. `SameSite=Lax`
-sends them on the top-level navigation a popup performs, so the session is live
-for that load. The second probe attributes whatever changed to it.
+The attacker removes that ambiguity by arranging the baseline. It probes first,
+and a positive ends the attempt. It then makes the victim site run inside the
+user's own session, which a popup or a framed navigation does, carrying the
+user's cookies. `SameSite=Lax` sends them on the top-level navigation a popup
+performs, so the session is live for that load. The second probe attributes
+whatever changed to it.
 
 ```js
 // A charting library that bank.example loads on its signed-in dashboard and
