@@ -621,9 +621,9 @@ site is asked and observing what it stores.
 
 Attack 6 reads one bit about a session. The same machinery reads the account
 itself wherever a site's storage depends on a query the attacker supplies. A
-search endpoint that renders an empty-results page differently from a populated
-one stores accordingly, an illustration in the first case and a table widget in
-the second, and the query travels in the URL, so the attacker picks it.
+search endpoint is the clearest case. Its empty-results page loads an
+illustration, and a populated one loads a table widget. Each page stores what it
+loads. The query travels in the URL, so the attacker picks it.
 
 Each induced load then answers one question about data the attacker cannot see.
 "Does this account have a transaction matching `acme`" costs one load and one
