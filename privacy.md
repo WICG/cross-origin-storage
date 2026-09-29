@@ -191,8 +191,8 @@ Both sites embed an iframe from `tracker.example` and grant it
 `allow="cross-origin-storage"`, so the tracker writes under its own origin. A
 storing origin can always read its own entries, so the recovery bypasses the
 Public Hash List, GREASE'ing, and the `origins` grants entirely. Nothing checks
-the files, so the tracker mints its own: a few hundred random bytes each, keyed
-by their SHA-256.
+the files, so the tracker mints its own marker resources: a few hundred random
+bytes each, keyed by their SHA-256.
 
 ```html
 <!-- On every embedding site. -->
@@ -244,8 +244,8 @@ This variant is noisier: organic cache hits produce false positives, and
 GREASE'ing produces false negatives, so the tracker adds redundancy.
 
 ```js
-// The carriers have to be on the PHL, so the tracker picks small ones that
-// few devices are likely to hold.
+// The marker resources have to be on the PHL, so the tracker picks small
+// ones that few devices are likely to hold.
 const phlHashes = [
   { algorithm: 'SHA-256', value: 'e3b0…' },
   /* …31 or more, for redundancy */
@@ -273,16 +273,16 @@ if (!looksMarked(bits)) {
 ```
 
 **Example.** The same two visits as in Variant 1, with the tracker running as
-each site's own script and the carriers drawn from the PHL.
+each site's own script and the marker resources drawn from the PHL.
 
 #### Variant 3: Through the list scope
 
-The tracker authors the carrier files itself, so their hashes exist nowhere else
-and no organic cache hit can fake a positive. A minted hash never reaches the
-PHL, so the global scope is closed to it, and the list scope carries the read
-instead: it works for any hash, and GREASE'ing leaves it alone. The tracker runs
-first-party on both sites, so no frame and no `allow="cross-origin-storage"` is
-involved.
+The tracker authors the marker resources itself, so their hashes exist nowhere
+else and no organic cache hit can fake a positive. A minted hash never reaches
+the PHL, so the global scope is closed to it, and the list scope carries the
+read instead: it works for any hash, and GREASE'ing leaves it alone. The tracker
+runs first-party on both sites, so no frame and no
+`allow="cross-origin-storage"` is involved.
 
 Two things bound it. Site A's write has to name site B ahead of time, and the
 declared list is intersected with what site A's own
@@ -1229,19 +1229,19 @@ multi-gigabyte model spends bytes and barely touches the count, and a tracker
 storing 64 files of a few hundred bytes each hits it at once. The two shapes
 separate cleanly: the files COS exists to share run from 8 MB to several
 gigabytes, and the files an identifier is made of have to be small enough to
-afford dozens of them. Switching to large carriers to escape the count means
-pushing gigabytes onto the device for 32 bits, which the storage limit stops and
-the user's bandwidth bill notices. See
+afford dozens of them. Switching to large marker resources to escape the count
+means pushing gigabytes onto the device for 32 bits, which the storage limit
+stops and the user's bandwidth bill notices. See
 [Rule 4](public-hash-list/research/proposed-solution.md#rule-4-count-small-writes-weigh-large-ones-by-size).
 
 #### Coverage
 
-| Attacks                                                                                                                                                                                                      | Description                                                                                                                                                                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                                                                                                                                                            | Reached across all three variants, on the side the lookup budget misses. Sixty-four carriers fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                                                       | Reached, and this is the first mitigation on the list to touch it. Flooding is writing at volume, which is exactly what a size-weighted allowance meters.                                 |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                   | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                  |
-| [Attack 2](#attack-2-cache-based-fingerprinting) through [Attack 5](#attack-5-targeted-de-anonymization), [Attack 9](#attack-9-sybil-attack-on-the-budget) through [Attack 12](#attack-12-greaseing-evasion) | Out of reach. None of them writes anything.                                                                                                                                               |
+| Attacks                                                                                                                                                                                                      | Description                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-supercookie)                                                                                                                                                                            | Reached across all three variants, on the side the lookup budget misses. Sixty-four marker resources fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
+| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                                                       | Reached, and this is the first mitigation on the list to touch it. Flooding is writing at volume, which is exactly what a size-weighted allowance meters.                                         |
+| [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                   | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                          |
+| [Attack 2](#attack-2-cache-based-fingerprinting) through [Attack 5](#attack-5-targeted-de-anonymization), [Attack 9](#attack-9-sybil-attack-on-the-budget) through [Attack 12](#attack-12-greaseing-evasion) | Out of reach. None of them writes anything.                                                                                                                                                       |
 
 The write budget and the per-origin storage limit bound different things. The
 limit caps what one origin holds at any moment, and an attacker spread across
