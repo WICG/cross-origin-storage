@@ -570,12 +570,15 @@ resource that one state alone pulls in: the charting library, a common player
 bundle, a font subset. Thousands of devices hold those files for unrelated
 reasons, so a single positive answer is ambiguous.
 
-The attacker removes that ambiguity by arranging the baseline. It probes first,
-and a positive ends the attempt. It then makes the victim site run inside the
-user's own session, which a popup or a framed navigation does, carrying the
-user's cookies. `SameSite=Lax` sends them on the top-level navigation a popup
-performs, so the session is live for that load. The second probe attributes
-whatever changed to it.
+The attacker removes that ambiguity by probing first. A negative answer
+establishes that the device does not hold the file, and that is the only
+starting point the attack works from. A positive answer means this device can
+tell the attacker nothing, so it moves on to the next one. From a negative
+start, it makes the victim site run inside the user's own session, which a popup
+or a framed navigation does, carrying the user's cookies. `SameSite=Lax` sends
+them on the top-level navigation a popup performs, so the session is live for
+that load. A second probe then settles it, because a file that was absent before
+that load and present after it can only have arrived from it.
 
 ```js
 // A charting library that bank.example loads on its signed-in dashboard and
