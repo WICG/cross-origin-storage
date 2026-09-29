@@ -854,11 +854,14 @@ the noise to cancel, to repeat identically, or never to apply.
 
 ### Description
 
-GREASE'ing is the one mitigation that makes a single answer unreliable. Its
-strength rests on a detail the explainer leaves open: which inputs decide
-whether a given file is withheld from a given site.
+GREASE'ing is the one mitigation that makes a single answer unreliable. The
+browser lies at random about what it holds, so one negative answer proves
+nothing.
 
-The attacker can do this in three ways.
+The attacker can do this in three ways:
+[repetition](#variant-1-repetition-against-a-per-call-decision),
+[a fixed origin](#variant-2-a-fixed-origin-against-a-deterministic-mask), and
+[selection above the size threshold](#variant-3-selection-above-the-size-threshold).
 
 #### Variant 1: Repetition against a per-call decision
 
