@@ -899,8 +899,6 @@ link as cleanly as on a channel with no noise at all.
 This choice leaves the attacker better off than no GREASE'ing at all. The masked
 file is rarer than the real one, so a surviving positive carries
 `log₂(1/p) + log₂(1/(1−g))` where a noiseless channel carries `log₂(1/p)`.
-Simulation over the published list confirms the sign, measuring a higher linking
-margin at `g = 0.5` than with GREASE'ing switched off.
 
 **Example.** Deciding from the device and the hash alone is worse again. Every
 origin sees one mask forever, which hides a fixed fraction of the device's cache
