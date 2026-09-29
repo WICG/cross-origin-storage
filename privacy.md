@@ -606,9 +606,9 @@ whole sequence fits in a single page view.
 `evil.example` establishes that the dashboard library is absent, opens
 `bank.example` in a 1×1 popup, closes it three seconds later, and probes again.
 The second answer is positive, so this reader holds a live session at that bank,
-which is what a phishing campaign needs to choose whose inbox gets the bank's
-template. The bank served no byte to `evil.example` and has no way to observe
-that any of this happened.
+which is what a phishing campaign needs to choose its possible attack targets.
+The bank served no byte to `evil.example` and has no way to observe that any of
+this happened.
 
 ## Attack 7: Query oracle through result-dependent caching
 
