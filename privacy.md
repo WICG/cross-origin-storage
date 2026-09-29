@@ -1089,11 +1089,11 @@ the page draws from the same one.
 | [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing) | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                             |
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                 | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                  |
 | [Attack 1](#attack-1-supercookie)                                                                                                   | Variants 2 and 3 count against the allowance. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie. |
-| [Attack 12](#attack-12-greaseing-evasion)                                                                                           | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so `n` probes at `r` repeats have to fit one allowance. Variants 2 and 3 need no repeats.                                       |
+| [Attack 12](#attack-12-greaseing-evasion)                                                                                           | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                           |
 | [Attack 5](#attack-5-targeted-de-anonymization), [Attack 6](#attack-6-induced-write-as-a-state-oracle)                              | Untouched. One probe suffices for Attack 5 and two bracket Attack 6's induced load, so an allowance of 8 never binds.                                                                                         |
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                              | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                       |
 
-### Mitigation 2: A user gesture before an entry becomes shareable
+### Mitigation 2: A user gesture before the declared sharing scope applies
 
 A written file becomes readable by other sites only after a user gesture on the
 page. The writing page itself can use the file right away, so the performance
@@ -1108,14 +1108,14 @@ disclosure.
 | [Attack 10](#attack-10-rate-limit-evasion-by-reload)                                                                                                                                 | Helps, since a page reloading itself cannot write on each pass.                                                                                                                                                                                                                      |
 | [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing), [Attack 5](#attack-5-targeted-de-anonymization) | Out of reach. None of them writes anything.                                                                                                                                                                                                                                          |
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                                                                  | Bounded, and this is the mitigation aimed at it. Every question needs an induced load on a URL the attacker chose, which the user has no reason to touch, so the victim site's write stays same-site. A user led to interact with the victim's own page supplies the gesture anyway. |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                                                                                                                                | Bounded the same way on the induced half. An entry written during a genuine, gesture-bearing visit stays shareable, so a passive variant survives that reads the state as of that visit.                                                                                             |
+| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                                                                                                                                | Bounded the same way on the induced half. An entry written during a genuine, gesture-bearing visit keeps its declared sharing scope, so a passive variant survives that reads the state as of that visit.                                                                            |
 | [Attack 9](#attack-9-sybil-attack-on-the-budget), [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points)                                                        | Out of reach. Both concern reads.                                                                                                                                                                                                                                                    |
 | [Attack 12](#attack-12-greaseing-evasion)                                                                                                                                            | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                     |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                               | Out of reach. Flooding needs no entry to be shareable, since a same-site write consumes the same space and forces the same eviction.                                                                                                                                                 |
+| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                               | Out of reach. Flooding needs no sharing scope to apply, since a same-site write consumes the same space and forces the same eviction.                                                                                                                                                |
 
 Variant 1 of Attack 1 raises the same question the budget does: a storing origin
 reading back its own entries widens no scope, so whether the gate applies to it
-depends on reading "shareable with other sites" to cover use under a different
+depends on reading the declared sharing scope as covering use under a different
 top-level site.
 
 ### Mitigation 3: A count that survives reloads and tabs
@@ -1312,9 +1312,8 @@ where it identifies best, and [Attack 12](#attack-12-greaseing-evasion) turns
 that same exemption against GREASE'ing wholesale. Among the mitigations under
 discussion, the permission prompt is the only one that reaches this attack, and
 it does so by bounding whether a site may ask at all. Everything else above
-bounds how many answers a site may collect, and one answer is all this attack
-needs, so closing it inside the API calls for a bound keyed to how much a single
-answer discloses.
+bounds how many lookups a site may make, and one lookup is all this attack
+needs, so only a user prompt, or lying about large files, would mitigate it.
 
 Mitigation 5 appears in the rows above where its argument holds, and it acts on
 all of them at once. Wherever third-party cookies are off it removes every
