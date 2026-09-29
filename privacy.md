@@ -132,15 +132,7 @@ the cost and slow accumulation without ending the attack. **Completely** means
 they close the evasion the attack targets. **No** means no mitigation below
 reaches the attack at all. **By design** means the current design already rules
 the attack out, and it appears here because relaxing that property would reopen
-it. [Coverage gaps](#coverage-gaps) works through each verdict.
-
-The two groups below differ in what closes an attack. The design narrows several
-in the first group without ending any of them: availability gating is what
-forces Attacks 6 and 7 onto files the Public Hash List carries, the
-[`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
-header is what caps Attack 1's third variant, and the per-origin storage limit
-is what bounds Attack 8. Ending any of them waits on rules a user agent
-enforces.
+it.
 
 #### Attacks a user agent has to bound by rule
 
