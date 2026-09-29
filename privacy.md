@@ -879,10 +879,10 @@ const hasDespiteGrease = async (hash, r = 4) => {
 };
 ```
 
-**Example.** At `g = 0.5`, four repeats cut the miss rate from one in two to one
-in sixteen, at a cost of four lookups per answer. Deciding per call makes
-GREASE'ing a multiplier on the lookup budget, worth exactly as much as the
-allowance behind it.
+**Example.** A browser that lies on half its answers misses one probe in two,
+and four repeats cut that to one in sixteen, at a cost of four lookups per
+answer. Deciding per call makes GREASE'ing a multiplier on the lookup budget,
+worth exactly as much as the allowance behind it.
 
 #### Variant 2: A fixed origin against a deterministic mask
 
@@ -898,9 +898,10 @@ link as cleanly as on a channel with no noise at all.
 <iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
 ```
 
-This choice leaves the attacker better off than no GREASE'ing at all. The masked
-file is rarer than the real one, so a surviving positive carries
-`log₂(1/p) + log₂(1/(1−g))` where a noiseless channel carries `log₂(1/p)`.
+This choice leaves the attacker better off than no GREASE'ing at all. The lying
+hides some copies of the file, which makes the file look rarer than it is, so
+each positive that survives says more about the device than it would if the
+browser never lied.
 
 **Example.** Deciding from the device and the hash alone is worse again. Every
 origin sees one mask forever, which hides a fixed fraction of the device's cache
@@ -921,9 +922,9 @@ const probes = largePhlHashes.slice(0, 64);
 const fingerprint = (await Promise.all(probes.map(has))).join('');
 ```
 
-**Example.** Past a certain probability, raising `g` changes nothing, because
-the attacker has already moved to the exempt subset. Attack 5 is this variant
-with a single probe.
+**Example.** Past a certain point, lying more often changes nothing, because the
+attacker has already moved to the exempt files. Attack 5 is this variant with a
+single probe.
 
 ### The inputs to settle
 
