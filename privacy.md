@@ -153,8 +153,9 @@ reopen it. [Coverage gaps](#coverage-gaps) works through each verdict.
 
 ### Shared setup
 
-Every sample below assumes these two declarations, and names a hash the way
-`requestFileHandle()` takes it.
+Every sample below builds on these three declarations: a shorthand for the API
+entry point, a `has()` helper that runs one lookup and reports the single bit an
+attacker learns from it, and the object shape that names a hash.
 
 ```js
 const cos = navigator.crossOriginStorage;
