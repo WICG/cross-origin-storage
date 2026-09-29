@@ -879,10 +879,12 @@ const hasDespiteGrease = async (hash, r = 4) => {
 };
 ```
 
-**Example.** A browser that lies on half its answers misses one probe in two,
-and four repeats cut that to one in sixteen, at a cost of four lookups per
-answer. Deciding whether to lie on each call makes GREASE'ing a multiplier on
-the lookup budget, worth exactly as much as the allowance behind it.
+**Example.** An analytics script on a recipe blog has sixteen lookups to spend,
+and the browser lies on half of them. Spent on sixteen different files, that
+allowance leaves the script wrong about eight of them. Spent on four files, four
+times each, it leaves the script wrong about one answer in sixteen. The script
+trades breadth for answers it can trust, which makes the lying worth exactly as
+much as the allowance behind it.
 
 #### Variant 2: A fixed origin against a deterministic mask
 
@@ -904,9 +906,15 @@ hides some copies of the file, which makes the file look rarer than it is, so
 each positive that survives says more about the device than it would if the
 browser never lied.
 
-**Example.** Deciding whether to lie from the device and the hash alone is worse
-again. Every origin sees one mask forever, which hides a fixed fraction of the
-device's cache from everybody and links exactly as well as no noise would.
+Leaving the requesting origin out is worse again. Every origin then sees one
+mask forever, which hides a fixed share of the device's cache from everybody and
+links exactly as well as no lying would.
+
+**Example.** `tracker.example` runs in an iframe on a news site and on a
+shopping site, so its requesting origin is the same in both places. The browser
+hides the same nine files from it on both, the two patterns of answers match
+exactly, and the tracker links the visits without losing a single bit to the
+lying.
 
 #### Variant 3: Selection above the size threshold
 
@@ -923,9 +931,10 @@ const probes = largePhlHashes.slice(0, 64);
 const fingerprint = (await Promise.all(probes.map(has))).join('');
 ```
 
-**Example.** Past a certain point, lying more often changes nothing, because the
-attacker has already moved to the exempt files. Attack 5 is this variant with a
-single probe.
+**Example.** An ad network's script probes 64 model shards, every one of them
+past the size threshold. The browser lies about none of them, so all 64 answers
+are exact, and lying more often about everything else would not change one of
+them. Attack 5 is this variant with a single probe.
 
 ### The inputs to settle
 
