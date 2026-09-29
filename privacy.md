@@ -190,12 +190,9 @@ The tracker can do this in three ways.
 Both sites embed an iframe from `tracker.example` and grant it
 `allow="cross-origin-storage"`, so the tracker writes under its own origin. A
 storing origin can always read its own entries, so the recovery bypasses the
-Public Hash List, GREASE'ing, and the `origins` grants entirely.
-
-Nothing constrains what the carriers are, so the tracker mints them itself: a
-few hundred random bytes per file, with the SHA-256 of those bytes as the hash
-it writes and later asks about. The files are its own, they are tiny, and no
-resource anywhere on the web has to match them.
+Public Hash List, GREASE'ing, and the `origins` grants entirely. Nothing checks
+the files, so the tracker mints its own: a few hundred random bytes each, keyed
+by their SHA-256.
 
 ```html
 <!-- On every embedding site. -->
@@ -205,8 +202,7 @@ resource anywhere on the web has to match them.
 ```js
 // Inside the frame, so every call runs as tracker.example, on every site.
 
-// One minted file per bit of the identifier, a few hundred random bytes
-// each, keyed by the SHA-256 the tracker computed over them.
+// One minted file per bit of the identifier.
 const trackerHashes = [
   { algorithm: 'SHA-256', value: '4d7a…' },
   /* …31 more */
