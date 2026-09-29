@@ -865,13 +865,11 @@ The attacker can recover the withheld answers in three ways:
 
 #### Variant 1: Repetition against a per-call decision
 
-A browser that decides whether to lie anew on every call makes the noise
-independent per probe, so the same question asked `r` times is withheld only
-when every one of those decisions goes the browser's way. GREASE'ing only ever
-turns a file that is present into one reported absent, so a single positive
-anywhere in the run is the true answer. Repeats stop paying once the answer is
-fixed for a period of time, since every repeat inside one period then returns
-what the first one did.
+A browser that decides anew on every call makes the noise independent per probe,
+so the same question asked `r` times is withheld only when every decision goes
+the browser's way. GREASE'ing only ever reports a present file as absent, so one
+positive anywhere in the run is the true answer. Repeats stop paying once the
+answer is fixed for a period of time.
 
 ```js
 // Ask the same question until it answers or the repeats run out.
@@ -881,53 +879,53 @@ const hasDespiteGrease = async (hash, r = 4) => {
 };
 ```
 
-**Example.** An analytics script on a recipe blog has sixteen lookups to spend,
-and the browser lies on half of them. Spent on sixteen different files, that
-allowance leaves the script wrong about eight of them. Spent on four files, four
-times each, it leaves the script wrong about one answer in sixteen. The script
-trades breadth for answers it can trust, which makes the lying worth exactly as
-much as the allowance behind it.
+Repetition buys a second thing. With fresh noise on every call, a file every
+device holds reads as present only half the time, so an attacker that picks
+files by how often they read as present can spend its whole budget on variation
+the browser invented, which links nothing. Repeats are what separate a genuinely
+half-prevalent file from one that is merely being lied about.
+
+**Example.** An analytics script on a recipe blog has sixteen lookups and a
+browser that lies on half of them. Sixteen files, once each, leaves it wrong
+about eight. Four files, four times each, leaves it wrong about one in sixteen.
+It trades breadth for answers it can trust, which makes the lying worth exactly
+as much as the allowance behind it.
 
 #### Variant 2: A fixed origin against a deterministic mask
 
 Making whether to lie depend on the device, the requesting origin, and the hash
 stops Variant 1, since the same call then always returns the same thing. It also
-fixes which files the browser lies about for that device and that origin. That
-pattern of hidden files is the mask, and an attacker holding its own origin
-constant meets the same mask on every site it runs on. An embedded frame does
-exactly that, so the answers on site A and site B pass through one deterministic
-map and link as cleanly as on a channel with no noise at all.
+fixes which files the browser lies about for that device and that origin, and
+that pattern of hidden files is the mask. An attacker holding its own origin
+constant meets the same mask everywhere, which is what an embedded frame does.
 
 ```html
 <!-- One origin on every embedding site, so the mask never changes. -->
 <iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
 ```
 
-This choice leaves the attacker better off than no GREASE'ing at all. The
-tracker never wrote these files, because a storing origin is never lied to, so
-it is probing what the device picked up on its own. For each such file the
-browser either hides this device's copy from this origin or does not, and it
-answers the same way every time it is asked. A file the device holds and the
-browser leaves visible therefore reads as present on both sites.
+This leaves the attacker better off than no GREASE'ing at all. The tracker never
+wrote these files, since a storing origin is never lied to, so it is probing
+what the device picked up on its own. Each such file is either hidden from this
+origin or not, the same way every time, so a file the device holds and the
+browser leaves visible reads as present on both sites.
 
 The tracker needs to know nothing about the hiding to profit from it. It
-measures, across the sites it runs on, how often each file reads as present, and
-that measurement already has the hiding folded into it. Hiding a share of every
-device's copies means each file reads as present on fewer devices than actually
-hold it, so two visits agreeing on one are agreeing on something rarer than the
-file itself, and the rarer the agreement, the fewer devices it fits.
+measures how often each file reads as present across the sites it runs on, and
+that measurement already has the hiding folded in. Each file reads as present on
+fewer devices than hold it, so two visits agreeing on one are agreeing on
+something rarer than the file itself, and the rarer the agreement, the fewer
+devices it fits.
 
-Leaving the requesting origin out is worse again. Every origin then sees one
-mask forever, which hides a fixed share of the device's cache from everybody and
-links exactly as well as no lying would. Adding a period of time to the inputs
-is what reaches this variant, because the mask then changes from one period to
-the next, and two visits far enough apart see hiding with nothing in common.
+Leaving the requesting origin out is worse again: every origin then sees one
+mask forever, which links as well as no lying would. Adding a period of time to
+the inputs is what reaches this variant, since the mask then changes from one
+period to the next, and two visits far enough apart share none of it.
 
-**Example.** `tracker.example` runs in an iframe on a news site and on a
-shopping site, so its requesting origin is the same in both places. The browser
-hides the same nine files from it on both, the two patterns of answers match
-exactly, and the tracker links the visits without losing a single bit to the
-lying.
+**Example.** `tracker.example` runs in an iframe on a news site and a shopping
+site, so its requesting origin is the same in both. The browser hides the same
+nine files from it on both, the two patterns match exactly, and the tracker
+links the visits without losing a bit to the lying.
 
 #### Variant 3: Selection above the size threshold
 
