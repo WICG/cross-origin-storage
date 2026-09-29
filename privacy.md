@@ -867,9 +867,9 @@ The attacker can recover the withheld answers in three ways:
 
 A browser that decides anew on every call makes the noise independent per probe,
 so the same question asked `r` times is withheld only when every one of those
-decisions goes the browser's way. The false-negative rate falls to `g^r`, and
-GREASE'ing only ever turns a file that is present into one reported absent, so a
-single positive anywhere in the run is the true answer.
+decisions goes the browser's way. GREASE'ing only ever turns a file that is
+present into one reported absent, so a single positive anywhere in the run is
+the true answer.
 
 ```js
 // Ask the same question until it answers or the repeats run out.
