@@ -901,9 +901,15 @@ map and link as cleanly as on a channel with no noise at all.
 <iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
 ```
 
-This choice leaves the attacker better off than no GREASE'ing at all. The lying
-hides some copies of the file, which makes the file look rarer than it is, so
-each positive that survives says more about the device than it would if the
+This choice leaves the attacker better off than no GREASE'ing at all. The
+tracker never wrote these files, because a storing origin is never lied to, so
+it is probing what the device picked up on its own. For each such file the
+browser either hides this device's copy from this origin or does not, and it
+answers the same way every time it is asked. A file the device holds and the
+browser leaves visible therefore reads as present on both sites. Since a share
+of every device's holdings stays hidden, the files that do read as present are
+rarer across the population than they truly are, so a match on one is stronger
+evidence that the two visits came from one device than it would be if the
 browser never lied.
 
 Leaving the requesting origin out is worse again. Every origin then sees one
