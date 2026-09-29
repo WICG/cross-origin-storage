@@ -417,8 +417,8 @@ cooperation from that site.
 
 ### Description
 
-The attacker starts on the target site. Loading `game67.example` and recording
-which COS-eligible resources it fetches yields the candidate hashes, and mapping
+The attacker starts on the target site, `game67.example`. One visit shows which
+COS-eligible resources it fetches, and those are the candidate hashes. Mapping
 where else each of those is deployed yields the roster that later answers are
 read against.
 
