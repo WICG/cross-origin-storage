@@ -192,6 +192,11 @@ Both sites embed an iframe from `tracker.example` and grant it
 storing origin can always read its own entries, so the recovery bypasses the
 Public Hash List, GREASE'ing, and the `origins` grants entirely.
 
+Nothing constrains what the carriers are, so the tracker mints them itself: a
+few hundred random bytes per file, with the SHA-256 of those bytes as the hash
+it writes and later asks about. The files are its own, they are tiny, and no
+resource anywhere on the web has to match them.
+
 ```html
 <!-- On every embedding site. -->
 <iframe src="https://tracker.example/" allow="cross-origin-storage"></iframe>
@@ -200,7 +205,8 @@ Public Hash List, GREASE'ing, and the `origins` grants entirely.
 ```js
 // Inside the frame, so every call runs as tracker.example, on every site.
 
-// One small file the tracker serves per bit of the identifier.
+// One minted file per bit of the identifier, a few hundred random bytes
+// each, keyed by the SHA-256 the tracker computed over them.
 const trackerHashes = [
   { algorithm: 'SHA-256', value: '4d7a…' },
   /* …31 more */
