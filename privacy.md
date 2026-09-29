@@ -855,8 +855,8 @@ the noise to cancel, to repeat identically, or never to apply.
 ### Description
 
 GREASE'ing is the one mitigation that makes a single answer unreliable. The
-browser lies at random about what it holds, so one negative answer proves
-nothing.
+browser seemingly randomly lies about what it holds, so one negative answer
+proves nothing.
 
 The attacker can recover the withheld answers in three ways:
 [repetition](#variant-1-repetition-against-a-per-call-decision),
