@@ -375,9 +375,9 @@ involved at any point.
 ### Description
 
 Files carry semantics: a Japanese font subset implies a reading language, a game
-engine implies browser gaming, a speech model implies dictation, and a model
-shipped by one application implies use of that application. Presence alone
-assigns the cohort.
+engine implies browser gaming, a speech model implies dictation, and an office
+suite's proofreading model implies use of that suite. Presence alone assigns the
+cohort.
 
 ```js
 // Each probe is picked for what holding the file implies about the user, and
