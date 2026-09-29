@@ -888,7 +888,7 @@ much as the allowance behind it.
 
 #### Variant 2: A fixed origin against a deterministic mask
 
-Deciding whether to lie from the device, the requesting origin, and the hash
+Making whether to lie depend on the device, the requesting origin, and the hash
 stops Variant 1, since the same call then always returns the same thing. It also
 fixes which files the browser lies about for that device and that origin. That
 pattern of hidden files is the mask, and an attacker holding its own origin
@@ -938,7 +938,7 @@ them. Attack 5 is this variant with a single probe.
 
 ### The inputs to settle
 
-Variants 1 and 2 answer to one choice: decide whether to lie from the device,
+Variants 1 and 2 answer to one choice: make whether to lie depend on the device,
 the requesting origin, the hash, and a time epoch. Repeats inside an epoch then
 return one answer, and two visits in different epochs see independent noise. The
 explainer does not say, so an implementation can satisfy its current wording
