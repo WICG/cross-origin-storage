@@ -619,11 +619,11 @@ site is asked and observing what it stores.
 
 ### Description
 
-Attack 6 reads one bit about a session. The same machinery reads the account
-itself wherever a site's storage depends on a query the attacker supplies. A
-search endpoint is the clearest case. Its empty-results page loads an
-illustration, and a populated one loads a table widget. Each page stores what it
-loads. The query travels in the URL, so the attacker picks it.
+Attack 6 reads one bit about a session. The same machinery reads the data inside
+an account wherever a site's storage depends on a query the attacker supplies. A
+search endpoint is the clearest case. Its empty-results page loads a sad face
+image, and a populated one loads a table widget. Each page stores what it loads.
+The query travels in the URL, so the attacker picks it.
 
 Each induced load then answers one question about data the attacker cannot see.
 "Does this account have a transaction matching `acme`" costs one load and one
@@ -631,7 +631,7 @@ probe, and the answers compose the way search results do, so an attacker walks a
 list of merchants, correspondents, or amounts.
 
 ```js
-// bank.example renders its empty-results page with an illustration that a
+// bank.example renders its empty-results page with a sad face image that a
 // populated result page never loads. Both files are common enough for the PHL.
 const emptyStatePicture = { algorithm: 'SHA-256', value: 'ae51…' };
 
