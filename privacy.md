@@ -192,7 +192,8 @@ Both sites embed an iframe from `tracker.example` and grant it
 storing origin can always read its own entries, so the recovery bypasses the
 Public Hash List, GREASE'ing, and the `origins` grants entirely. Nothing checks
 the files, so the tracker mints its own marker resources: a few hundred random
-bytes each, keyed by their SHA-256.
+bytes each, keyed by their SHA-256. Those hashes exist nowhere else on the web,
+so no organic cache hit can fake a positive.
 
 ```html
 <!-- On every embedding site. -->
@@ -277,12 +278,11 @@ each site's own script and the marker resources drawn from the PHL.
 
 #### Variant 3: Through the list scope
 
-The tracker authors the marker resources itself, so their hashes exist nowhere
-else and no organic cache hit can fake a positive. A minted hash never reaches
-the PHL, so the global scope is closed to it, and the list scope carries the
-read instead: it works for any hash, and GREASE'ing leaves it alone. The tracker
-runs first-party on both sites, so no frame and no
-`allow="cross-origin-storage"` is involved.
+The tracker mints its marker resources as in Variant 1, so the answers stay
+noiseless. A minted hash never reaches the PHL, so the global scope is closed to
+it, and the list scope carries the read instead: it works for any hash, and
+GREASE'ing leaves it alone. The tracker runs first-party on both sites, so no
+frame and no `allow="cross-origin-storage"` is involved.
 
 Two things bound it. Site A's write has to name site B ahead of time, and the
 declared list is intersected with what site A's own
