@@ -147,7 +147,7 @@ reopen it. [Coverage gaps](#coverage-gaps) works through each verdict.
 | [Attack 9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | Spend more lookups than the budget allows, by presenting as several origins at once.                       | **Completely**. Key the budget to the top-level site.                  |
 | [Attack 10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Persist the count across reloads.                      |
 | [Attack 11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Count every surface that reaches the cache.            |
-| [Attack 12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Decide from origin and epoch as well.                   |
+| [Attack 12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Base the lie on origin and epoch as well.               |
 | [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | Learn whether the device holds a file in the cases where a read refuses to say.                            | **By design**. Keep create off the registry.                           |
 | [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                                 | Read the answer a refusal withholds, out of how long the refusal takes.                                    | **By design**. Keep every refusal identical.                           |
 
@@ -865,11 +865,11 @@ The attacker can recover the withheld answers in three ways:
 
 #### Variant 1: Repetition against a per-call decision
 
-A browser that decides anew on every call makes the noise independent per probe,
-so the same question asked `r` times is withheld only when every one of those
-decisions goes the browser's way. GREASE'ing only ever turns a file that is
-present into one reported absent, so a single positive anywhere in the run is
-the true answer.
+A browser that decides whether to lie anew on every call makes the noise
+independent per probe, so the same question asked `r` times is withheld only
+when every one of those decisions goes the browser's way. GREASE'ing only ever
+turns a file that is present into one reported absent, so a single positive
+anywhere in the run is the true answer.
 
 ```js
 // Ask the same question until it answers or the repeats run out.
@@ -881,18 +881,18 @@ const hasDespiteGrease = async (hash, r = 4) => {
 
 **Example.** A browser that lies on half its answers misses one probe in two,
 and four repeats cut that to one in sixteen, at a cost of four lookups per
-answer. Deciding per call makes GREASE'ing a multiplier on the lookup budget,
-worth exactly as much as the allowance behind it.
+answer. Deciding whether to lie on each call makes GREASE'ing a multiplier on
+the lookup budget, worth exactly as much as the allowance behind it.
 
 #### Variant 2: A fixed origin against a deterministic mask
 
-Deciding from the device, the requesting origin, and the hash stops Variant 1,
-since the same call then always returns the same thing. It also fixes which
-files the browser lies about for that device and that origin. That pattern of
-hidden files is the mask, and an attacker holding its own origin constant meets
-the same mask on every site it runs on. An embedded frame does exactly that, so
-the answers on site A and site B pass through one deterministic map and link as
-cleanly as on a channel with no noise at all.
+Deciding whether to lie from the device, the requesting origin, and the hash
+stops Variant 1, since the same call then always returns the same thing. It also
+fixes which files the browser lies about for that device and that origin. That
+pattern of hidden files is the mask, and an attacker holding its own origin
+constant meets the same mask on every site it runs on. An embedded frame does
+exactly that, so the answers on site A and site B pass through one deterministic
+map and link as cleanly as on a channel with no noise at all.
 
 ```html
 <!-- One origin on every embedding site, so the mask never changes. -->
@@ -904,9 +904,9 @@ hides some copies of the file, which makes the file look rarer than it is, so
 each positive that survives says more about the device than it would if the
 browser never lied.
 
-**Example.** Deciding from the device and the hash alone is worse again. Every
-origin sees one mask forever, which hides a fixed fraction of the device's cache
-from everybody and links exactly as well as no noise would.
+**Example.** Deciding whether to lie from the device and the hash alone is worse
+again. Every origin sees one mask forever, which hides a fixed fraction of the
+device's cache from everybody and links exactly as well as no noise would.
 
 #### Variant 3: Selection above the size threshold
 
@@ -929,12 +929,12 @@ single probe.
 
 ### The inputs to settle
 
-Variants 1 and 2 answer to one choice: decide from the device, the requesting
-origin, the hash, and a time epoch. Repeats inside an epoch then return one
-answer, and two visits in different epochs see independent noise. The explainer
-does not say, so an implementation can satisfy its current wording with a choice
-of inputs worth nothing, and this is the detail to settle. Variant 3 survives
-every choice, since nothing is withheld from it in the first place.
+Variants 1 and 2 answer to one choice: decide whether to lie from the device,
+the requesting origin, the hash, and a time epoch. Repeats inside an epoch then
+return one answer, and two visits in different epochs see independent noise. The
+explainer does not say, so an implementation can satisfy its current wording
+with a choice of inputs worth nothing, and this is the detail to settle. Variant
+3 survives every choice, since nothing is withheld from it in the first place.
 
 ## Attack 13: Existence oracle through in-progress writes
 
@@ -1307,8 +1307,8 @@ it takes to fill a cache sized for AI models.
 
 Attack 12 is the only attack here aimed at a mitigation the rest of the document
 treats as given. Variants 1 and 2 turn on one unsettled specification detail,
-which inputs GREASE'ing decides from, and the lookup budget prices the repeats
-Variant 1 needs. Variant 3 answers to nothing on this list. The
+which inputs GREASE'ing bases its lying on, and the lookup budget prices the
+repeats Variant 1 needs. Variant 3 answers to nothing on this list. The
 size-proportionate rule withholds noise from large files for a performance
 reason that stands on its own, and those are the files an attacker most wants to
 ask about, so Variant 3 and Attack 5 share one opening and will share one fix or
