@@ -908,11 +908,14 @@ tracker never wrote these files, because a storing origin is never lied to, so
 it is probing what the device picked up on its own. For each such file the
 browser either hides this device's copy from this origin or does not, and it
 answers the same way every time it is asked. A file the device holds and the
-browser leaves visible therefore reads as present on both sites. Since a share
-of every device's holdings stays hidden, the files that do read as present are
-rarer across the population than they truly are, so a match on one is stronger
-evidence that the two visits came from one device than it would be if the
-browser never lied.
+browser leaves visible therefore reads as present on both sites.
+
+The tracker needs to know nothing about the hiding to profit from it. It
+measures, across the sites it runs on, how often each file reads as present, and
+that measurement already has the hiding folded into it. Hiding a share of every
+device's copies means each file reads as present on fewer devices than actually
+hold it, so two visits agreeing on one are agreeing on something rarer than the
+file itself, and the rarer the agreement, the fewer devices it fits.
 
 Leaving the requesting origin out is worse again. Every origin then sees one
 mask forever, which hides a fixed share of the device's cache from everybody and
