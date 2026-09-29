@@ -424,10 +424,10 @@ read against.
 
 `game67.example` is built with a popular game engine, and the attacker has
 observed about 200 games shipping the same engine build. A probe on that hash
-comes back positive, which places the device on one of those 200 and stays
-silent about which. That same answer already supports the weaker claim of Attack
-3, that this is someone who plays browser games. Naming the site takes more
-probes.
+comes back positive, which places the device on one of those 200 but does not
+tell the attacker yet which. That same answer already supports the weaker claim
+of Attack 3, that this is someone who plays browser games. Naming the site takes
+more probes.
 
 Composing probes narrows it, and every file probed is widely deployed in its own
 right, so each one passes PHL admission. `game67.example` also embeds a cookie
