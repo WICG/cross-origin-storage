@@ -406,7 +406,7 @@ Keeping such a model off the global scope is the PHL's job.
 An advertising script queries seven in-browser AI models and finds one,
 establishing that the device runs local inference. An eighth query, for the
 Japanese subset of a common font, is also positive, establishing a language
-attribute. Eight lookups, two accurate targeting attributes, no identifier.
+attribute.
 
 ## Attack 4: History sniffing
 
