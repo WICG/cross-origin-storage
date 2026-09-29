@@ -134,6 +134,16 @@ below reaches the attack at all. **By design** means the current design already
 rules the attack out, and it appears here because relaxing that property would
 reopen it. [Coverage gaps](#coverage-gaps) works through each verdict.
 
+The two groups below differ in what closes an attack. The design narrows several
+in the first group without ending any of them: availability gating is what
+forces Attacks 6 and 7 onto files the Public Hash List carries, the
+[`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
+header is what caps Attack 1's third variant, and the per-origin storage limit
+is what bounds Attack 8. Ending any of them waits on rules a user agent
+enforces.
+
+#### Attacks a user agent has to bound by rule
+
 | Attack                                                                                                                           | Objective                                                                                                  | Solvable with mitigation                                               |
 | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [Attack 1: Supercookie](#attack-1-supercookie)                                                                                   | Recognize the same device across unrelated sites, through an identifier the tracker plants and reads back. | **Partially**. Meter the writes and the cross-site reads.              |
@@ -148,8 +158,13 @@ reopen it. [Coverage gaps](#coverage-gaps) works through each verdict.
 | [Attack 10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Persist the count across reloads.                      |
 | [Attack 11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Count every surface that reaches the cache.            |
 | [Attack 12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Base the lie on origin and epoch as well.               |
-| [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | Learn whether the device holds a file in the cases where a read refuses to say.                            | **By design**. Keep create off the registry.                           |
-| [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                                 | Read the answer a refusal withholds, out of how long the refusal takes.                                    | **By design**. Keep every refusal identical.                           |
+
+#### Attacks the design already rules out
+
+| Attack                                                                                                           | Objective                                                                       | Solvable with mitigation                     |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------- |
+| [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes) | Learn whether the device holds a file in the cases where a read refuses to say. | **By design**. Keep create off the registry. |
+| [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                 | Read the answer a refusal withholds, out of how long the refusal takes.         | **By design**. Keep every refusal identical. |
 
 ### Shared setup
 
