@@ -976,17 +976,18 @@ A read has to clear three checks: the sharing scope must cover the requesting
 origin, the global scope additionally requires PHL membership, and GREASE'ing
 can still withhold a positive. A write has to clear none of them, because
 storing bytes discloses nothing by itself. Anything the write path lets through
-about the registry is therefore an answer to the question those three checks
-exist to control, delivered without noise, for any hash the attacker names.
+about what is already stored is therefore an answer to the question those three
+checks exist to control, delivered without noise, for any hash the attacker
+names.
 
-Asking to create costs nothing and supplies no bytes. A browser that consulted
-the registry on that call, or registered a placeholder that a later read could
-tell apart from "never stored", would answer differently for a hash the device
+Asking to create costs nothing and supplies no bytes. A browser that looked up
+the hash on that call, or recorded a placeholder that a later read could tell
+apart from "never stored", would answer differently for a hash the device
 already holds, and that difference is the oracle.
 
 COS adds an entry only after a writer supplies the complete contents and the
 browser verifies them against the hash, and `requestFileHandle()` with
-`create: true` neither reads nor writes the registry. Until an entry is
+`create: true` neither looks the hash up nor records anything. Until an entry is
 complete, the hash reads as absent, identically to one never written.
 
 ```js
@@ -999,8 +1000,8 @@ const target = { algorithm: 'SHA-256', value: '7f2e…' };
 const handle = await cos.requestFileHandle(target, { create: true });
 await handle.createWritable(); // nothing written, nothing closed
 
-// A design that consulted the registry on either call would have to answer
-// differently for a hash the device already holds, and that is the oracle.
+// A design that looked the hash up on either call would have to answer
+// differently for one the device already holds, and that is the oracle.
 ```
 
 ### Example
