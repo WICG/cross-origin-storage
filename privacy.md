@@ -854,8 +854,7 @@ the noise to cancel, to repeat identically, or never to apply.
 
 ### Description
 
-GREASE'ing is the one mitigation that makes a single answer unreliable, which is
-why [Coverage gaps](#coverage-gaps) reaches for it against Attack 5. Its
+GREASE'ing is the one mitigation that makes a single answer unreliable. Its
 strength rests on a detail the explainer leaves open: which inputs decide
 whether a given file is withheld from a given site.
 
