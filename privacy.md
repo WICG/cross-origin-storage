@@ -1136,7 +1136,12 @@ across tabs.
 ### Mitigation 4: Tighter limits for sites known to be malicious
 
 A user agent can restrict `requestFileHandle()` further for sites it already
-knows to be malicious, from a source such as Safe Browsing.
+knows to be malicious or to track users, from a source such as
+[Safe Browsing](https://safebrowsing.google.com/) or a tracker protection list
+such as
+[Disconnect's](https://github.com/disconnectme/disconnect-tracking-protection),
+which Firefox already consults for
+[tracking protection](https://disconnect.me/trackerprotection).
 
 #### Coverage
 
