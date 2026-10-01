@@ -1136,12 +1136,15 @@ across tabs.
 ### Mitigation 4: Tighter limits for sites known to be malicious
 
 A user agent can restrict `requestFileHandle()` further for sites it already
-knows to be malicious or to track users, from a source such as
-[Safe Browsing](https://safebrowsing.google.com/) or a tracker protection list
-such as
-[Disconnect's](https://github.com/disconnectme/disconnect-tracking-protection),
-which Firefox already consults for
-[tracking protection](https://disconnect.me/trackerprotection).
+knows to be malicious or to track users. The lists are already on hand:
+[Safe Browsing](https://safebrowsing.google.com/) for malware and phishing,
+[Disconnect's](https://github.com/disconnectme/disconnect-tracking-protection)
+for trackers, which Firefox consults for its
+[tracking protection](https://disconnect.me/trackerprotection), and
+[EasyList](https://easylist.to/) for ads, which Chromium carries in its own tree
+as a derived ruleset for the
+[Subresource Filter](https://chromium.googlesource.com/chromium/src/+/main/components/subresource_filter/README.md)
+and Chrome updates through its component updater.
 
 #### Coverage
 
