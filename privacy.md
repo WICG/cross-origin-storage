@@ -111,7 +111,7 @@ origin with no prior relationship to an entry learns that it exists. A tracker
 cannot approximate the web with an explicit list, and the same-site default
 carries nothing across a site boundary.
 
-Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
+Each COS lookup (or probe) returns one bit. Roughly **32 bits index a population
 of several billion**, since 2³² is about 4.3 billion. That is the scale every
 attack below accumulates toward and every mitigation tries to bound. How much an
 attacker reaches in practice is an empirical question:
@@ -280,19 +280,19 @@ if (!looksMarked(bits)) {
 }
 ```
 
-**Example.** The same two visits as in Variant 1, with the tracker running as
+**Example.** The same two visits as in Variant 1, with the tracker running as
 each site's own script and the marker resources drawn from the PHL.
 
 #### Variant 3: Through the list scope
 
-The tracker mints its marker resources as in Variant 1, so the answers stay
+The tracker mints its marker resources as in Variant 1, so the answers stay
 noiseless. A minted hash never reaches the PHL, so the global scope is closed to
 it, and the list scope carries the read instead: it works for any hash, and
 GREASE'ing leaves it alone. The tracker runs first-party on both sites, so no
 frame and no `allow="cross-origin-storage"` is involved.
 
-Two things bound it. Site A's write has to name site B ahead of time, and the
-declared list is intersected with what site A's own
+Two things bound it. Site A's write has to name site B ahead of time, and the
+declared list is intersected with what site A's own
 [`Cross-Origin-Storage-Allow-Origin`](README.md#the-cross-origin-storage-allow-origin-header)
 response header authorizes, which injected script cannot forge. That list is
 capped at a handful of origins, so a tracker can wire up a few site pairs this
@@ -362,7 +362,7 @@ const probes = [
 const fingerprint = (await Promise.all(probes.map(has))).join('');
 ```
 
-Reliability is lower than Attack 1, because the tracker works with whatever the
+Reliability is lower than Attack 1, because the tracker works with whatever the
 device holds. It needs no cooperation from the embedding sites beyond script
 inclusion, and it leaves nothing a user could find or clear.
 
@@ -433,7 +433,7 @@ read against.
 observed about 200 games shipping the same engine build. A probe on that hash
 comes back positive, which places the device on one of those 200 but does not
 tell the attacker yet which. That same answer already supports the weaker claim
-of Attack 3, that this is someone who plays browser games. Naming the site takes
+of Attack 3, that this is someone who plays browser games. Naming the site takes
 more probes.
 
 Composing probes narrows it, and every file probed is widely deployed in its own
@@ -524,7 +524,7 @@ the attacker already knows.
 ### Description
 
 What matters here is how much a single positive answer tells the attacker. A hit
-on a file that one device in ten thousand holds carries about 13 bits, and a hit
+on a file that one device in ten thousand holds carries about 13 bits, and a hit
 on a file most devices hold carries almost none. Where an attacker has reason to
 think a specific person holds an unusual file, one query on a page that person
 loads approximates a test for that person.
@@ -626,7 +626,7 @@ site is asked and observing what it stores.
 
 ### Description
 
-Attack 6 reads one bit about a session. The same machinery reads the data inside
+Attack 6 reads one bit about a session. The same machinery reads the data inside
 an account wherever a site's storage depends on a query the attacker supplies. A
 search endpoint is the clearest case. Its empty-results page loads a sad face
 image, and a populated one loads a table widget. Each page stores what it loads.
@@ -655,7 +655,7 @@ for (const q of merchants) {
 }
 ```
 
-This costs more than Attack 6 and yields more. Every question needs its own
+This costs more than Attack 6 and yields more. Every question needs its own
 load, its own reset, and its own lookup, so the lookup budget binds here in a
 way it never does on a single-bit probe, and the resets make the attack slow and
 heavy on the network. The target is also specific: the attacker has to find a
@@ -682,7 +682,7 @@ the browser reclaims space.
 Every other attack reads a cache the attacker did not arrange, which is what
 makes a positive answer ambiguous: the file may have arrived at any time, from
 any of the sites that ship it. An attacker who can empty the cache turns it into
-a slate it controls, and that is the baseline Attacks 6 and 7 are built on.
+a slate it controls, and that is the baseline Attacks 6 and 7 are built on.
 
 The mechanism is ordinary use at volume. Under storage pressure the explainer
 expects user agents to reclaim space, for example, by deleting the least
@@ -705,7 +705,7 @@ for (const filler of fillerFiles) {
 
 The per-origin storage limit (see [Cache flooding](README.md#cache-flooding)) is
 what bounds one origin. It is keyed to the origin, and an attacker brings as
-many origins as it cares to, which is Attack 9's move applied to the write path.
+many origins as it cares to, which is Attack 9's move applied to the write path.
 
 ```html
 <!-- Sixteen subdomains, sixteen storage limits, one flood. -->
@@ -724,7 +724,7 @@ resetting one answer takes the user's whole cache with it.
 
 A tracker's page embeds sixteen frames on sixteen subdomains, each writing
 filler until it gets a `QuotaExceededError`. Some gigabytes later the entries
-the device had accumulated are gone, and the tracker runs Attack 6 against a
+the device had accumulated are gone, and the tracker runs Attack 6 against a
 baseline it arranged itself. The user pays twice, once for the flood and again
 in re-downloads across the sites they visit next.
 
@@ -899,7 +899,7 @@ as much as the allowance behind it.
 #### Variant 2: A fixed origin against a deterministic mask
 
 Making whether to lie depend on the device, the requesting origin, and the hash
-stops Variant 1, since the same call then always returns the same thing. It also
+stops Variant 1, since the same call then always returns the same thing. It also
 fixes which files the browser lies about for that device and that origin, and
 that pattern of hidden files is the mask. An attacker holding its own origin
 constant meets the same mask everywhere, which is what an embedded frame does.
@@ -952,7 +952,7 @@ const fingerprint = (await Promise.all(probes.map(has))).join('');
 **Example.** An ad network's script probes 64 model shards, every one of them
 past the size threshold. The browser lies about none of them, so all 64 answers
 are exact, and lying more often about everything else would not change one of
-them. Attack 5 is this variant with a single probe.
+them. Attack 5 is this variant with a single probe.
 
 ## Attack 13: Existence oracle through in-progress writes
 
@@ -1102,7 +1102,7 @@ disclosure.
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Same as [Attack 9](#attack-9-sybil-attack-on-the-budget).                                                                                                                                                                                                                                                                         |
 | [Attack 12](#attack-12-greaseing-evasion)                                   | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                                                                  |
 
-Variant 1 of Attack 1 raises the same question the budget does: a storing origin
+Variant 1 of Attack 1 raises the same question the budget does: a storing origin
 reading back its own entries widens no scope, so whether the gate applies to it
 depends on reading the declared sharing scope as covering use under a different
 top-level site.
@@ -1239,7 +1239,7 @@ already has, and it is also the one that scales worst.
 
 The user agent tells developers what a write exposes, at the moment they write
 it, through the DevTools Issues panel or a console warning. This earns a place
-among the mitigations because Attacks 6 and 7 need a site whose storage varies
+among the mitigations because Attacks 6 and 7 need a site whose storage varies
 with its users' state, that site is attacking nobody, and nothing in its own
 telemetry will ever show that it leaked. Guidance is the only mitigation here
 aimed at the supply of leaky writes.
@@ -1274,8 +1274,8 @@ first, the message has to name the outcome, since the call itself succeeded:
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
 | [Attack 12](#attack-12-greaseing-evasion)                                   | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
 
-Guidance changes what honest sites deploy, which is the supply side of Attacks
-4, 6, and 7, and removing a site's unwitting cooperation is a defense no
+Guidance changes what honest sites deploy, which is the supply side of
+Attacks 4, 6, and 7, and removing a site's unwitting cooperation is a defense no
 demand-side mitigation can supply. It constrains a deliberate attacker not at
 all.
 
@@ -1285,12 +1285,12 @@ Writes count as well as reads. Small writes count one by one against an
 allowance, and large ones are metered by total bytes, so a site storing one
 multi-gigabyte model spends bytes and barely touches the count, and a tracker
 storing 64 files of a few hundred bytes each hits it at once. The two shapes
-separate cleanly: the files COS exists to share run from 8 MB to several
+separate cleanly: the files COS exists to share run from 8 MB to several
 gigabytes, and the files an identifier is made of have to be small enough to
 afford dozens of them. Switching to large marker resources to escape the count
-means pushing gigabytes onto the device for 32 bits, which the storage limit
+means pushing gigabytes onto the device for 32 bits, which the storage limit
 stops and the user's bandwidth bill notices. See
-[Rule 4](public-hash-list/research/proposed-solution.md#rule-4-count-small-writes-weigh-large-ones-by-size).
+[Rule 4](public-hash-list/research/proposed-solution.md#rule-4-count-small-writes-weigh-large-ones-by-size).
 
 #### Coverage
 
@@ -1314,7 +1314,7 @@ limit caps what one origin holds at any moment, and an attacker spread across
 sixteen subdomains gets sixteen of them. Keyed like the lookup budget, to the
 top-level site, a write budget is one allowance however many origins a page
 brings, which is the opening the storage limit leaves in
-[Attack 8](#attack-8-cache-flooding-to-force-eviction).
+[Attack 8](#attack-8-cache-flooding-to-force-eviction).
 
 ## Coverage gaps
 
@@ -1335,10 +1335,10 @@ brings, which is the opening the storage limit leaves in
 | [13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | None needed                                    | Ruled out by design                                           |
 | [14: Timing side channel](#attack-14-timing-side-channel)                                                                 | None needed                                    | Ruled out by design                                           |
 
-Attack 5 is the one no mitigation the explainer lists reaches. Each of
-Mitigations 1 through 4 bounds something the attack does not need: volume
-(Mitigations 1 and 3), the write side (Mitigation 2), or sites already known to
-be bad (Mitigation 4). Targeted de-anonymization spends one probe, writes
+Attack 5 is the one no mitigation the explainer lists reaches. Each of
+Mitigations 1 through 4 bounds something the attack does not need: volume
+(Mitigations 1 and 3), the write side (Mitigation 2), or sites already known to
+be bad (Mitigation 4). Targeted de-anonymization spends one probe, writes
 nothing, and runs from a site nobody has flagged, so it passes through all four
 untouched.
 
@@ -1346,41 +1346,41 @@ GREASE'ing is the design feature that would answer it, by making a single
 negative unreliable. The size-proportionate rule withholds GREASE'ing from files
 whose spurious re-download would be disproportionate, which is exactly the class
 of large, rare files the attack is strongest on, so the answer stays noise-free
-where it identifies best, and [Attack 12](#attack-12-greaseing-evasion) turns
+where it identifies best, and [Attack 12](#attack-12-greaseing-evasion) turns
 that same exemption against GREASE'ing wholesale. Among the mitigations under
 discussion, the permission prompt is the only one that reaches this attack, and
 it does so by bounding whether a site may ask at all. Everything else above
 bounds how many lookups a site may make, and one lookup is all this attack
 needs, so only a user prompt, or lying about large files, would mitigate it.
 
-Mitigation 5 appears in the rows above where its argument holds, and it acts on
+Mitigation 5 appears in the rows above where its argument holds, and it acts on
 all of them at once. Wherever third-party cookies are off it removes every
 attack that crosses a site boundary, and wherever they are on it changes none of
 them. What it contributes is the comparison, that a tracker able to run these
-lookups held a third-party cookie already, and that comparison covers Attacks 1
-through 3. Attacks 4 through 7 reach sites the tracker never touched, which no
+lookups held a third-party cookie already, and that comparison covers Attacks 1
+through 3. Attacks 4 through 7 reach sites the tracker never touched, which no
 third-party cookie reports, so they are the ones it leaves standing.
 
-Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by the
+Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by the
 per-origin storage limit alone. That limit is keyed to the origin, and the
 lookup budget is keyed to the top-level site precisely because an attacker
 brings as many origins as it cares to
-([Attack 9](#attack-9-sybil-attack-on-the-budget)). A write budget keyed the
+([Attack 9](#attack-9-sybil-attack-on-the-budget)). A write budget keyed the
 same way carries that lesson to the write path. Until one exists, sixteen
 subdomains buy sixteen storage limits, and what bounds flooding is the bandwidth
 it takes to fill a cache sized for AI models.
 
-Attack 12 is the only attack here aimed at a mitigation the rest of the document
-treats as given. Variants 1 and 2 turn on one unsettled specification detail,
+Attack 12 is the only attack here aimed at a mitigation the rest of the document
+treats as given. Variants 1 and 2 turn on one unsettled specification detail,
 which inputs GREASE'ing bases its lying on, and the lookup budget prices the
-repeats Variant 1 needs. Variant 3 answers to nothing on this list. The
+repeats Variant 1 needs. Variant 3 answers to nothing on this list. The
 size-proportionate rule withholds noise from large files for a performance
 reason that stands on its own, and those are the files an attacker most wants to
-ask about, so Variant 3 and Attack 5 share one opening and will share one fix or
+ask about, so Variant 3 and Attack 5 share one opening and will share one fix or
 none.
 
-Attacks 6 and 7 are the only two that need a party who is not attacking anyone,
-which is why Mitigation 7 reaches them most directly, and Attack 4 only in part.
+Attacks 6 and 7 are the only two that need a party who is not attacking anyone,
+which is why Mitigation 7 reaches them most directly, and Attack 4 only in part.
 Their exposure shrinks as sites learn what their own writes disclose, making
 developer guidance the one mitigation surface here whose reach grows with
 adoption.
