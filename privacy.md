@@ -1042,10 +1042,7 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Proposed mitigations
 
-In each coverage table below, ✅ marks an attack the mitigation closes, 🟡 one
-it bounds without closing, and ⚪ one it does not reach.
-
-### One place to look
+### Mitigation compared with classic fingerprinting
 
 Every attack in this document passes necessarily through one API. The browser
 therefore knows exactly where to look, in advance and in one place. Classic
@@ -1055,6 +1052,15 @@ signals the browser never sees as signals, from timing variation to accumulated
 platform quirks, spread across the whole platform. A COS lookup is an explicit
 request, so the browser sees each one, knows which origin made it and which hash
 it named, and can count it, delay it, or decline it.
+
+### Reading the coverage tables
+
+Each mitigation below carries a table saying how far it reaches into every
+attack.
+
+- ✅ The mitigation closes the attack.
+- 🟡 It bounds the attack without closing it.
+- ⚪ It does not reach the attack.
 
 ### Mitigation 1 (M1): Cross-site lookup budget
 
