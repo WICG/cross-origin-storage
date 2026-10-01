@@ -1055,7 +1055,7 @@ platform quirks, spread across the whole platform. A COS lookup is an explicit
 request, so the browser sees each one, knows which origin made it and which hash
 it named, and can count it, delay it, or decline it.
 
-### Mitigation 1: Cross-site lookup budget
+### Mitigation 1 (M1): Cross-site lookup budget
 
 Every lookup that could reveal what another site stored counts against a small
 allowance, on the order of 8 to 16 per time window, whether or not it finds the
@@ -1081,7 +1081,7 @@ the page draws from the same one.
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.              |
 | [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡 (Variant 1)             | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                           |
 
-### Mitigation 2: A user gesture before the declared sharing scope applies
+### Mitigation 2 (M2): A user gesture before the declared sharing scope applies
 
 A written file becomes readable by other sites only after a user gesture on the
 page. The writing page itself can use the file right away, so the performance
@@ -1111,7 +1111,7 @@ scope and the gate has nothing to hold back. Catching that variant means
 treating a storing origin's read of its own entry as a disclosure whenever it
 happens under a different top-level site.
 
-### Mitigation 3: A count that survives reloads and tabs
+### Mitigation 3 (M3): A count that survives reloads and tabs
 
 The lookup count persists across page reloads for the whole top-level site, and
 across tabs.
@@ -1133,7 +1133,7 @@ across tabs.
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns what the count covers.                                     |
 | [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡 (Variant 1)   | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                            |
 
-### Mitigation 4: Tighter limits for origins on a blocklist
+### Mitigation 4 (M4): Tighter limits for origins on a blocklist
 
 A user agent can restrict `requestFileHandle()` further for origins it already
 knows to be malicious or to track users. The lists are already on hand:
@@ -1173,7 +1173,7 @@ tracker in an iframe presents an origin a list can name, and the same tracker
 shipped as `<script src>` in the page presents the embedding site's origin. Most
 analytics and anti-fraud vendors already ship the second way.
 
-### Mitigation 5: Availability tied to third-party cookies
+### Mitigation 5 (M5): Availability tied to third-party cookies
 
 A user agent that still supports third-party cookies can make COS's cross-site
 disclosure follow that setting. Where third-party cookies are on, COS answers as
@@ -1213,7 +1213,7 @@ unintended leak happens between parties that never set a cookie for each other,
 and a reader of one of those learns something a third-party cookie would never
 have told them.
 
-### Mitigation 6: Permission prompts
+### Mitigation 6 (M6): Permission prompts
 
 A user agent can ask the user before letting a site read what other sites
 stored. Three granularities have been considered: one grant per browser, one per
@@ -1254,7 +1254,7 @@ origin removes most of what motivates COS. The per-resource variant is the one
 that can be explained concretely, naming the multi-gigabyte model the user
 already has, and it is also the one that scales worst.
 
-### Mitigation 7: Developer guidance
+### Mitigation 7 (M7): Developer guidance
 
 The user agent tells developers what a write exposes, at the moment they write
 it, through the DevTools Issues panel or a console warning. This earns a place
@@ -1298,7 +1298,7 @@ Attacks 4, 6, and 7, and removing a site's unwitting cooperation is a defense n
 demand-side mitigation can supply. It constrains a deliberate attacker not at
 all.
 
-### Mitigation 8: A write budget on count and bytes
+### Mitigation 8 (M8): A write budget on count and bytes
 
 Writes count as well as reads. Every completed write costs one unit against a
 small allowance and its bytes against a byte allowance, both charged when the
@@ -1337,22 +1337,22 @@ brings, which is the opening the storage limit leaves in
 
 ## Coverage gaps
 
-| Attack                                                                                                                    | Covered by                                     | Degree                                                        |
-| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
-| [1: Supercookie](#attack-1-supercookie)                                                                                   | Mitigations 1, 2, 3, 5, 6, 8                   | Partially, and Variant 1 escapes 1 and 2                      |
-| [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Mitigations 1, 3, 5, 6                         | Partially                                                     |
-| [3: Attribute inference](#attack-3-attribute-inference)                                                                   | Mitigations 1, 3, 5, 6                         | Partially, and 8 lookups already yield a cohort               |
-| [4: History sniffing](#attack-4-history-sniffing)                                                                         | Mitigations 1, 3, 6, 7                         | Partially                                                     |
-| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Mitigation 6                                   | Reached by nothing the explainer lists                        |
-| [6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | Mitigations 2, 6, 7                            | Partially, and the passive variant survives                   |
-| [7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | Mitigations 1, 2, 3, 6, 7                      | Partially, and Mitigation 2 blocks the induced load           |
-| [8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | Mitigation 8, and the per-origin storage limit | Partially, and the limit alone lets extra origins multiply it |
-| [9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | Mitigation 1                                   | Completely                                                    |
-| [10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Mitigations 2, 3                               | Completely                                                    |
-| [11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Mitigation 1                                   | Completely                                                    |
-| [12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Mitigations 1, 3, 6                            | Partially, and Variant 3 is not addressed                     |
-| [13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | None needed                                    | Ruled out by design                                           |
-| [14: Timing side channel](#attack-14-timing-side-channel)                                                                 | None needed                                    | Ruled out by design                                           |
+| Attack                                                                                                                    | Covered by                                      | Degree                                                        |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| [1: Supercookie](#attack-1-supercookie)                                                                                   | 🟡 (M1) 🟡 (M2) 🟡 (M3) 🟡 (M5) 🟡 (M6) 🟡 (M8) | Partially, and Variant 1 escapes 1 and 2                      |
+| [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | 🟡 (M1) 🟡 (M3) 🟡 (M5) 🟡 (M6)                 | Partially                                                     |
+| [3: Attribute inference](#attack-3-attribute-inference)                                                                   | 🟡 (M1) 🟡 (M3) 🟡 (M5) 🟡 (M6)                 | Partially, and 8 lookups already yield a cohort               |
+| [4: History sniffing](#attack-4-history-sniffing)                                                                         | 🟡 (M1) 🟡 (M3) 🟡 (M6) 🟡 (M7)                 | Partially                                                     |
+| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | 🟡 (M6)                                         | Reached by nothing the explainer lists                        |
+| [6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | 🟡 (M2) 🟡 (M6) 🟡 (M7)                         | Partially, and the passive variant survives                   |
+| [7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | 🟡 (M1) 🟡 (M2) 🟡 (M3) 🟡 (M6) 🟡 (M7)         | Partially, and Mitigation 2 blocks the induced load           |
+| [8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | 🟡 (M8) 🟡 (per-origin storage limit)           | Partially, and the limit alone lets extra origins multiply it |
+| [9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | ✅ (M1)                                         | Completely                                                    |
+| [10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | 🟡 (M2) ✅ (M3)                                 | Completely                                                    |
+| [11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ✅ (M1)                                         | Completely                                                    |
+| [12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | 🟡 (M1) 🟡 (M3) 🟡 (M6)                         | Partially, and Variant 3 is not addressed                     |
+| [13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | None needed                                     | Ruled out by design                                           |
+| [14: Timing side channel](#attack-14-timing-side-channel)                                                                 | None needed                                     | Ruled out by design                                           |
 
 Attack 5 is the one no mitigation the explainer lists reaches. Each of
 Mitigations 1 through 4 bounds something the attack does not need: volume
