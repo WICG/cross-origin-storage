@@ -1308,8 +1308,7 @@ separate cleanly: the files COS exists to share run from 8 MB to several
 gigabytes, and the files an identifier is made of have to be small enough to
 afford dozens of them. Switching to large marker resources to escape the count
 means pushing gigabytes onto the device for 32 bits, which the storage limit
-stops and the user's bandwidth bill notices. See
-[Rule 4](public-hash-list/research/proposed-solution.md#rule-4-count-small-writes-weigh-large-ones-by-size).
+stops and the user's bandwidth bill notices.
 
 #### Coverage
 
