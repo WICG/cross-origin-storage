@@ -1041,6 +1041,9 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Proposed mitigations
 
+In each coverage table below, ✅ marks an attack the mitigation closes, 🟡 one
+it bounds without closing, and ⚪ one it does not reach.
+
 ### One place to look
 
 Every attack in this document passes necessarily through one API. The browser
