@@ -1041,7 +1041,7 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Proposed mitigations
 
-### A single mediation point
+### One place to look
 
 Every attack in this document passes necessarily through one API. The browser
 therefore knows exactly where to look, in advance and in one place. Classic
