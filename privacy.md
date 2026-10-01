@@ -1043,14 +1043,14 @@ averaging over repetitions would recover it however small the difference is.
 
 ### A single mediation point
 
-Every attack in this document passes through one API. Classic browser
-fingerprinting, surveyed by [Laperdrix et al.](https://doi.org/10.1145/3386040)
-(ACM TWEB 2020), draws on signals the browser never sees as signals, from timing
-variation to accumulated platform quirks, spread across the whole platform. A
-COS lookup is an explicit request, so the browser sees each one, knows which
-origin made it and which hash it named, and can count it, delay it, or decline
-it. The browser therefore knows exactly where to look, in advance and in one
-place.
+Every attack in this document passes necessarily through one API. The browser
+therefore knows exactly where to look, in advance and in one place. Classic
+browser fingerprinting, surveyed by
+[Laperdrix et al.](https://doi.org/10.1145/3386040) (ACM TWEB 2020), draws on
+signals the browser never sees as signals, from timing variation to accumulated
+platform quirks, spread across the whole platform. A COS lookup is an explicit
+request, so the browser sees each one, knows which origin made it and which hash
+it named, and can count it, delay it, or decline it.
 
 ### Mitigation 1: Cross-site lookup budget
 
