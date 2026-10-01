@@ -1077,6 +1077,7 @@ the page draws from the same one.
 | Attacks                                                                                                                             | Description                                                                                                                                                                                                   |
 | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Attack 9](#attack-9-sybil-attack-on-the-budget)                                                                                    | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                 |
+| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                                                                                | Not closed by the allowance alone. A fresh page load starts a fresh one, so this waits on Mitigation 3.                                                                                                       |
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points)                                                         | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.              |
 | [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 4](#attack-4-history-sniffing) | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                             |
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)                                                                 | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                  |
@@ -1125,6 +1126,7 @@ across tabs.
 | [Attack 5](#attack-5-targeted-de-anonymization), [Attack 6](#attack-6-induced-write-as-a-state-oracle)                                                                 | Untouched, for the same reason the budget misses it.                                                                                           |
 | [Attack 12](#attack-12-greaseing-evasion)                                                                                                                              | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                             |
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                 | Out of reach, for the same reason the budget misses it: the count tracks lookups, and this attack writes.                                      |
+| [Attack 9](#attack-9-sybil-attack-on-the-budget), [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points)                                          | Out of reach. Persistence decides how long a count lasts, and these two concern whose count it is and what it counts.                          |
 
 ### Mitigation 4: Tighter limits for sites known to be malicious
 
@@ -1164,7 +1166,6 @@ accepted.
 | [Attack 4](#attack-4-history-sniffing), [Attack 5](#attack-5-targeted-de-anonymization), [Attack 6](#attack-6-induced-write-as-a-state-oracle), [Attack 7](#attack-7-query-oracle-through-result-dependent-caching) | The comparison fails. A third-party cookie reports the sites that carry the tracker, and these four reach sites it never touched: a game it is absent from, a model the user fetched elsewhere, a bank the attacker only opened in a popup. Where third-party cookies are off, the gate removes them wholesale. |
 | [Attack 9](#attack-9-sybil-attack-on-the-budget) through [Attack 12](#attack-12-greaseing-evasion)                                                                                                                  | Removed wherever third-party cookies are off, since nothing crosses a site boundary there. Unaffected wherever they are on.                                                                                                                                                                                     |
 | [Attack 8](#attack-8-cache-flooding-to-force-eviction)                                                                                                                                                              | Untouched in either state, since a same-site write fills the same cache.                                                                                                                                                                                                                                        |
-| [Attack 13](#attack-13-existence-oracle-through-in-progress-writes), [Attack 14](#attack-14-timing-side-channel)                                                                                                    | Unaffected. Both are properties of the design and hold in either state.                                                                                                                                                                                                                                         |
 
 Two limits come with it. A browser that has already removed third-party cookies
 cannot apply this at all, so the mitigation is absent exactly where the rest of
@@ -1236,10 +1237,10 @@ first, the message has to name the outcome, since the call itself succeeded:
 | [Attack 4](#attack-4-history-sniffing)                                                                                                                                                                                                                                                    | Partially, for the same reason. A site warned that a distinctive resource is going out globally may narrow its scope, which shortens the deployment map an attacker reads answers against.     |
 | [Attack 1](#attack-1-supercookie), [Attack 2](#attack-2-cache-based-fingerprinting), [Attack 3](#attack-3-attribute-inference), [Attack 5](#attack-5-targeted-de-anonymization), [Attack 8](#attack-8-cache-flooding-to-force-eviction) through [Attack 12](#attack-12-greaseing-evasion) | Not reached. A deliberate attacker reads the warning as confirmation that the write worked.                                                                                                    |
 
-Guidance changes what honest sites deploy and constrains an attacker not at all.
-It earns its place because the attacks it touches need an honest site's
-cooperation, and withdrawing that cooperation is a defense no demand-side
-mitigation can supply.
+Guidance changes what honest sites deploy, which is the supply side of Attacks
+4, 6, and 7, and removing a site's unwitting cooperation is a defense no
+demand-side mitigation can supply. It constrains a deliberate attacker not at
+all.
 
 ### Mitigation 8: A write budget weighted by size
 
