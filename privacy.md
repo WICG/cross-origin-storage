@@ -1046,22 +1046,11 @@ averaging over repetitions would recover it however small the difference is.
 Every attack in this document passes through one API. Classic browser
 fingerprinting, surveyed by [Laperdrix et al.](https://doi.org/10.1145/3386040)
 (ACM TWEB 2020), draws on signals the browser never sees as signals, from timing
-variation to accumulated platform quirks, spread across the whole platform with
-no one call to count. A COS lookup is an explicit request, so the browser sees
-each one, knows which origin made it and which hash it named, and can count it,
-delay it, or decline it.
-
-The browser therefore knows exactly where to look, in advance and in one place.
-That reduces the problem to bookkeeping: count every request that could disclose
-what another site stored, and decide which of them to answer. Attacks 9 through
-11 all target that bookkeeping, and a gap in it costs the whole protection.
-Attack 12 targets the other half, the noise the browser adds to the answers it
-does give.
-
-Mitigations 1 through 4 are the ones the explainer lists today. Mitigations 5
-through 8 are under discussion, and each acts on a surface the first four leave
-alone: the browser's own third-party cookie setting, the user, the developer
-writing the entry, and the write path itself.
+variation to accumulated platform quirks, spread across the whole platform. A
+COS lookup is an explicit request, so the browser sees each one, knows which
+origin made it and which hash it named, and can count it, delay it, or decline
+it. The browser therefore knows exactly where to look, in advance and in one
+place.
 
 ### Mitigation 1: Cross-site lookup budget
 
