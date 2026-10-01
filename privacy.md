@@ -1298,13 +1298,14 @@ Attacks 4, 6, and 7, and removing a site's unwitting cooperation is a defense n
 demand-side mitigation can supply. It constrains a deliberate attacker not at
 all.
 
-### Mitigation 8: A write budget weighted by size
+### Mitigation 8: A write budget on count and bytes
 
-Writes count as well as reads. Small writes count one by one against an
-allowance, and large ones are metered by total bytes, so a site storing one
+Writes count as well as reads. Every completed write costs one unit against a
+small allowance and its bytes against a byte allowance, both charged when the
+write closes and the browser knows the real size, so a site storing one
 multi-gigabyte model spends bytes and barely touches the count, and a tracker
-storing 64 files of a few hundred bytes each hits it at once. The two shapes
-separate cleanly: the files COS exists to share run from 8 MB to several
+storing 64 files of a few hundred bytes each hits the count at once. The two
+shapes separate cleanly: the files COS exists to share run from 8 MB to several
 gigabytes, and the files an identifier is made of have to be small enough to
 afford dozens of them. Switching to large marker resources to escape the count
 means pushing gigabytes onto the device for 32 bits, which the storage limit
@@ -1321,7 +1322,7 @@ stops and the user's bandwidth bill notices.
 | [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
 | [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | ⚪              | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                          |
 | [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | ⚪              | Same as [Attack 6](#attack-6-induced-write-as-a-state-oracle).                                                                                                                                    |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | 🟡              | Reached, and this is the first mitigation aimed at it. Flooding is writing at volume, which is exactly what a size-weighted allowance meters.                                                     |
+| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | 🟡              | Reached, and this is the first mitigation aimed at it. Flooding is writing at volume, which is exactly what the byte allowance meters.                                                            |
 | [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
 | [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
