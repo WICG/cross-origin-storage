@@ -1105,10 +1105,11 @@ disclosure.
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪                  | Same as [Attack 9](#attack-9-sybil-attack-on-the-budget).                                                                                                                                                                                                                                                                                          |
 | [Attack 12](#attack-12-greaseing-evasion)                                   | ⚪                  | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                                                                                   |
 
-Variant 1 of Attack 1 raises the same question the budget does: a storing origin
-reading back its own entries widens no scope, so whether the gate applies to it
-depends on reading the declared sharing scope as covering use under a different
-top-level site.
+Variant 1 of Attack 1 raises the same question the budget does. The tracker's
+frame reads entries its own origin stored, so nothing it does widens a sharing
+scope and the gate has nothing to hold back. Catching that variant means
+treating a storing origin's read of its own entry as a disclosure whenever it
+happens under a different top-level site.
 
 ### Mitigation 3: A count that survives reloads and tabs
 
