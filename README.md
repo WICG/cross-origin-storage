@@ -885,7 +885,7 @@ The header bounds disclosure to the origins the operator authorized. If a site l
 
 In browsers that still support third-party cookies, COS lets a tracker link a user's visits across sites no better than a third-party cookie already can. By applying the mitigations listed below, COS can also be implemented in browsers without support for third-party cookies.
 
-Since every COS lookup and write passes through one explicit API, the user agent knows exactly where tracking would have to happen—unlike tracking vectors that hide in timing side channels or scattered platform quirks. That single choke point is what makes it possible to count, gate, and rate-limit cross-site disclosure precisely, something browsers cannot do for signals they never see.
+Since every COS lookup and write passes through one explicit API, the user agent knows exactly where tracking would have to happen. That single mediation point is what makes it possible to count, gate, and rate-limit cross-site disclosure precisely, something browsers cannot do for signals they never see, such as those hiding in timing side channels or scattered platform quirks.
 
 #### Cross-site tracking through writes
 
