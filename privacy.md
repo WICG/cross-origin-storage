@@ -136,27 +136,27 @@ it.
 
 #### Attacks a user agent has to bound by rule
 
-| Attack                                                                                                                           | Objective                                                                                                  | Solvable with mitigation                                                                              |
-| -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [Attack 1: Supercookie](#attack-1-supercookie)                                                                                   | Recognize the same device across unrelated sites, through an identifier the tracker plants and reads back. | **Partially**. Cap the writes and the cross-site lookups.                                             |
-| [Attack 2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | Recognize the same device across unrelated sites, through the files it already happens to hold.            | **Partially**. Cap the cross-site lookups.                                                            |
-| [Attack 3: Attribute inference](#attack-3-attribute-inference)                                                                   | Assign the user to a targeting cohort, with no identifier involved at any point.                           | **Partially**. Cap the cross-site lookups, and keep revealing files off the PHL.                      |
-| [Attack 4: History sniffing](#attack-4-history-sniffing)                                                                         | Establish that a device visited one particular site, with no cooperation from that site.                   | **Partially**. Cap the cross-site lookups, and narrow the sharing scopes sites declare.               |
-| [Attack 5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | **No**. Only a user prompt, or lying about large files, would mitigate the attack.                    |
-| [Attack 6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | Learn the state of a user's account on another site, by making that site write and asking whether it did.  | **Partially**. Apply the declared sharing scope only after a user gesture.                            |
-| [Attack 7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | Read private data out of another site, by choosing what that site is asked.                                | **Partially**. Apply the declared sharing scope only after a gesture, and cap the cross-site lookups. |
-| [Attack 8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | Control what the device holds, by filling the cache until the browser reclaims space.                      | **Partially**. Cap the writes by size.                                                                |
-| [Attack 9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | Spend more lookups than the budget allows, by presenting as several origins at once.                       | **Completely**. Tie the cap to the top-level site.                                                    |
-| [Attack 10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Keep the cap across reloads.                                                          |
-| [Attack 11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Apply the cap to every surface.                                                       |
-| [Attack 12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Make the lie depend on the origin and a time period.                                   |
+| Attack                                                                                                                               | Objective                                                                                                  | Solvable with mitigation                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [Attack 1: Supercookie](#attack-1-a1-supercookie)                                                                                    | Recognize the same device across unrelated sites, through an identifier the tracker plants and reads back. | **Partially**. Cap the writes and the cross-site lookups.                                             |
+| [Attack 2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                                      | Recognize the same device across unrelated sites, through the files it already happens to hold.            | **Partially**. Cap the cross-site lookups.                                                            |
+| [Attack 3: Attribute inference](#attack-3-a3-attribute-inference)                                                                    | Assign the user to a targeting cohort, with no identifier involved at any point.                           | **Partially**. Cap the cross-site lookups, and keep revealing files off the PHL.                      |
+| [Attack 4: History sniffing](#attack-4-a4-history-sniffing)                                                                          | Establish that a device visited one particular site, with no cooperation from that site.                   | **Partially**. Cap the cross-site lookups, and narrow the sharing scopes sites declare.               |
+| [Attack 5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                                        | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | **No**. Only a user prompt, or lying about large files, would mitigate the attack.                    |
+| [Attack 6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                                            | Learn the state of a user's account on another site, by making that site write and asking whether it did.  | **Partially**. Apply the declared sharing scope only after a user gesture.                            |
+| [Attack 7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching)                | Read private data out of another site, by choosing what that site is asked.                                | **Partially**. Apply the declared sharing scope only after a gesture, and cap the cross-site lookups. |
+| [Attack 8: Cache flooding to force eviction](#attack-8-a8-cache-flooding-to-force-eviction)                                          | Control what the device holds, by filling the cache until the browser reclaims space.                      | **Partially**. Cap the writes by size.                                                                |
+| [Attack 9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                                      | Spend more lookups than the budget allows, by presenting as several origins at once.                       | **Completely**. Tie the cap to the top-level site.                                                    |
+| [Attack 10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                               | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Keep the cap across reloads.                                                          |
+| [Attack 11: Cross-site leak by combining COS integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Apply the cap to every surface.                                                       |
+| [Attack 12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                                    | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Make the lie depend on the origin and a time period.                                   |
 
 #### Attacks the design already rules out
 
-| Attack                                                                                                           | Objective                                                                       | Solvable with mitigation                                                    |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [Attack 13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes) | Learn whether the device holds a file in the cases where a read refuses to say. | **By design**. Make a `create` request reveal nothing about what is stored. |
-| [Attack 14: Timing side channel](#attack-14-timing-side-channel)                                                 | Read the answer a refusal withholds, out of how long the refusal takes.         | **By design**. Keep every refusal identical in content and timing.          |
+| Attack                                                                                                               | Objective                                                                       | Solvable with mitigation                                                    |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [Attack 13: Existence oracle through in-progress writes](#attack-13-a13-existence-oracle-through-in-progress-writes) | Learn whether the device holds a file in the cases where a read refuses to say. | **By design**. Make a `create` request reveal nothing about what is stored. |
+| [Attack 14: Timing side channel](#attack-14-a14-timing-side-channel)                                                 | Read the answer a refusal withholds, out of how long the refusal takes.         | **By design**. Keep every refusal identical in content and timing.          |
 
 ### Shared setup
 
@@ -176,7 +176,7 @@ const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 const example = { algorithm: 'SHA-256', value: '8f43…' };
 ```
 
-## Attack 1: Supercookie
+## Attack 1 (A1): Supercookie
 
 ### Objective
 
@@ -192,7 +192,7 @@ size, and the tracker refreshes it on each visit.
 
 The tracker can do this in three ways.
 
-#### Variant 1: Through an embedded frame
+#### Variant 1 (A1.1): Through an embedded frame
 
 Both sites embed an iframe from `tracker.example` and grant it
 `allow="cross-origin-storage"`, so the tracker writes under its own origin. A
@@ -241,7 +241,7 @@ const id = bits.join(''); // '10110…'
 later the same frame on an unrelated shopping site reads those 32 hashes back,
 recovers the pattern, and attributes both visits to one device.
 
-#### Variant 2: Through the Public Hash List
+#### Variant 2 (A1.2): Through the Public Hash List
 
 A tracker running as the site's own script writes under that site's origin,
 unreadable elsewhere. Reaching it from a second site requires
@@ -283,7 +283,7 @@ if (!looksMarked(bits)) {
 **Example.** The same two visits as in Variant 1, with the tracker running as
 each site's own script and the marker resources drawn from the PHL.
 
-#### Variant 3: Through the list scope
+#### Variant 3 (A1.3): Through the list scope
 
 The tracker mints its marker resources as in Variant 1, so the answers stay
 noiseless. A minted hash never reaches the PHL, so the global scope is closed to
@@ -329,7 +329,7 @@ which is what lets the newspaper's response header authorize the magazine's
 origin. A reader marked while reading the newspaper is recognized on the
 magazine, with no shared cookie and no frame on either site.
 
-## Attack 2: Cache-based fingerprinting
+## Attack 2 (A2): Cache-based fingerprinting
 
 ### Objective
 
@@ -372,7 +372,7 @@ The same analytics script on a recipe blog and a local newspaper queries the
 same 60 libraries and fonts. The patterns match across both visits, so the
 script attributes them to one device and merges the browsing records.
 
-## Attack 3: Attribute inference
+## Attack 3 (A3): Attribute inference
 
 ### Objective
 
@@ -415,7 +415,7 @@ establishing that the device runs local inference. An eighth query, for the
 Japanese subset of a common font, is also positive, establishing a language
 attribute.
 
-## Attack 4: History sniffing
+## Attack 4 (A4): History sniffing
 
 ### Objective
 
@@ -514,7 +514,7 @@ An ad network's script on an unrelated news site runs the three probes and gets
 three positives. It records the reader as having been on `game67.example`, a
 site that never loaded that script and never consented to the disclosure.
 
-## Attack 5: Targeted de-anonymization
+## Attack 5 (A5): Targeted de-anonymization
 
 ### Objective
 
@@ -555,7 +555,7 @@ one probe for the model's hash to the pages the account is reading. It comes
 back positive, which is substantial grounds for tying the account to the
 researcher.
 
-## Attack 6: Induced write as a state oracle
+## Attack 6 (A6): Induced write as a state oracle
 
 ### Objective
 
@@ -617,7 +617,7 @@ which is what a phishing campaign needs to choose its possible attack targets.
 The bank served no byte to `evil.example` and has no way to observe that any of
 this happened.
 
-## Attack 7: Query oracle through result-dependent caching
+## Attack 7 (A7): Query oracle through result-dependent caching
 
 ### Objective
 
@@ -670,7 +670,7 @@ one induced load each. Eleven come back as matches, which is a partial statement
 for an account the attacker has no credentials for. Every query ran with the
 user's own cookies, on a `GET` the bank considers ordinary.
 
-## Attack 8: Cache flooding to force eviction
+## Attack 8 (A8): Cache flooding to force eviction
 
 ### Objective
 
@@ -728,7 +728,7 @@ the device had accumulated are gone, and the tracker runs Attack 6 against a
 baseline it arranged itself. The user pays twice, once for the flood and again
 in re-downloads across the sites they visit next.
 
-## Attack 9: Sybil attack on the budget
+## Attack 9 (A9): Sybil attack on the budget
 
 ### Objective
 
@@ -777,7 +777,7 @@ subdomains spend eight each on disjoint sets, yielding 32 answers in one page
 view. This is why the explainer keys the budget to the top-level site, shared
 across every frame.
 
-## Attack 10: Rate-limit evasion by reload
+## Attack 10 (A10): Rate-limit evasion by reload
 
 ### Objective
 
@@ -807,7 +807,7 @@ if (round < 3) location.reload();
 At eight lookups per page load, four silent reloads inside two seconds yield 32
 answers. This is why the count has to persist across reloads and navigations.
 
-## Attack 11: Cross-site leak by combining COS integration points
+## Attack 11 (A11): Cross-site leak by combining COS integration points
 
 ### Objective
 
@@ -852,7 +852,7 @@ of them reach its server. The eleven producing no request are the files the
 device already held. Thirty-two answers, no call to `requestFileHandle()`. This
 is why a budget has to count all four integration points.
 
-## Attack 12: GREASE'ing evasion
+## Attack 12 (A12): GREASE'ing evasion
 
 ### Objective
 
@@ -864,11 +864,12 @@ the noise to cancel, to repeat identically, or never to apply.
 GREASE'ing is the one mitigation that makes a single answer unreliable. The
 browser seemingly randomly lies about what it holds, so one negative answer
 proves nothing. The attacker can recover the withheld answers in three ways:
-[repetition](#variant-1-repetition-against-a-per-call-decision),
-[a fixed origin](#variant-2-a-fixed-origin-against-a-deterministic-mask), and
-[selection above the size threshold](#variant-3-selection-above-the-size-threshold).
+[repetition](#variant-1-a121-repetition-against-a-per-call-decision),
+[a fixed origin](#variant-2-a122-a-fixed-origin-against-a-deterministic-mask),
+and
+[selection above the size threshold](#variant-3-a123-selection-above-the-size-threshold).
 
-#### Variant 1: Repetition against a per-call decision
+#### Variant 1 (A12.1): Repetition against a per-call decision
 
 A browser that decides anew on every call makes the noise independent per probe,
 so the same question asked multiple times is withheld only when the browser lies
@@ -896,7 +897,7 @@ about eight. Four files, four times each, leaves it wrong about one in sixteen.
 It trades breadth for answers it can trust, which makes the lying worth exactly
 as much as the allowance behind it.
 
-#### Variant 2: A fixed origin against a deterministic mask
+#### Variant 2 (A12.2): A fixed origin against a deterministic mask
 
 Making whether to lie depend on the device, the requesting origin, and the hash
 stops Variant 1, since the same call then always returns the same thing. It also
@@ -932,7 +933,7 @@ site, so its requesting origin is the same in both. The browser hides the same
 nine files from it on both, the two patterns match exactly, and the tracker
 links the visits without losing a bit to the lying.
 
-#### Variant 3: Selection above the size threshold
+#### Variant 3 (A12.3): Selection above the size threshold
 
 GREASE'ing is withheld from files whose spurious re-download would be
 disproportionate, so an attacker probes only files above that threshold. Those
@@ -954,7 +955,7 @@ past the size threshold. The browser lies about none of them, so all 64 answers
 are exact, and lying more often about everything else would not change one of
 them. Attack 5 is this variant with a single probe.
 
-## Attack 13: Existence oracle through in-progress writes
+## Attack 13 (A13): Existence oracle through in-progress writes
 
 ### Objective
 
@@ -1006,7 +1007,7 @@ differs from the answer for a hash nobody holds, and the site learns that this
 device belongs to a customer of that bank, which is what a phishing campaign
 needs to pick its targets. COS answers identically either way.
 
-## Attack 14: Timing side channel
+## Attack 14 (A14): Timing side channel
 
 ### Objective
 
@@ -1066,20 +1067,20 @@ the page draws from the same one.
 
 #### Coverage
 
-| Attack                                                                      | Covered                    | Description                                                                                                                                                                                                   |
-| --------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                           | 🟡 (variants 2 and 3)      | Variants 2 and 3 count against the allowance. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie. |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | 🟡                         | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                             |
-| [Attack 3](#attack-3-attribute-inference)                                   | 🟡                         | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                                     |
-| [Attack 4](#attack-4-history-sniffing)                                      | 🟡                         | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                                     |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪                         | Untouched. One probe suffices, so an allowance of 8 never binds.                                                                                                                                              |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | ⚪                         | Untouched. Two lookups bracket the induced load, so an allowance of 8 never binds.                                                                                                                            |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | 🟡                         | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                  |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪                         | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                       |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ✅                         | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                 |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | ⚪ (needs Mitigation 3)    | Not closed by the allowance alone. A fresh page load starts a fresh one, so this waits on Mitigation 3.                                                                                                       |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.              |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡 (Variant 1)             | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                           |
+| Attack                                                                          | Covered                    | Description                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡 (A1.2, A1.3)            | Variants 2 and 3 count against the allowance. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | 🟡                         | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                             |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | 🟡                         | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                  |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | 🟡                         | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                  |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪                         | Untouched. One probe suffices, so an allowance of 8 never binds.                                                                                                                                              |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | ⚪                         | Untouched. Two lookups bracket the induced load, so an allowance of 8 never binds.                                                                                                                            |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | 🟡                         | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                  |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪                         | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                       |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ✅                         | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                 |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | ⚪ (needs Mitigation 3)    | Not closed by the allowance alone. A fresh page load starts a fresh one, so this waits on Mitigation 3.                                                                                                       |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.              |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | 🟡 (A12.1)                 | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                           |
 
 ### Mitigation 2 (M2): A user gesture before the declared sharing scope applies
 
@@ -1090,20 +1091,20 @@ disclosure.
 
 #### Coverage
 
-| Attack                                                                      | Covered             | Description                                                                                                                                                                                                                                                                                                                                        |
-| --------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                           | 🟡 (write side)     | Bounded on the write side: no gesture, no cross-site entry, so a device cannot be marked during a silent load. A gesture is one click, and a tracker on a site the user interacts with will get one.                                                                                                                                               |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | ⚪                  | Out of reach. It writes nothing.                                                                                                                                                                                                                                                                                                                   |
-| [Attack 3](#attack-3-attribute-inference)                                   | ⚪                  | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                          |
-| [Attack 4](#attack-4-history-sniffing)                                      | ⚪                  | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                          |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪                  | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                          |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | 🟡 (induced writes) | Bounded where the attacker induces the write, and this is the mitigation aimed at it. The induced load carries no gesture, so the victim site's write keeps the same-site default. An entry written during a genuine, gesture-bearing visit keeps its declared sharing scope, so a passive variant survives that reads the state as of that visit. |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | 🟡 (induced loads)  | Bounded the same way, and every question needs its own induced load on a URL the attacker chose, which the user has no reason to touch. A user led to interact with the victim's own page supplies the gesture anyway.                                                                                                                             |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪                  | Out of reach. Flooding needs no sharing scope to apply, since a same-site write consumes the same space and forces the same eviction.                                                                                                                                                                                                              |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ⚪                  | Out of reach. It concerns reads.                                                                                                                                                                                                                                                                                                                   |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | 🟡                  | Helps, since a page reloading itself cannot write on each pass.                                                                                                                                                                                                                                                                                    |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪                  | Same as [Attack 9](#attack-9-sybil-attack-on-the-budget).                                                                                                                                                                                                                                                                                          |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | ⚪                  | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                                                                                   |
+| Attack                                                                          | Covered             | Description                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡 (write side)     | Bounded on the write side: no gesture, no cross-site entry, so a device cannot be marked during a silent load. A gesture is one click, and a tracker on a site the user interacts with will get one.                                                                                                                                               |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | ⚪                  | Out of reach. It writes nothing.                                                                                                                                                                                                                                                                                                                   |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | ⚪                  | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                       |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | ⚪                  | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                       |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪                  | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                       |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | 🟡 (induced writes) | Bounded where the attacker induces the write, and this is the mitigation aimed at it. The induced load carries no gesture, so the victim site's write keeps the same-site default. An entry written during a genuine, gesture-bearing visit keeps its declared sharing scope, so a passive variant survives that reads the state as of that visit. |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | 🟡 (induced loads)  | Bounded the same way, and every question needs its own induced load on a URL the attacker chose, which the user has no reason to touch. A user led to interact with the victim's own page supplies the gesture anyway.                                                                                                                             |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪                  | Out of reach. Flooding needs no sharing scope to apply, since a same-site write consumes the same space and forces the same eviction.                                                                                                                                                                                                              |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ⚪                  | Out of reach. It concerns reads.                                                                                                                                                                                                                                                                                                                   |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | 🟡                  | Helps, since a page reloading itself cannot write on each pass.                                                                                                                                                                                                                                                                                    |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ⚪                  | Same as [Attack 9](#attack-9-a9-sybil-attack-on-the-budget).                                                                                                                                                                                                                                                                                       |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | ⚪                  | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                                                                                   |
 
 Variant 1 of Attack 1 raises the same question the budget does. The tracker's
 frame reads entries its own origin stored, so nothing it does widens a sharing
@@ -1118,20 +1119,20 @@ across tabs.
 
 #### Coverage
 
-| Attack                                                                      | Covered          | Description                                                                                                                                   |
-| --------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                           | 🟡               | Carries Mitigation 1's partial bounds. Without persistence the allowance would cover one page load, and this attack could reload for another. |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | 🟡               | Same as [Attack 1](#attack-1-supercookie).                                                                                                    |
-| [Attack 3](#attack-3-attribute-inference)                                   | 🟡               | Same as [Attack 1](#attack-1-supercookie).                                                                                                    |
-| [Attack 4](#attack-4-history-sniffing)                                      | 🟡               | Same as [Attack 1](#attack-1-supercookie).                                                                                                    |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪               | Untouched, for the same reason the budget misses it.                                                                                          |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | ⚪               | Same as [Attack 5](#attack-5-targeted-de-anonymization).                                                                                      |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | 🟡 (the refresh) | Closes the refresh that would otherwise give each question its own allowance, since the attacker's page can reload between induced loads.     |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪               | Out of reach, for the same reason the budget misses it: the count tracks lookups, and this attack writes.                                     |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns whose count it is.                                         |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | ✅               | Closed. The count belongs to the top-level site and survives reloads and tabs, so a fresh load starts with the allowance already spent.       |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns what the count covers.                                     |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡 (Variant 1)   | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                            |
+| Attack                                                                          | Covered          | Description                                                                                                                                   |
+| ------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡               | Carries Mitigation 1's partial bounds. Without persistence the allowance would cover one page load, and this attack could reload for another. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | 🟡               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                 |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | 🟡               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                 |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | 🟡               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                 |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪               | Untouched, for the same reason the budget misses it.                                                                                          |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | ⚪               | Same as [Attack 5](#attack-5-a5-targeted-de-anonymization).                                                                                   |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | 🟡 (the refresh) | Closes the refresh that would otherwise give each question its own allowance, since the attacker's page can reload between induced loads.     |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪               | Out of reach, for the same reason the budget misses it: the count tracks lookups, and this attack writes.                                     |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns whose count it is.                                         |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | ✅               | Closed. The count belongs to the top-level site and survives reloads and tabs, so a fresh load starts with the allowance already spent.       |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns what the count covers.                                     |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | 🟡 (A12.1)       | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                            |
 
 ### Mitigation 4 (M4): Tighter limits for origins on a blocklist
 
@@ -1152,20 +1153,20 @@ origin a blocklist names.
 
 #### Coverage
 
-| Attack                                                                      | Covered                | Description                                                                                                                                                                                                                                |
-| --------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [Attack 1](#attack-1-supercookie)                                           | ⚪ (in principle only) | Reached in principle, since a flagged origin can be refused ahead of any counting. Not reached in practice: a tracker that ships as the page's own script makes the embedding site the requesting origin, and no list names a recipe blog. |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 3](#attack-3-attribute-inference)                                   | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 4](#attack-4-history-sniffing)                                      | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
+| Attack                                                                          | Covered                | Description                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Attack 1](#attack-1-a1-supercookie)                                            | ⚪ (in principle only) | Reached in principle, since a flagged origin can be refused ahead of any counting. Not reached in practice: a tracker that ships as the page's own script makes the embedding site the requesting origin, and no list names a recipe blog. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | ⚪ (in principle only) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                              |
 
 This is containment for cases already identified, and on its own it bounds none
 of the attacks above. Evading it takes a deployment change and nothing more: a
@@ -1190,20 +1191,20 @@ accepted.
 
 #### Coverage
 
-| Attack                                                                      | Covered            | Description                                                                                                                                                                                                        |
-| --------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [Attack 1](#attack-1-supercookie)                                           | 🟡 (by comparison) | Reached by comparison. It links a device across the sites carrying the tracker, which is what a third-party cookie does more reliably, so wherever the lookups work the attacker held a better instrument already. |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | 🟡 (by comparison) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                         |
-| [Attack 3](#attack-3-attribute-inference)                                   | 🟡 (by comparison) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                         |
-| [Attack 4](#attack-4-history-sniffing)                                      | 🟡                 | The comparison fails. A third-party cookie reports the sites that carry the tracker, and this one names a game the tracker is absent from. Where third-party cookies are off, the gate removes it wholesale.       |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | 🟡                 | The comparison fails the same way, over a model the user fetched elsewhere.                                                                                                                                        |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | 🟡                 | The comparison fails the same way, over a bank the attacker only opened in a popup.                                                                                                                                |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | 🟡                 | Same as [Attack 6](#attack-6-induced-write-as-a-state-oracle).                                                                                                                                                     |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪                 | Untouched in either state, since a same-site write fills the same cache.                                                                                                                                           |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | 🟡                 | Removed wherever third-party cookies are off, since nothing crosses a site boundary there. Unaffected wherever they are on.                                                                                        |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | 🟡                 | Same as [Attack 9](#attack-9-sybil-attack-on-the-budget).                                                                                                                                                          |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | 🟡                 | Same as [Attack 9](#attack-9-sybil-attack-on-the-budget).                                                                                                                                                          |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡                 | Same as [Attack 9](#attack-9-sybil-attack-on-the-budget).                                                                                                                                                          |
+| Attack                                                                          | Covered            | Description                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡 (by comparison) | Reached by comparison. It links a device across the sites carrying the tracker, which is what a third-party cookie does more reliably, so wherever the lookups work the attacker held a better instrument already. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | 🟡 (by comparison) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                      |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | 🟡 (by comparison) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                      |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | 🟡                 | The comparison fails. A third-party cookie reports the sites that carry the tracker, and this one names a game the tracker is absent from. Where third-party cookies are off, the gate removes it wholesale.       |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | 🟡                 | The comparison fails the same way, over a model the user fetched elsewhere.                                                                                                                                        |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | 🟡                 | The comparison fails the same way, over a bank the attacker only opened in a popup.                                                                                                                                |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | 🟡                 | Same as [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                                                                                                  |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪                 | Untouched in either state, since a same-site write fills the same cache.                                                                                                                                           |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | 🟡                 | Removed wherever third-party cookies are off, since nothing crosses a site boundary there. Unaffected wherever they are on.                                                                                        |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | 🟡                 | Same as [Attack 9](#attack-9-a9-sybil-attack-on-the-budget).                                                                                                                                                       |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | 🟡                 | Same as [Attack 9](#attack-9-a9-sybil-attack-on-the-budget).                                                                                                                                                       |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | 🟡                 | Same as [Attack 9](#attack-9-a9-sybil-attack-on-the-budget).                                                                                                                                                       |
 
 Two limits come with it. A browser that has already removed third-party cookies
 cannot apply this at all, so the mitigation is absent exactly where the rest of
@@ -1227,20 +1228,20 @@ repeatedly.
 
 #### Coverage
 
-| Attack                                                                      | Covered               | Description                                                                                                                                                                                                                                          |
-| --------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                           | 🟡 (if users decline) | Reached in principle, since an origin without a grant learns nothing another site stored, whatever it asks and by whichever surface it asks. Contingent in practice on users declining, and a grant nobody can evaluate is a grant most people give. |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 3](#attack-3-attribute-inference)                                   | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 4](#attack-4-history-sniffing)                                      | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | 🟡 (if users decline) | Reached, and this is the only mitigation in this document that reaches it. The others bound how many lookups a site may make, and one lookup is all this attack needs, while a prompt bounds whether the site may ask at all.                        |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪                    | Out of reach, since it writes and reads nothing.                                                                                                                                                                                                     |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡 (if users decline) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                           |
+| Attack                                                                          | Covered               | Description                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡 (if users decline) | Reached in principle, since an origin without a grant learns nothing another site stored, whatever it asks and by whichever surface it asks. Contingent in practice on users declining, and a grant nobody can evaluate is a grant most people give. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | 🟡 (if users decline) | Reached, and this is the only mitigation in this document that reaches it. The others bound how many lookups a site may make, and one lookup is all this attack needs, while a prompt bounds whether the site may ask at all.                        |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪                    | Out of reach, since it writes and reads nothing.                                                                                                                                                                                                     |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | 🟡 (if users decline) | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                                                                        |
 
 The cost falls on both sides. The disclosure is hard to put to a user: the grant
 has no visible effect either way, the user cannot check what was read
@@ -1278,20 +1279,20 @@ first, the message has to name the outcome, since the call itself succeeded:
 
 #### Coverage
 
-| Attack                                                                      | Covered          | Description                                                                                                                                                                                   |
-| --------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                           | ⚪               | Not reached. A deliberate attacker reads the warning as confirmation that the write worked.                                                                                                   |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 3](#attack-3-attribute-inference)                                   | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 4](#attack-4-history-sniffing)                                      | 🟡               | Partially. A site warned that a distinctive resource is going out globally may narrow its sharing scope, which shortens the deployment map an attacker reads answers against.                 |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | 🟡 (supply side) | Reached on the supply side, which nothing else here addresses. It needs a site that made its own state observable without meaning to, and a warning at write time is what tells that site so. |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | 🟡 (supply side) | Same as [Attack 6](#attack-6-induced-write-as-a-state-oracle).                                                                                                                                |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | ⚪               | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                    |
+| Attack                                                                          | Covered          | Description                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | ⚪               | Not reached. A deliberate attacker reads the warning as confirmation that the write worked.                                                                                                   |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | 🟡               | Partially. A site warned that a distinctive resource is going out globally may narrow its sharing scope, which shortens the deployment map an attacker reads answers against.                 |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | 🟡 (supply side) | Reached on the supply side, which nothing else here addresses. It needs a site that made its own state observable without meaning to, and a warning at write time is what tells that site so. |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | 🟡 (supply side) | Same as [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                                                                             |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | ⚪               | Same as [Attack 1](#attack-1-a1-supercookie).                                                                                                                                                 |
 
 Guidance changes what honest sites deploy, which is the supply side of
 Attacks 4, 6, and 7, and removing a site's unwitting cooperation is a defense no
@@ -1313,46 +1314,70 @@ stops and the user's bandwidth bill notices.
 
 #### Coverage
 
-| Attack                                                                      | Covered         | Description                                                                                                                                                                                       |
-| --------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Attack 1](#attack-1-supercookie)                                           | 🟡 (write side) | Reached across all three variants, on the side the lookup budget misses. Sixty-four marker resources fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
-| [Attack 2](#attack-2-cache-based-fingerprinting)                            | ⚪              | Out of reach. It writes nothing.                                                                                                                                                                  |
-| [Attack 3](#attack-3-attribute-inference)                                   | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
-| [Attack 4](#attack-4-history-sniffing)                                      | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
-| [Attack 5](#attack-5-targeted-de-anonymization)                             | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
-| [Attack 6](#attack-6-induced-write-as-a-state-oracle)                       | ⚪              | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                          |
-| [Attack 7](#attack-7-query-oracle-through-result-dependent-caching)         | ⚪              | Same as [Attack 6](#attack-6-induced-write-as-a-state-oracle).                                                                                                                                    |
-| [Attack 8](#attack-8-cache-flooding-to-force-eviction)                      | 🟡              | Reached, and this is the first mitigation aimed at it. Flooding is writing at volume, which is exactly what the byte allowance meters.                                                            |
-| [Attack 9](#attack-9-sybil-attack-on-the-budget)                            | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
-| [Attack 10](#attack-10-rate-limit-evasion-by-reload)                        | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
-| [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
-| [Attack 12](#attack-12-greaseing-evasion)                                   | ⚪              | Same as [Attack 2](#attack-2-cache-based-fingerprinting).                                                                                                                                         |
+| Attack                                                                          | Covered         | Description                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡 (write side) | Reached across all three variants, on the side the lookup budget misses. Sixty-four marker resources fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | ⚪              | Out of reach. It writes nothing.                                                                                                                                                                  |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | ⚪              | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                          |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | ⚪              | Same as [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                                                                                 |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | 🟡              | Reached, and this is the first mitigation aimed at it. Flooding is writing at volume, which is exactly what the byte allowance meters.                                                            |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | ⚪              | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                      |
 
-The write budget and the per-origin storage limit bound different things. The
-limit caps what one origin holds at any moment, and an attacker spread across
-sixteen subdomains gets sixteen of them. Keyed like the lookup budget, to the
-top-level site, a write budget is one allowance however many origins a page
-brings, which is the opening the storage limit leaves in
-[Attack 8](#attack-8-cache-flooding-to-force-eviction).
+Mitigation 9 bounds a different thing. It caps what one origin holds at any
+moment, and an attacker spread across sixteen subdomains gets sixteen of them.
+Keyed like the lookup budget, to the top-level site, a write budget is one
+allowance however many origins a page brings, which is the opening the storage
+limit leaves in [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction).
+
+### Mitigation 9 (M9): A per-origin storage limit
+
+Each origin can store only so much in COS, and a write that would take it over
+rejects when it closes with a `QuotaExceededError` (see
+[Cache flooding](README.md#cache-flooding)). The limit is keyed to the origin,
+so what it bounds is how much any one origin holds at a time, and sixteen
+subdomains buy sixteen limits.
+
+#### Coverage
+
+| Attack                                                                          | Covered | Description                                                                                                                                   |
+| ------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Attack 1](#attack-1-a1-supercookie)                                            | 🟡      | Bounds the identifier. Marker resources have to fit inside the limit, and eviction takes them back, so the tracker rewrites it on each visit. |
+| [Attack 2](#attack-2-a2-cache-based-fingerprinting)                             | ⚪      | Out of reach. It writes nothing.                                                                                                              |
+| [Attack 3](#attack-3-a3-attribute-inference)                                    | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
+| [Attack 4](#attack-4-a4-history-sniffing)                                       | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
+| [Attack 5](#attack-5-a5-targeted-de-anonymization)                              | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
+| [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle)                        | ⚪      | Out of reach. The writes belong to the victim site, which stores one ordinary resource.                                                       |
+| [Attack 7](#attack-7-a7-query-oracle-through-result-dependent-caching)          | ⚪      | Same as [Attack 6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                             |
+| [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction)                       | 🟡      | Bounds what one origin holds, which is what flooding spends. Sixteen subdomains buy sixteen limits, so it slows the flood without ending it.  |
+| [Attack 9](#attack-9-a9-sybil-attack-on-the-budget)                             | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
+| [Attack 10](#attack-10-a10-rate-limit-evasion-by-reload)                        | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
+| [Attack 11](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
+| [Attack 12](#attack-12-a12-greaseing-evasion)                                   | ⚪      | Same as [Attack 2](#attack-2-a2-cache-based-fingerprinting).                                                                                  |
 
 ## Coverage gaps
 
-| Attack                                                                                                                    | Covered by                                      | Degree                                                        |
-| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
-| [1: Supercookie](#attack-1-supercookie)                                                                                   | 🟡 (M1) 🟡 (M2) 🟡 (M3) 🟡 (M5) 🟡 (M6) 🟡 (M8) | Partially, and Variant 1 escapes 1 and 2                      |
-| [2: Cache-based fingerprinting](#attack-2-cache-based-fingerprinting)                                                     | 🟡 (M1) 🟡 (M3) 🟡 (M5) 🟡 (M6)                 | Partially                                                     |
-| [3: Attribute inference](#attack-3-attribute-inference)                                                                   | 🟡 (M1) 🟡 (M3) 🟡 (M5) 🟡 (M6)                 | Partially, and 8 lookups already yield a cohort               |
-| [4: History sniffing](#attack-4-history-sniffing)                                                                         | 🟡 (M1) 🟡 (M3) 🟡 (M6) 🟡 (M7)                 | Partially                                                     |
-| [5: Targeted de-anonymization](#attack-5-targeted-de-anonymization)                                                       | 🟡 (M6)                                         | Reached by nothing the explainer lists                        |
-| [6: Induced write as a state oracle](#attack-6-induced-write-as-a-state-oracle)                                           | 🟡 (M2) 🟡 (M6) 🟡 (M7)                         | Partially, and the passive variant survives                   |
-| [7: Query oracle through result-dependent caching](#attack-7-query-oracle-through-result-dependent-caching)               | 🟡 (M1) 🟡 (M2) 🟡 (M3) 🟡 (M6) 🟡 (M7)         | Partially, and Mitigation 2 blocks the induced load           |
-| [8: Cache flooding to force eviction](#attack-8-cache-flooding-to-force-eviction)                                         | 🟡 (M8) 🟡 (per-origin storage limit)           | Partially, and the limit alone lets extra origins multiply it |
-| [9: Sybil attack on the budget](#attack-9-sybil-attack-on-the-budget)                                                     | ✅ (M1)                                         | Completely                                                    |
-| [10: Rate-limit evasion by reload](#attack-10-rate-limit-evasion-by-reload)                                               | 🟡 (M2) ✅ (M3)                                 | Completely                                                    |
-| [11: Cross-site leak by combining COS integration points](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ✅ (M1)                                         | Completely                                                    |
-| [12: GREASE'ing evasion](#attack-12-greaseing-evasion)                                                                    | 🟡 (M1) 🟡 (M3) 🟡 (M6)                         | Partially, and Variant 3 is not addressed                     |
-| [13: Existence oracle through in-progress writes](#attack-13-existence-oracle-through-in-progress-writes)                 | None needed                                     | Ruled out by design                                           |
-| [14: Timing side channel](#attack-14-timing-side-channel)                                                                 | None needed                                     | Ruled out by design                                           |
+| Attack                                                                                                                        | Covered by                                      | Degree                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| [1: Supercookie](#attack-1-a1-supercookie)                                                                                    | 🟡 (M1) 🟡 (M2) 🟡 (M3) 🟡 (M5) 🟡 (M6) 🟡 (M8) | Partially, and A1.1 escapes M1 and M2                         |
+| [2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                                      | 🟡 (M1) 🟡 (M3) 🟡 (M5) 🟡 (M6)                 | Partially                                                     |
+| [3: Attribute inference](#attack-3-a3-attribute-inference)                                                                    | 🟡 (M1) 🟡 (M3) 🟡 (M5) 🟡 (M6)                 | Partially, and 8 lookups already yield a cohort               |
+| [4: History sniffing](#attack-4-a4-history-sniffing)                                                                          | 🟡 (M1) 🟡 (M3) 🟡 (M6) 🟡 (M7)                 | Partially                                                     |
+| [5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                                        | 🟡 (M6)                                         | Reached by nothing the explainer lists                        |
+| [6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                                            | 🟡 (M2) 🟡 (M6) 🟡 (M7)                         | Partially, and the passive variant survives                   |
+| [7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching)                | 🟡 (M1) 🟡 (M2) 🟡 (M3) 🟡 (M6) 🟡 (M7)         | Partially, and Mitigation 2 blocks the induced load           |
+| [8: Cache flooding to force eviction](#attack-8-a8-cache-flooding-to-force-eviction)                                          | 🟡 (M8) 🟡 (M9)                                 | Partially, and the limit alone lets extra origins multiply it |
+| [9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                                      | ✅ (M1)                                         | Completely                                                    |
+| [10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                               | 🟡 (M2) ✅ (M3)                                 | Completely                                                    |
+| [11: Cross-site leak by combining COS integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points) | ✅ (M1)                                         | Completely                                                    |
+| [12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                                    | 🟡 (M1) 🟡 (M3) 🟡 (M6)                         | Partially, and A12.3 is not addressed                         |
+| [13: Existence oracle through in-progress writes](#attack-13-a13-existence-oracle-through-in-progress-writes)                 | None needed                                     | Ruled out by design                                           |
+| [14: Timing side channel](#attack-14-a14-timing-side-channel)                                                                 | None needed                                     | Ruled out by design                                           |
 
 Attack 5 is the one no mitigation the explainer lists reaches. Each of
 Mitigations 1 through 4 bounds something the attack does not need: volume
@@ -1365,12 +1390,13 @@ GREASE'ing is the design feature that would answer it, by making a single
 negative unreliable. The size-proportionate rule withholds GREASE'ing from files
 whose spurious re-download would be disproportionate, which is exactly the class
 of large, rare files the attack is strongest on, so the answer stays noise-free
-where it identifies best, and [Attack 12](#attack-12-greaseing-evasion) turns
-that same exemption against GREASE'ing wholesale. Among the mitigations under
-discussion, the permission prompt is the only one that reaches this attack, and
-it does so by bounding whether a site may ask at all. Everything else above
-bounds how many lookups a site may make, and one lookup is all this attack
-needs, so only a user prompt, or lying about large files, would mitigate it.
+where it identifies best, and [Attack 12](#attack-12-a12-greaseing-evasion)
+turns that same exemption against GREASE'ing wholesale. Among the mitigations
+under discussion, the permission prompt is the only one that reaches this
+attack, and it does so by bounding whether a site may ask at all. Everything
+else above bounds how many lookups a site may make, and one lookup is all this
+attack needs, so only a user prompt, or lying about large files, would mitigate
+it.
 
 Mitigation 5 appears in the rows above where its argument holds, and it acts on
 all of them at once. Wherever third-party cookies are off it removes every
@@ -1380,14 +1406,13 @@ lookups held a third-party cookie already, and that comparison covers Attacks 1
 through 3. Attacks 4 through 7 reach sites the tracker never touched, which no
 third-party cookie reports, so they are the ones it leaves standing.
 
-Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by the
-per-origin storage limit alone. That limit is keyed to the origin, and the
-lookup budget is keyed to the top-level site precisely because an attacker
-brings as many origins as it cares to
-([Attack 9](#attack-9-sybil-attack-on-the-budget)). A write budget keyed the
-same way carries that lesson to the write path. Until one exists, sixteen
-subdomains buy sixteen storage limits, and what bounds flooding is the bandwidth
-it takes to fill a cache sized for AI models.
+Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by
+Mitigation 9 alone. That limit is keyed to the origin, and the lookup budget is
+keyed to the top-level site precisely because an attacker brings as many origins
+as it cares to ([Attack 9](#attack-9-a9-sybil-attack-on-the-budget)). A write
+budget keyed the same way carries that lesson to the write path. Until one
+exists, sixteen subdomains buy sixteen storage limits, and what bounds flooding
+is the bandwidth it takes to fill a cache sized for AI models.
 
 Attack 12 is the only attack here aimed at a mitigation the rest of the document
 treats as given. Variants 1 and 2 turn on one unsettled specification detail,
