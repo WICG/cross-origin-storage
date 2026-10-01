@@ -1133,9 +1133,9 @@ across tabs.
 | [Attack 11](#attack-11-cross-site-leak-by-combining-cos-integration-points) | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns what the count covers.                                     |
 | [Attack 12](#attack-12-greaseing-evasion)                                   | 🟡 (Variant 1)   | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                            |
 
-### Mitigation 4: Tighter limits for sites known to be malicious
+### Mitigation 4: Tighter limits for origins on a blocklist
 
-A user agent can restrict `requestFileHandle()` further for sites it already
+A user agent can restrict `requestFileHandle()` further for origins it already
 knows to be malicious or to track users. The lists are already on hand:
 [Safe Browsing](https://safebrowsing.google.com/) for malware and phishing,
 [Disconnect's](https://github.com/disconnectme/disconnect-tracking-protection)
@@ -1168,7 +1168,10 @@ origin a blocklist names.
 | [Attack 12](#attack-12-greaseing-evasion)                                   | ⚪ (in principle only) | Same as [Attack 1](#attack-1-supercookie).                                                                                                                                                                                                 |
 
 This is containment for cases already identified, and on its own it bounds none
-of the attacks above.
+of the attacks above. Evading it takes a deployment change and nothing more: a
+tracker in an iframe presents an origin a list can name, and the same tracker
+shipped as `<script src>` in the page presents the embedding site's origin. Most
+analytics and anti-fraud vendors already ship the second way.
 
 ### Mitigation 5: Availability tied to third-party cookies
 
