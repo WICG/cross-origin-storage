@@ -154,7 +154,8 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    write indistinguishable from an absent one on the read path. See [[#in-progress-writes]].
 : <dfn for="COS entry">origins</dfn>
 :: A [=list=] of [=/origins=] granted explicit, cross-origin read access, independent of the
-   [=Public Hash List=]. Initially empty, it only ever [[#resource-visibility-upgrades|grows]]. This
+   [=Public Hash List=]. The grant extends to every origin [=same site=] with an item of the
+   [=list=], so listing `https://a.example` also admits `https://www.a.example`. Initially empty, it only ever [[#resource-visibility-upgrades|grows]]. This
    is one of three independent, additive grants that decide who may read an entry, the
    other two being its [=COS entry/storing origins=] (always readable, together with origins
    [=same site=] with them) and [=COS entry/globally disclosable=].
@@ -302,8 +303,9 @@ it to be granted.
      clears [[#availability-gating]], once written.
 
   : |handle| = await navigator . crossOriginStorage . {{CrossOriginStorageManager/requestFileHandle()|requestFileHandle}}(|hash|, { {{CrossOriginStorageRequestFileHandleOptions/create}}: true, {{CrossOriginStorageRequestFileHandleOptions/origins}}: ["https://a.example", "https://b.example"] })
-  :: As above, restricting disclosure to exactly the listed origins (in addition to the calling
-     origin, and any origin already in [=COS entry/storing origins=]).
+  :: As above, restricting disclosure to the listed origins and the origins [=same site=] with
+     each of them (in addition to the calling origin, any origin already in
+     [=COS entry/storing origins=], and the origins [=same site=] with those).
 </div>
 
 <div algorithm>
@@ -421,11 +423,13 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
    origin reads the entry whether or not its [=COS entry/hash=] is [=on the PHL=]. Same-site here
    is one trust unit, so this discloses nothing across a site boundary that
    [[#cross-site-probing]] guards.
-1. If |origin|'s [=origin/serialization=] is an item of |entry|'s [=COS entry/origins=], return
+1. If |origin| is [=same site=] with some item of |entry|'s [=COS entry/origins=], return
    |entry|.
 
-   Note: An origin on the explicit [=COS entry/origins=] [=list=] reads the entry without the entry
-   needing to be [=on the PHL=]. The storing origin made a bounded disclosure decision by naming
+   Note: An origin on the explicit [=COS entry/origins=] [=list=], or [=same site=] with one,
+   reads the entry without the entry needing to be [=on the PHL=]. Extending each listed origin to
+   its site mirrors the same-site baseline above: same-site origins are one trust unit, so naming
+   one origin of a site names all of them. The storing origin made a bounded disclosure decision by naming
    it (see [[#resource-visibility-upgrades]] and [[#allow-origin-header]]), and requiring separate
    global ubiquity on top of that would make ordinary restricted sharing depend on unrelated,
    public curation of what is often a proprietary resource. Checking this before the
@@ -438,14 +442,15 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
       disclosure could otherwise reach any origin on the web. An entry that is
       [=COS entry/globally disclosable=] but whose [=COS entry/hash=] is not [=on the PHL=] is not
       disclosed to an origin that qualifies through this grant alone; an origin that also appears
-      among [=COS entry/storing origins=], their same-site set, or the explicit
-      [=COS entry/origins=] [=list=] has already returned above.
+      among [=COS entry/storing origins=], the explicit [=COS entry/origins=] [=list=], or the
+      same-site set of either has already returned above.
    1. If the user agent elects to apply [[#greaseing|GREASE'ing]] to this request, return null.
 
       Note: GREASE'ing also applies only to the global grant. The grants checked above never
       reach this step: storing origins and their same-site origins are one trust unit, and an
       origin on the explicit [=COS entry/origins=] [=list=] was named on purpose by a writer whose
-      `Cross-Origin-Storage-Allow-Origin` header authorized it.
+      `Cross-Origin-Storage-Allow-Origin` header authorized it, which covers its same-site origins
+      as well.
    1. Return |entry|.
 1. Return null.
 
@@ -1283,7 +1288,7 @@ is, in effect, a probe. Two independent mechanisms in this specification bound w
 learn:
 
 * [=COS entry/origins=] (see [[#resource-visibility-upgrades]]) lets a storing origin restrict
-  disclosure to a chosen set of origins, so a proprietary or low-popularity resource need not be
+  disclosure to a chosen set of origins and the origins [=same site=] with them, so a proprietary or low-popularity resource need not be
   globally probeable at all.
 * [[#availability-gating]] additionally withholds disclosure of a "`*`"-scoped resource from
   requesting origins outside its [=COS entry/storing origins=] unless the hash is [=on the PHL=],
@@ -1398,8 +1403,8 @@ from a privacy-motivated false negative, similar to the technique applied by
 
 GREASE'ing applies only to an origin that qualifies through the [=COS entry/globally disclosable=]
 grant alone, the same case the [=Public Hash List=] gates (see [=determine COS disclosure=]). A
-user agent must not apply it to [=COS entry/storing origins=], to origins [=same site=] with them,
-or to origins on the explicit [=COS entry/origins=] [=list=].
+user agent must not apply it to [=COS entry/storing origins=], to origins on the explicit
+[=COS entry/origins=] [=list=], or to origins [=same site=] with either.
 
 A user agent applying GREASE'ing must do so with judgment proportionate to the size of the entry
 in question. For small entries, where falling back to a network fetch is inexpensive, an occasional

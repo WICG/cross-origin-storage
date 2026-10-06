@@ -201,7 +201,7 @@ Web fonts (especially large icon fonts, emoji fonts, and fonts with extensive Un
 
 The **COS** API will be available through the `navigator.crossOriginStorage` interface. Files will be stored and retrieved based on their hashes, ensuring that each file is uniquely identified.
 
-Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of resources so widespread on the web that having one of them cached reveals nothing about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing). [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
+Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). A listed origin also brings its same-site origins along, so naming `https://a.example` covers `https://www.a.example` too. Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin outside the other grants only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of resources so widespread on the web that having one of them cached reveals nothing about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing). [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
 
 #### COS entry
 
@@ -209,7 +209,7 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 
 - **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
 - **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError` and stores nothing.
-- **`origins`**: the declared sharing scope, stored as two independent, additive grants: an **explicit origins list** and a **globally disclosable** flag, set by a `'*'` write. A write requests `'*'`, a list of origins, or nothing (same-site only), and the request is merged into these grants (see [Resource visibility upgrades](#resource-visibility-upgrades)). A list is capped in length and bounded by the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header.
+- **`origins`**: the declared sharing scope, stored as two independent, additive grants: an **explicit origins list** and a **globally disclosable** flag, set by a `'*'` write. A write requests `'*'`, a list of origins (each covering its same-site origins as well), or nothing (same-site only), and the request is merged into these grants (see [Resource visibility upgrades](#resource-visibility-upgrades)). A list is capped in length and bounded by the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header.
 - **`storing origins`**: the origins that have successfully written this entry. It is persisted across page loads and only ever grows.
 
 [Availability gating](#availability-gating) describes who may read an entry through each grant.
@@ -355,7 +355,7 @@ The same shape works for any consumer that accepts a `ReadableStream`, for examp
 The `origins` option decides who can read a file once it is stored:
 
 - **Omitted:** only same-site origins can read it. This fits resources shared across subdomains of one site, such as a company's proprietary AI model.
-- **A list of origins:** only the listed origins (plus the same-site default) can read it. **This option is recommended for proprietary resources or resources for which global COS cache hits are not anticipated.** For example, if a company has two related sites, `write.example` and `calculate.example`, that both use the same AI model for proofreading, they can restrict the model to just these two origins.
+- **A list of origins:** only the listed origins, the origins same-site with each of them, and the same-site default can read it. **This option is recommended for proprietary resources or resources for which global COS cache hits are not anticipated.** For example, if a company has two related sites, `write.example` and `calculate.example`, that both use the same AI model for proofreading, they can restrict the model to just these two origins.
 - **`'*'`:** any origin can read it, subject to [availability gating](#availability-gating). **This option is appropriate for widely used resources that many sites are likely to share, such as popular AI models, Wasm modules, or JavaScript libraries.** It is an explicit opt-in, so developers cannot make a resource globally available by accident.
 
 ```js
@@ -494,7 +494,7 @@ The imperative JavaScript API in the previous section covers the general case, b
 | [CSS](#css-integration) | `cross-origin-storage()` URL modifier | CSS-referenced assets such as web fonts |
 | [Fetch](#fetch-integration) | `crossOriginStorage` request option | imperative fetches of a known URL |
 
-In all four, the `integrity` hash identifies the file in COS, and the COS option takes the same values as the `origins` option of `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins, or `*` for global availability. Each is defined in its own host specification.
+In all four, the `integrity` hash identifies the file in COS, and the COS option takes the same values as the `origins` option of `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins and their same-site origins, or `*` for global availability. Each is defined in its own host specification.
 
 As with the imperative API, the list form is bounded by a response header so that injected markup cannot widen the sharing scope. Only the list form needs this header: a resource shared with every origin (`*`) or left at the same-site default (value omitted or empty) needs no `Cross-Origin-Storage-Allow-Origin` header. Whoever supplies the bytes sends the header, and for these integrations that is the server of the fetched resource, such as the origin serving a font or a library. That origin is the one entitled to decide that those particular bytes may be shared, and the referencing page can only narrow that; the embedding document's own header plays no part. The effective scope is the intersection of the declared value and what the resource's `Cross-Origin-Storage-Allow-Origin` header permits. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
 
@@ -506,7 +506,7 @@ What the four have in common is that the caller holds both a URL and a hash, and
 
 ##### Example: Opting stylesheets and scripts into COS
 
-A valueless `crossoriginstorage` attribute means same-site only, `*` makes the resource globally available, and a space-separated list of origins restricts it to those origins:
+A valueless `crossoriginstorage` attribute means same-site only, `*` makes the resource globally available, and a space-separated list of origins restricts it to those origins and their same-site origins:
 
 ```html
 <!-- Same-site only. -->
@@ -550,7 +550,7 @@ Omitting `crossoriginstorage` entirely while keeping `integrity` preserves today
 
 ##### Example: Opting modules into COS
 
-An empty string means same-site only, `"*"` makes the module globally available, and a space-separated list of origins restricts it to those origins:
+An empty string means same-site only, `"*"` makes the module globally available, and a space-separated list of origins restricts it to those origins and their same-site origins:
 
 ```js
 // Same-site only.
@@ -597,7 +597,7 @@ cross-origin-storage() = cross-origin-storage( [ '*' | <string># ]? )
 
 ##### Example: Opting fonts into COS
 
-No arguments means same-site only, `*` makes the font globally available, and a list of origins restricts it to those origins; all other origins still fetch the font from the network URL:
+No arguments means same-site only, `*` makes the font globally available, and a list of origins restricts it to those origins and their same-site origins; all other origins still fetch the font from the network URL:
 
 ```css
 /* Same-site only. */
@@ -659,7 +659,7 @@ The string and array forms are shorthands for `{ origins }`. The dictionary form
 
 ##### Example: Fetching through COS
 
-An empty string opts the resource into COS for same-site access only, `*` makes it globally available, and an array of origins restricts it to those origins:
+An empty string opts the resource into COS for same-site access only, `*` makes it globally available, and an array of origins restricts it to those origins and their same-site origins:
 
 ```js
 // Same-site only.
@@ -924,7 +924,7 @@ Whether a `requestFileHandle()` call returns a handle depends on the grants an e
 
 - **Storing origins** can always read the entry, mirroring the Cache API, where an origin can always read what it stored.
 - **Same-site origins of a storing origin** can read it. This is the default scope.
-- **Origins on the explicit `origins` list** can read it, whether or not the hash is on the PHL.
+- **Origins on the explicit `origins` list, and origins same-site with any of them,** can read it, whether or not the hash is on the PHL.
 - **Any other origin** can read it only through the global grant (`origins: '*'`), and only if the hash is on the **Public Hash List (PHL)**, a shared, vendor-neutral allowlist all browser vendors are expected to respect. [GREASE'ing](#greaseing) may still withhold it.
 
 An origin that qualifies under none of these, or relies on the global grant for a hash not on the PHL, receives a `NotFoundError` `DOMException` that is identical in content and timing to the file being absent. A requester that qualifies through the first three grants never consults the PHL, even if the entry is also globally disclosable. The PHL gates only the global grant because the other grants already reflect a bounded disclosure decision by the storing origin; requiring public curation for them would block ordinary restricted sharing of proprietary resources (see [Choosing who can read a file](#example-choosing-who-can-read-a-file)).
@@ -939,7 +939,7 @@ Developers must NOT treat a `NotFoundError` as proof that a file is absent from 
 
 As an additional privacy mitigation, user agents may employ **GREASE'ing** ([Generate Random Extensions And Sustain Extensibility](https://tools.ietf.org/html/draft-ietf-tls-grease)): occasionally returning a `NotFoundError` `DOMException` even when a file is present in COS. This introduces noise that makes it harder for sites to distinguish a true absence from a privacy-motivated false negative. A similar technique is applied in [UA Client Hints](https://wicg.github.io/ua-client-hints/#grease).
 
-GREASE'ing applies only to origins that reach an entry through `origins: '*'`, the same case the PHL gates. Storing origins, their same-site origins, and origins on an explicit `origins` list are never GREASEd: same-site origins are one trust unit, and a listed origin was named on purpose by the storing site and authorized by its `Cross-Origin-Storage-Allow-Origin` header, so withholding the file from them would only cost a re-download.
+GREASE'ing applies only to origins that reach an entry through `origins: '*'`, the same case the PHL gates. Storing origins, origins on an explicit `origins` list, and the same-site origins of either are never GREASEd: same-site origins are one trust unit, and a listed origin was named on purpose by the storing site and authorized by its `Cross-Origin-Storage-Allow-Origin` header, so withholding the file from them would only cost a re-download.
 
 However, user agents must exercise size-proportionate judgment when applying GREASE'ing. For small files, where a fallback to a network fetch is inexpensive, occasional false negatives are a reasonable privacy trade-off. For very large files, such as gigabyte-scale AI model weights, a false negative would force the caller to perform a full re-download, imposing a significant and observable bandwidth and latency cost on the user. User agents must NOT GREASE responses for files whose size makes a spurious re-download clearly disproportionate to the privacy benefit.
 
@@ -955,7 +955,7 @@ The rows are keyed by how the requesting origin qualifies (see [Availability gat
 | -- | -- | -- | -- |
 | Storing origin | — | — | Success |
 | Same-site of a storing origin | — | — | Success |
-| On the explicit `origins` list | — | — | Success |
+| On the explicit `origins` list, or same-site with a listed origin | — | — | Success |
 | Global grant only (`origins: '*'`) | Yes | No | Success |
 | Global grant only (`origins: '*'`) | Yes | Yes | `NotFoundError` |
 | Global grant only (`origins: '*'`) | No | — | `NotFoundError` |
