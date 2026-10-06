@@ -108,7 +108,7 @@ this change touches on each target platform, not just the one used for local dev
      the local vendoring (including the manifest diff) once validation is done, so the feature PR
      stays scoped to the implementation change alone.
    - Expect the core API tests (`filesystemwritablefilestream-verify`,
-     `requestFileHandle-create-and-read`, `requestFileHandle-validation`, `origins-scoping`) to
+     `getFileHandle-create-and-read`, `getFileHandle-validation`, `origins-scoping`) to
      pass; declarative CSS/HTML/JS integration and Permissions-Policy gating tests are out of
      scope for this change and are expected to fail until those separate features are built, as
      is every Service-Worker-flavored test variant (Servo has no Service Worker support at all).

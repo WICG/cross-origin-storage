@@ -4,7 +4,7 @@ declare global {
     /**
      * Represents the dictionary for hash algorithm and value.
      */
-    interface CrossOriginStorageRequestFileHandleHash {
+    interface CrossOriginStorageGetFileHandleHash {
         value: string;
         algorithm: string;
     }
@@ -12,7 +12,7 @@ declare global {
     /**
      * Represents the options for requesting a file handle.
      */
-    interface CrossOriginStorageRequestFileHandleOptions {
+    interface CrossOriginStorageGetFileHandleOptions {
         create?: boolean | undefined;
         origins?: string[] | string | undefined;
     }
@@ -22,9 +22,9 @@ declare global {
      * [SecureContext]
      */
     interface CrossOriginStorageManager {
-        requestFileHandle(
-            hash: CrossOriginStorageRequestFileHandleHash,
-            options?: CrossOriginStorageRequestFileHandleOptions,
+        getFileHandle(
+            hash: CrossOriginStorageGetFileHandleHash,
+            options?: CrossOriginStorageGetFileHandleOptions,
         ): Promise<FileSystemFileHandle>;
     }
 
