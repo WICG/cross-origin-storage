@@ -6,7 +6,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/cg-draft" rel="stylesheet">
   <meta content="Bikeshed version ea4009a02, updated Thu Sep 17 15:24:44 2026 -0700" name="generator">
   <link href="https://wicg.github.io/cross-origin-storage/" rel="canonical">
-  <meta content="cf613d940172f351e0f8b45e1cb03eb2eb65533f" name="revision">
+  <meta content="64c687b1ef524b7d8bb765e5e26be365b8aca0e5" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -785,7 +785,7 @@ var[data-var-color="6"] { --var-vg: #FFBCF2; }
   <div class="head">
    <h1 class="no-ref p-name" id="title">Cross-Origin Storage</h1>
    <p id="w3c-state"><a href="https://www.w3.org/standards/types/#CG-DRAFT">Draft Community Group Report</a>,
-    <time class="dt-updated" datetime="2026-09-24">24 September 2026</time></p>
+    <time class="dt-updated" datetime="2026-10-06">6 October 2026</time></p>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -993,17 +993,18 @@ stored them or how many URLs they were fetched from.</p>
     <dt data-md><dfn class="dfn-paneled" data-dfn-for="COS entry" data-dfn-type="dfn" data-noexport id="cos-entry-origins">origins</dfn>
     <dd data-md>
      <p>A <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin">origins</a> granted explicit, cross-origin read access, independent of the
- <a data-link-type="dfn" href="#dfn-public-hash-list" id="ref-for-dfn-public-hash-list">Public Hash List</a>. Initially empty, it only ever <a href="#resource-visibility-upgrades">grows</a>. This
+ <a data-link-type="dfn" href="#dfn-public-hash-list" id="ref-for-dfn-public-hash-list">Public Hash List</a>. The grant extends to every origin <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site">same site</a> with an item of the
+ <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①">list</a>, so listing <code>https://a.example</code> also admits <code>https://www.a.example</code>. Initially empty, it only ever <a href="#resource-visibility-upgrades">grows</a>. This
  is one of three independent, additive grants that decide who may read an entry, the
  other two being its <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins">storing origins</a> (always readable, together with origins
- <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site">same site</a> with them) and <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable">globally disclosable</a>.</p>
+ <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site①">same site</a> with them) and <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable">globally disclosable</a>.</p>
      <p class="note" role="note"><span class="marker">Note:</span> A write whose <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins">origins</a></code> is an explicit empty
- <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①">list</a> (<code>origins: []</code>) grants exactly what a write that omits
+ <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②">list</a> (<code>origins: []</code>) grants exactly what a write that omits
  <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins①">origins</a></code> grants: the entry’s
- <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins①">storing origins</a> and the origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site①">same site</a> with them, the baseline every entry
+ <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins①">storing origins</a> and the origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site②">same site</a> with them, the baseline every entry
  carries (see <a data-link-type="dfn" href="#determine-cos-disclosure" id="ref-for-determine-cos-disclosure">determine COS disclosure</a>). <a data-link-type="dfn" href="#apply-a-cos-scope-ceiling" id="ref-for-apply-a-cos-scope-ceiling">Applying the ceiling</a>
- turns the empty <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②">list</a> into null, so both writes reach the rest of
- <a data-link-type="dfn" href="#complete-a-create-request" id="ref-for-complete-a-create-request">complete a create request</a> in the same state. An explicit <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③">list</a> only ever adds recipients;
+ turns the empty <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③">list</a> into null, so both writes reach the rest of
+ <a data-link-type="dfn" href="#complete-a-create-request" id="ref-for-complete-a-create-request">complete a create request</a> in the same state. An explicit <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list④">list</a> only ever adds recipients;
  it never withholds the entry from the writer’s own site.</p>
     <dt data-md><dfn class="dfn-paneled" data-dfn-for="COS entry" data-dfn-type="dfn" data-noexport id="cos-entry-globally-disclosable">globally disclosable</dfn>
     <dd data-md>
@@ -1013,9 +1014,9 @@ stored them or how many URLs they were fetched from.</p>
  GREASE’ing does not suppress. Once <a href="#resource-visibility-upgrades">set</a>, it stays true.</p>
      <p class="note" role="note"><span class="marker">Note:</span> This is a separate <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#struct-item" id="ref-for-struct-item②">item</a> from <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins">origins</a>, so that a later
  global-availability request adds the "<code>*</code>" grant on top of an existing explicit
- <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list④">list</a>. Were the two conflated into one field, a writer that supplied the
+ <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑤">list</a>. Were the two conflated into one field, a writer that supplied the
  bytes could turn a list-scoped entry into a "<code>*</code>"-scoped one. Because <a href="#availability-gating">§ 8.4 Availability gating</a>
- applies only to the "<code>*</code>" grant, an origin that could previously read the entry off the <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑤">list</a>
+ applies only to the "<code>*</code>" grant, an origin that could previously read the entry off the <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑥">list</a>
  would then start receiving a "<code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#notfounderror" id="ref-for-notfounderror">NotFoundError</a></code>" whenever the <a data-link-type="dfn" href="#cos-entry-hash" id="ref-for-cos-entry-hash③">hash</a> is not
  <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl①">on the PHL</a>. Keeping the grants independent makes every visibility change strictly additive,
  which is what <a href="#resource-visibility-upgrades">upgradeable but never downgradeable</a> requires.</p>
@@ -1036,7 +1037,7 @@ stored them or how many URLs they were fetched from.</p>
    <h3 class="heading settled" data-level="2.3" id="public-hash-list"><span class="secno">2.3. </span><span class="content">The Public Hash List</span><a class="self-link" href="#public-hash-list"></a></h3>
    <p>Confirming that a hash is present in Cross-Origin Storage can itself leak information about a
 user’s browsing history (see <a href="#cross-site-probing">§ 8.2 Cross-site probing</a>). This is a risk specifically for the global
-grant. An entry’s explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑥">list</a>, and the same-site baseline every entry
+grant. An entry’s explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑦">list</a>, and the same-site baseline every entry
 carries, already have their disclosure bounded by an explicit choice of the storing origin, while
 making an entry <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①">globally disclosable</a> potentially exposes it to any origin on the web. To bound that
 specific risk, a <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable②">globally disclosable</a> resource is only disclosable, through that
@@ -1103,7 +1104,7 @@ has an <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/brow
 <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragemanager-requestfilehandle" id="ref-for-dom-crossoriginstoragemanager-requestfilehandle③">requestFileHandle()</a></code> does when the <em>calling</em> origin is opaque;
 the <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-opaque" id="ref-for-concept-origin-opaque①">opaque origin</a> rule in <a data-link-type="dfn" href="#validate-a-cos-request" id="ref-for-validate-a-cos-request">validate a COS request</a> governs only the origins a
 caller <em>names</em>. An opaque origin has no stable identity to key
-<a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins④">storing origins</a> or <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site②">same site</a> comparisons on, so there is nothing meaningful for
+<a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins④">storing origins</a> or <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site③">same site</a> comparisons on, so there is nothing meaningful for
 it to be granted.</p>
    <h3 class="heading settled" data-level="3.1" id="requestfilehandle"><span class="secno">3.1. </span><span class="content">The <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragemanager-requestfilehandle" id="ref-for-dom-crossoriginstoragemanager-requestfilehandle④">requestFileHandle()</a></code> method</span><a class="self-link" href="#requestfilehandle"></a></h3>
    <div class="domintro note" role="note">
@@ -1130,8 +1131,9 @@ it to be granted.</p>
  clears <a href="#availability-gating">§ 8.4 Availability gating</a>, once written.</p>
      <dt data-md><var>handle</var> = await navigator . crossOriginStorage . <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragemanager-requestfilehandle" id="ref-for-dom-crossoriginstoragemanager-requestfilehandle⑧">requestFileHandle</a></code>(<var>hash</var>, { <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-create" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-create②">create</a></code>: true, <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins③">origins</a></code>: ["https://a.example", "https://b.example"] })
      <dd data-md>
-      <p>As above, restricting disclosure to exactly the listed origins (in addition to the calling
- origin, and any origin already in <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑤">storing origins</a>).</p>
+      <p>As above, restricting disclosure to the listed origins and the origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site④">same site</a> with
+ each of them (in addition to the calling origin, any origin already in
+ <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑤">storing origins</a>, and the origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site⑤">same site</a> with those).</p>
     </dl>
    </div>
    <div class="algorithm" data-algorithm="requestFileHandle(hash, options)" data-algorithm-for="CrossOriginStorageManager">
@@ -1217,7 +1219,7 @@ and a <code class="idl"><a data-link-type="idl" href="#dictdef-crossoriginstorag
       <ol>
        <li data-md>
         <p>Let <var>candidates</var> be <var>options</var>["<code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins⑤">origins</a></code>"],
-  with a single <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string②">string</a> treated as a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑦">list</a> of one.</p>
+  with a single <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string②">string</a> treated as a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑧">list</a> of one.</p>
        <li data-md>
         <p>If <var>candidates</var>’s <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list-size" id="ref-for-list-size">size</a> is greater than the user agent’s
   <a data-link-type="dfn" href="#maximum-origins-list-length" id="ref-for-maximum-origins-list-length">maximum origins list length</a>, return a new <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror③">TypeError</a></code>.</p>
@@ -1296,20 +1298,22 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="determine-cos-
       <p class="note" role="note"><span class="marker">Note:</span> The original storer, and any origin that has itself successfully written the entry,
  can always read it back. See <a href="#original-storer-access">§ 3.5.1 Original storer access</a>.</p>
      <li data-md>
-      <p>If <var>origin</var> is <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site③">same site</a> with some item of <var>entry</var>’s <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑦">storing origins</a>, return
+      <p>If <var>origin</var> is <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site⑥">same site</a> with some item of <var>entry</var>’s <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑦">storing origins</a>, return
  <var>entry</var>.</p>
       <p class="note" role="note"><span class="marker">Note:</span> The same-site baseline every entry carries (the grant a write with no
  <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins⑥">origins</a></code> option requests) always holds,
- regardless of any <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins④">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑧">list</a> or <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable③">globally disclosable</a> grant
+ regardless of any <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins④">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑨">list</a> or <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable③">globally disclosable</a> grant
  added later. Because it is checked before the <a data-link-type="dfn" href="#dfn-public-hash-list" id="ref-for-dfn-public-hash-list②">Public Hash List</a> gate below, a same-site
  origin reads the entry whether or not its <a data-link-type="dfn" href="#cos-entry-hash" id="ref-for-cos-entry-hash⑧">hash</a> is <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl③">on the PHL</a>. Same-site here
  is one trust unit, so this discloses nothing across a site boundary that
  <a href="#cross-site-probing">§ 8.2 Cross-site probing</a> guards.</p>
      <li data-md>
-      <p>If <var>origin</var>’s <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#ascii-serialisation-of-an-origin" id="ref-for-ascii-serialisation-of-an-origin">serialization</a> is an item of <var>entry</var>’s <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑤">origins</a>, return
+      <p>If <var>origin</var> is <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site⑦">same site</a> with some item of <var>entry</var>’s <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑤">origins</a>, return
  <var>entry</var>.</p>
-      <p class="note" role="note"><span class="marker">Note:</span> An origin on the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑥">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list⑨">list</a> reads the entry without the entry
- needing to be <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl④">on the PHL</a>. The storing origin made a bounded disclosure decision by naming
+      <p class="note" role="note"><span class="marker">Note:</span> An origin on the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑥">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⓪">list</a>, or <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site⑧">same site</a> with one,
+ reads the entry without the entry needing to be <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl④">on the PHL</a>. Extending each listed origin to
+ its site mirrors the same-site baseline above: same-site origins are one trust unit, so naming
+ one origin of a site names all of them. The storing origin made a bounded disclosure decision by naming
  it (see <a href="#resource-visibility-upgrades">§ 3.5 Resource visibility upgrades</a> and <a href="#allow-origin-header">§ 7 The Cross-Origin-Storage-Allow-Origin header</a>), and requiring separate
  global ubiquity on top of that would make ordinary restricted sharing depend on unrelated,
  public curation of what is often a proprietary resource. Checking this before the
@@ -1324,14 +1328,15 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="determine-cos-
   disclosure could otherwise reach any origin on the web. An entry that is
   <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable⑥">globally disclosable</a> but whose <a data-link-type="dfn" href="#cos-entry-hash" id="ref-for-cos-entry-hash①⓪">hash</a> is not <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl⑥">on the PHL</a> is not
   disclosed to an origin that qualifies through this grant alone; an origin that also appears
-  among <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑧">storing origins</a>, their same-site set, or the explicit
-  <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑦">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⓪">list</a> has already returned above.</p>
+  among <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑧">storing origins</a>, the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑦">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①①">list</a>, or the
+  same-site set of either has already returned above.</p>
        <li data-md>
         <p>If the user agent elects to apply <a href="#greaseing">GREASE’ing</a> to this request, return null.</p>
         <p class="note" role="note"><span class="marker">Note:</span> GREASE’ing also applies only to the global grant. The grants checked above never
   reach this step: storing origins and their same-site origins are one trust unit, and an
-  origin on the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①①">list</a> was named on purpose by a writer whose
-  <code>Cross-Origin-Storage-Allow-Origin</code> header authorized it.</p>
+  origin on the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①②">list</a> was named on purpose by a writer whose
+  <code>Cross-Origin-Storage-Allow-Origin</code> header authorized it, which covers its same-site origins
+  as well.</p>
        <li data-md>
         <p>Return <var>entry</var>.</p>
       </ol>
@@ -1390,7 +1395,7 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="complete-a-cre
       <p>Let <var>requestedOrigins</var> be the result of running <a data-link-type="dfn" href="#normalize-requested-origins" id="ref-for-normalize-requested-origins">normalize requested origins</a> given
  <var>options</var>["<code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins⑦">origins</a></code>"].</p>
      <li data-md>
-      <p>If <var>requestedOrigins</var> is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①②">list</a>, set <var>requestedOrigins</var> to the result of running
+      <p>If <var>requestedOrigins</var> is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①③">list</a>, set <var>requestedOrigins</var> to the result of running
  <a data-link-type="dfn" href="#apply-a-cos-scope-ceiling" id="ref-for-apply-a-cos-scope-ceiling①">apply a COS scope ceiling</a> given <var>requestedOrigins</var> and the result of running
  <a data-link-type="dfn" href="#obtain-the-cos-scope-ceiling" id="ref-for-obtain-the-cos-scope-ceiling">obtain the COS scope ceiling</a> given <var>global</var>.</p>
      <li data-md>
@@ -1428,7 +1433,7 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="complete-a-cre
    <div class="algorithm" data-algorithm="normalize requested origins">
     
 To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="normalize-requested-origins">normalize requested origins</dfn> given a (DOMString or sequence&lt;DOMString>) or
-undefined <var>origins</var>, return "<code>*</code>", a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①③">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin①⓪">origins</a>, or null:
+undefined <var>origins</var>, return "<code>*</code>", a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①④">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin①⓪">origins</a>, or null:
 
 
     <ol>
@@ -1439,7 +1444,7 @@ undefined <var>origins</var>, return "<code>*</code>", a <a data-link-type="dfn"
      <li data-md>
       <p>Let <var>list</var> be « ».</p>
      <li data-md>
-      <p><a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list-iterate" id="ref-for-list-iterate②">For each</a> <var>candidate</var> of <var>origins</var> (a single <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string③">string</a> is treated as a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①④">list</a> of
+      <p><a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list-iterate" id="ref-for-list-iterate②">For each</a> <var>candidate</var> of <var>origins</var> (a single <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string③">string</a> is treated as a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑤">list</a> of
  one):</p>
       <ol>
        <li data-md>
@@ -1505,7 +1510,7 @@ closed, the complete written <a data-link-type="dfn" href="https://infra.spec.wh
         <ol>
          <li data-md>
           <p>Set <var>entry</var> to a new <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry⑧">COS entry</a> whose <a data-link-type="dfn" href="#cos-entry-hash" id="ref-for-cos-entry-hash①②">hash</a> is <var>hash</var>,
- <a data-link-type="dfn" href="#cos-entry-bytes" id="ref-for-cos-entry-bytes">bytes</a> is <var>bytes</var>, <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①②">origins</a> is an empty <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑤">list</a>,
+ <a data-link-type="dfn" href="#cos-entry-bytes" id="ref-for-cos-entry-bytes">bytes</a> is <var>bytes</var>, <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①②">origins</a> is an empty <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑥">list</a>,
  <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable⑦">globally disclosable</a> is false, and <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins⑨">storing origins</a> is an empty
  <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#ordered-set" id="ref-for-ordered-set①">set</a>.</p>
          <li data-md>
@@ -1558,7 +1563,7 @@ integration requires.</p>
    <div class="algorithm" data-algorithm="store a fetched resource in Cross-Origin Storage">
     
 To <dfn class="dfn-paneled" data-dfn-type="dfn" data-export id="store-a-fetched-resource-in-cross-origin-storage">store a fetched resource in Cross-Origin Storage</dfn> given a <a data-link-type="dfn" href="https://fetch.spec.whatwg.org/#concept-response" id="ref-for-concept-response">response</a>
-<var>response</var>, a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#byte-sequence" id="ref-for-byte-sequence②">byte sequence</a> <var>bytes</var>, a <a data-link-type="dfn" href="#cos-hash" id="ref-for-cos-hash①①">COS hash</a> <var>hash</var>, "<code>*</code>", a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑥">list</a> of <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string④">strings</a>,
+<var>response</var>, a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#byte-sequence" id="ref-for-byte-sequence②">byte sequence</a> <var>bytes</var>, a <a data-link-type="dfn" href="#cos-hash" id="ref-for-cos-hash①①">COS hash</a> <var>hash</var>, "<code>*</code>", a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑦">list</a> of <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string④">strings</a>,
 or null <var>origins</var>, and an <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object" id="ref-for-environment-settings-object">environment settings object</a> <var>settings</var>:
 
 
@@ -1584,7 +1589,7 @@ or null <var>origins</var>, and an <a data-link-type="dfn" href="https://html.sp
       <p>Let <var>requestedOrigins</var> be the result of running <a data-link-type="dfn" href="#normalize-requested-origins" id="ref-for-normalize-requested-origins①">normalize requested origins</a> given
  <var>options</var>["<code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins⑨">origins</a></code>"].</p>
      <li data-md>
-      <p>If <var>requestedOrigins</var> is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑦">list</a>:</p>
+      <p>If <var>requestedOrigins</var> is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑧">list</a>:</p>
       <ol>
        <li data-md>
         <p>Let <var>internalResponse</var> be <var>response</var>’s <a data-link-type="dfn" href="https://fetch.spec.whatwg.org/#concept-internal-response" id="ref-for-concept-internal-response">internal response</a> if
@@ -1615,7 +1620,7 @@ or null <var>origins</var>, and an <a data-link-type="dfn" href="https://html.sp
         <ol>
          <li data-md>
           <p>Set <var>entry</var> to a new <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry①⓪">COS entry</a> whose <a data-link-type="dfn" href="#cos-entry-hash" id="ref-for-cos-entry-hash①④">hash</a> is <var>hash</var>,
- <a data-link-type="dfn" href="#cos-entry-bytes" id="ref-for-cos-entry-bytes①">bytes</a> is <var>bytes</var>, <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①④">origins</a> is an empty <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑧">list</a>,
+ <a data-link-type="dfn" href="#cos-entry-bytes" id="ref-for-cos-entry-bytes①">bytes</a> is <var>bytes</var>, <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①④">origins</a> is an empty <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑨">list</a>,
  <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable⑧">globally disclosable</a> is false, and <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins①①">storing origins</a> is an empty
  <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#ordered-set" id="ref-for-ordered-set②">set</a>.</p>
          <li data-md>
@@ -1641,7 +1646,7 @@ the probing considerations in <a href="#cross-site-probing">§ 8.2 Cross-site 
    <p>The visibility of a <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry①①">COS entry</a> can be upgraded but never downgraded.</p>
    <div class="algorithm" data-algorithm="upgrade resource visibility">
     
-To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="upgrade-resource-visibility">upgrade resource visibility</dfn> given a <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry①②">COS entry</a> <var>entry</var> and "<code>*</code>", a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⑨">list</a> of
+To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="upgrade-resource-visibility">upgrade resource visibility</dfn> given a <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry①②">COS entry</a> <var>entry</var> and "<code>*</code>", a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⓪">list</a> of
 <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin①②">origins</a>, or null <var>requestedOrigins</var>:
 
 
@@ -1660,8 +1665,8 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="upgrade-resour
         <p>Return.</p>
       </ol>
       <p class="note" role="note"><span class="marker">Note:</span> This adds the global grant; it does not touch <var>entry</var>’s <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①⑤">origins</a>. An entry
- that already carried an explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①⑥">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⓪">list</a> keeps it, so every origin on
- that <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②①">list</a> keeps its <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl⑧">PHL</a>-independent access even after the entry becomes
+ that already carried an explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins①⑥">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②①">list</a> keeps it, so every origin on
+ that <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②②">list</a> keeps its <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl⑧">PHL</a>-independent access even after the entry becomes
  <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①⓪">globally disclosable</a>. This is the crux of why the two grants are stored
  separately; see <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①①">globally disclosable</a>.</p>
      <li data-md>
@@ -1681,7 +1686,7 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="upgrade-resour
     </ol>
    </div>
    <p class="note" role="note"><span class="marker">Note:</span> An upgrade only ever adds to <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②⓪">origins</a> or sets <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①②">globally disclosable</a>
-to true. A writer that requests a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②②">list</a> widens an entry that is already
+to true. A writer that requests a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②③">list</a> widens an entry that is already
 <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①③">globally disclosable</a> just as it widens one that is not, because the two grants are
 independent: the newly listed origins gain <a data-link-type="dfn" href="#on-the-phl" id="ref-for-on-the-phl⑨">PHL</a>-independent access even while the
 "<code>*</code>" grant remains in force.</p>
@@ -1739,7 +1744,7 @@ called on it returns a <code class="idl"><a data-link-type="idl" href="https://w
 is exactly the behavior <a data-link-type="biblio" href="#biblio-fs" title="File System Standard">[FS]</a> already defines for a <a data-link-type="dfn" href="https://fs.spec.whatwg.org/#file" id="ref-for-file">file entry</a> whose
 <a data-link-type="dfn" href="https://fs.spec.whatwg.org/#file-entry-binary-data" id="ref-for-file-entry-binary-data">binary data</a> is those bytes.</p>
    <p>A <code class="idl"><a data-link-type="idl" href="https://fs.spec.whatwg.org/#filesystemfilehandle" id="ref-for-filesystemfilehandle⑨">FileSystemFileHandle</a></code> addressing the <a data-link-type="dfn" href="#cross-origin-storage-file-system" id="ref-for-cross-origin-storage-file-system⑦">Cross-Origin Storage file system</a> has a
-<a data-link-type="dfn" href="https://fs.spec.whatwg.org/#file-system-locator" id="ref-for-file-system-locator">file system locator</a> whose <a data-link-type="dfn" href="https://fs.spec.whatwg.org/#locator-path" id="ref-for-locator-path">path</a> is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②③">list</a> containing a single
+<a data-link-type="dfn" href="https://fs.spec.whatwg.org/#file-system-locator" id="ref-for-file-system-locator">file system locator</a> whose <a data-link-type="dfn" href="https://fs.spec.whatwg.org/#locator-path" id="ref-for-locator-path">path</a> is a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②④">list</a> containing a single
 <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#string" id="ref-for-string⑤">string</a>, its <a data-link-type="dfn" href="#filesystemfilehandle-cos-hash" id="ref-for-filesystemfilehandle-cos-hash③">COS hash</a>’s <a data-link-type="dfn" href="#cos-hash-value" id="ref-for-cos-hash-value⑤">value</a>, and whose
 <a data-link-type="dfn" href="https://fs.spec.whatwg.org/#locator-root" id="ref-for-locator-root">root</a> is the <a data-link-type="dfn" href="#cross-origin-storage-file-system" id="ref-for-cross-origin-storage-file-system⑧">Cross-Origin Storage file system</a>.</p>
    <p class="note" role="note"><span class="marker">Note:</span> <a data-link-type="biblio" href="#biblio-fs" title="File System Standard">[FS]</a> defines <code class="idl"><a data-link-type="idl" href="https://fs.spec.whatwg.org/#dom-filesystemhandle-name" id="ref-for-dom-filesystemhandle-name">name</a></code> as the last path component of the handle’s
@@ -1832,12 +1837,12 @@ the console.</p>
 bytes under the same hash does not consume additional quota beyond the first successful write; see
 <a href="#cos-entries">§ 2.2 COS entries</a>.</p>
    <p>A user agent also has an <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#implementation-defined" id="ref-for-implementation-defined②">implementation-defined</a> <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="maximum-origins-list-length">maximum origins list length</dfn>, a
-positive integer bounding how many <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin①⑧">origins</a> a single <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②④">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②④">list</a> may
-contain. This is enforced both when a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑤">list</a> is first supplied (see <a data-link-type="dfn" href="#validate-a-cos-request" id="ref-for-validate-a-cos-request④">validate a COS request</a>)
+positive integer bounding how many <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin①⑧">origins</a> a single <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②④">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑤">list</a> may
+contain. This is enforced both when a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑥">list</a> is first supplied (see <a data-link-type="dfn" href="#validate-a-cos-request" id="ref-for-validate-a-cos-request④">validate a COS request</a>)
 and when one is later merged into an existing entry (see
 <a href="#resource-visibility-upgrades">upgrade resource visibility</a>), so that neither a single call nor
 the cumulative effect of many calls over time can grow an entry’s <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②⑤">origins</a> without
-bound. Beyond bounding memory use, this also keeps a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑥">list</a> of origins from being usable as an
+bound. Beyond bounding memory use, this also keeps a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑦">list</a> of origins from being usable as an
 undeclared substitute for "<code>*</code>"; see <a href="#cross-site-probing">§ 8.2 Cross-site probing</a>.</p>
    <p>Exceeding this limit is handled differently in each of those two places, because the two calls
 happen at very different points in an operation:</p>
@@ -1894,7 +1899,7 @@ actually wrote the bytes.</p>
 <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins①②">origins</a></code> is? No: "same-site" is only meaningful
 relative to a requesting origin, and a manual add has none, so there is no site for "same-site"
 to mean. A user agent is expected to make such an entry <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①④">globally disclosable</a>,
-leaving its explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑦">list</a> empty, since manually seeding a file only
+leaving its explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins②⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑧">list</a> empty, since manually seeding a file only
 serves its purpose (letting sites the user has not visited yet reuse a file the user already has
 on disk) if other origins can actually discover it. A user agent’s settings UI may
 additionally let the user choose a narrower scope.</p>
@@ -2041,15 +2046,15 @@ Cross-Origin Storage for the whole shared worker, and that the answer can change
 permissive owner, would let any document that allows the feature re-enable it on behalf of
 documents that disallow it.</p>
    <h2 class="heading settled" data-level="7" id="allow-origin-header"><span class="secno">7. </span><span class="content">The <code>Cross-Origin-Storage-Allow-Origin</code> header</span><a class="self-link" href="#allow-origin-header"></a></h2>
-   <p>A <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry②⓪">COS entry</a> whose <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③⓪">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑧">list</a> is non-empty is disclosable to origins the
-writing origin does not control, yet that <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑨">list</a> is declared by script (through
+   <p>A <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry②⓪">COS entry</a> whose <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③⓪">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list②⑨">list</a> is non-empty is disclosable to origins the
+writing origin does not control, yet that <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⓪">list</a> is declared by script (through
 <code class="idl"><a data-link-type="idl" href="#dom-crossoriginstoragerequestfilehandleoptions-origins" id="ref-for-dom-crossoriginstoragerequestfilehandleoptions-origins①③">origins</a></code>) or by markup, either of which an attacker
 who has achieved script or markup injection can set. To tie that declaration to the operator of
 the origin whose bytes are being disclosed, in a form injected content cannot forge, this
 specification defines a response header that bounds which origins such a declaration may name.</p>
    <p>The <dfn class="dfn-paneled" data-dfn-type="http-header" data-export id="http-headerdef-cross-origin-storage-allow-origin"><code>Cross-Origin-Storage-Allow-Origin</code></dfn> response header carries a
 <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="cos-scope-ceiling">COS scope ceiling</dfn>: a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#ordered-set" id="ref-for-ordered-set③">set</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin②⑤">origins</a> that a write may name in a non-same-site
-<a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③①">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⓪">list</a>. Whoever supplies the bytes sends the header, so it is read from
+<a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③①">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③①">list</a>. Whoever supplies the bytes sends the header, so it is read from
 the <a data-link-type="dfn" href="https://fetch.spec.whatwg.org/#concept-response" id="ref-for-concept-response③">response</a> behind the bytes being disclosed:</p>
    <ul>
     <li data-md>
@@ -2062,7 +2067,7 @@ create the calling <a data-link-type="dfn" href="https://html.spec.whatwg.org/mu
 (see <a data-link-type="dfn" href="#store-a-fetched-resource-in-cross-origin-storage" id="ref-for-store-a-fetched-resource-in-cross-origin-storage">store a fetched resource in Cross-Origin Storage</a>). This is the resource’s server, which
 need not be the server of the <code class="idl"><a data-link-type="idl" href="https://dom.spec.whatwg.org/#document" id="ref-for-document①⓪">Document</a></code> that loads it.</p>
    </ul>
-   <p>A declared <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③①">list</a> is <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#set-intersection" id="ref-for-set-intersection">intersected</a> with the ceiling (see
+   <p>A declared <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③②">list</a> is <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#set-intersection" id="ref-for-set-intersection">intersected</a> with the ceiling (see
 <a data-link-type="dfn" href="#apply-a-cos-scope-ceiling" id="ref-for-apply-a-cos-scope-ceiling③">apply a COS scope ceiling</a>), so the ceiling can only ever narrow a declaration.</p>
    <p class="note" role="note"><span class="marker">Note:</span> The header is an authorization by the side that supplies the bytes. The origins it names,
 the eventual readers, are not consulted and send nothing: a listed origin takes part only later,
@@ -2071,7 +2076,7 @@ reader. This runs in the opposite direction from <code>Access-Control-Allow-Orig
 server holding a resource opts in to a given origin reading it. Here the supplier of the bytes
 bounds who can later read them from Cross-Origin Storage, and injected content on the writing
 page cannot extend that bound, because it cannot set the supplier’s response headers.</p>
-   <p class="note" role="note"><span class="marker">Note:</span> The header applies only to the <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③②">list</a> form. The same-site default names no cross-origin
+   <p class="note" role="note"><span class="marker">Note:</span> The header applies only to the <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③③">list</a> form. The same-site default names no cross-origin
 recipients and so needs no authorization, and the "<code>*</code>" form is governed at the read path by
 <a href="#availability-gating">availability gating</a> against the <a data-link-type="dfn" href="#dfn-public-hash-list" id="ref-for-dfn-public-hash-list④">Public Hash List</a>, which a
 per-user secret can never clear, so it needs no write-time ceiling either. Requiring a header for
@@ -2173,8 +2178,8 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="obtain-the-cos
    </div>
    <div class="algorithm" data-algorithm="apply a COS scope ceiling">
     
-To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="apply-a-cos-scope-ceiling">apply a COS scope ceiling</dfn> given a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③③">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③⓪">origins</a> <var>requestedOrigins</var> and a
-<a data-link-type="dfn" href="https://infra.spec.whatwg.org/#ordered-set" id="ref-for-ordered-set①④">set</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③①">origins</a> <var>ceiling</var>, return a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③④">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③②">origins</a> or null:
+To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="apply-a-cos-scope-ceiling">apply a COS scope ceiling</dfn> given a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③④">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③⓪">origins</a> <var>requestedOrigins</var> and a
+<a data-link-type="dfn" href="https://infra.spec.whatwg.org/#ordered-set" id="ref-for-ordered-set①④">set</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③①">origins</a> <var>ceiling</var>, return a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⑤">list</a> of <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③②">origins</a> or null:
 
 
     <ol>
@@ -2187,7 +2192,7 @@ To <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="apply-a-cos-sc
  each dropped <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#concept-origin" id="ref-for-concept-origin③④">origin</a>.</p>
      <li data-md>
       <p>If <var>requestedOrigins</var> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list-is-empty" id="ref-for-list-is-empty②">is empty</a>, return null.</p>
-      <p class="note" role="note"><span class="marker">Note:</span> A <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⑤">list</a> every one of whose members was dropped leaves the write with no authorized
+      <p class="note" role="note"><span class="marker">Note:</span> A <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⑥">list</a> every one of whose members was dropped leaves the write with no authorized
  cross-origin recipient, so it falls back to the same-site default. The bytes are still
  stored; only the unauthorized disclosure is withheld.</p>
      <li data-md>
@@ -2239,7 +2244,7 @@ learn:</p>
    <ul>
     <li data-md>
      <p><a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③④">origins</a> (see <a href="#resource-visibility-upgrades">§ 3.5 Resource visibility upgrades</a>) lets a storing origin restrict
-disclosure to a chosen set of origins, so a proprietary or low-popularity resource need not be
+disclosure to a chosen set of origins and the origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site⑨">same site</a> with them, so a proprietary or low-popularity resource need not be
 globally probeable at all.</p>
     <li data-md>
      <p><a href="#availability-gating">§ 8.4 Availability gating</a> additionally withholds disclosure of a "<code>*</code>"-scoped resource from
@@ -2346,8 +2351,8 @@ from a privacy-motivated false negative, similar to the technique applied by
 <a data-link-type="biblio" href="#biblio-ua-client-hints" title="User-Agent Client Hints">UA Client Hints</a>.</p>
    <p>GREASE’ing applies only to an origin that qualifies through the <a data-link-type="dfn" href="#cos-entry-globally-disclosable" id="ref-for-cos-entry-globally-disclosable①⑥">globally disclosable</a>
 grant alone, the same case the <a data-link-type="dfn" href="#dfn-public-hash-list" id="ref-for-dfn-public-hash-list⑦">Public Hash List</a> gates (see <a data-link-type="dfn" href="#determine-cos-disclosure" id="ref-for-determine-cos-disclosure④">determine COS disclosure</a>). A
-user agent must not apply it to <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins②④">storing origins</a>, to origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site④">same site</a> with them,
-or to origins on the explicit <a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⑥">list</a>.</p>
+user agent must not apply it to <a data-link-type="dfn" href="#cos-entry-storing-origins" id="ref-for-cos-entry-storing-origins②④">storing origins</a>, to origins on the explicit
+<a data-link-type="dfn" href="#cos-entry-origins" id="ref-for-cos-entry-origins③⑧">origins</a> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list③⑦">list</a>, or to origins <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/browsers.html#same-site" id="ref-for-same-site①⓪">same site</a> with either.</p>
    <p>A user agent applying GREASE’ing must do so with judgment proportionate to the size of the entry
 in question. For small entries, where falling back to a network fetch is inexpensive, an occasional
 false negative is a reasonable privacy trade-off. A user agent must not apply GREASE’ing to entries
@@ -2635,7 +2640,6 @@ and Document License</a>.
      <li><span class="dfn-paneled" id="feac4ab3">same site</span>
      <li><span class="dfn-paneled" id="0cf3964f">script</span>
      <li><span class="dfn-paneled" id="0a422d04">serializable object</span>
-     <li><span class="dfn-paneled" id="1014b9fc">serialization</span>
      <li><span class="dfn-paneled" id="f32dc6c1">serialization steps</span>
      <li><span class="dfn-paneled" id="8219d486">starting a new parallel queue</span>
     </ul>
@@ -2738,7 +2742,7 @@ and Document License</a>.
    <dt id="biblio-infra">[INFRA]
    <dd>Anne van Kesteren; Domenic Denicola. <a href="https://infra.spec.whatwg.org/"><cite>Infra Standard</cite></a>. Living Standard. URL: <a href="https://infra.spec.whatwg.org/">https://infra.spec.whatwg.org/</a>
    <dt id="biblio-permissions-policy">[PERMISSIONS-POLICY]
-   <dd>Ian Clelland. <a href="https://w3c.github.io/webappsec-permissions-policy/"><cite>Permissions Policy</cite></a>. URL: <a href="https://w3c.github.io/webappsec-permissions-policy/">https://w3c.github.io/webappsec-permissions-policy/</a>
+   <dd>Ian Clelland; Ari Chivukula. <a href="https://w3c.github.io/webappsec-permissions-policy/"><cite>Permissions Policy</cite></a>. URL: <a href="https://w3c.github.io/webappsec-permissions-policy/">https://w3c.github.io/webappsec-permissions-policy/</a>
    <dt id="biblio-rfc2119">[RFC2119]
    <dd>S. Bradner. <a href="https://datatracker.ietf.org/doc/html/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. March 1997. Best Current Practice. URL: <a href="https://datatracker.ietf.org/doc/html/rfc2119">https://datatracker.ietf.org/doc/html/rfc2119</a>
    <dt id="biblio-url">[URL]
@@ -3025,7 +3029,6 @@ let dfnPanelData = {
 "0cf3964f": {"dfnID":"0cf3964f","dfnText":"script","external":true,"refSections":[{"refs":[{"id":"ref-for-script"}],"title":"1. Introduction"},{"refs":[{"id":"ref-for-script\u2460"}],"title":"9. Integration with other specifications"}],"url":"https://html.spec.whatwg.org/multipage/scripting.html#script"},
 "0dcd4ad9": {"dfnID":"0dcd4ad9","dfnText":"RequestInit","external":true,"refSections":[{"refs":[{"id":"ref-for-requestinit"}],"title":"1. Introduction"},{"refs":[{"id":"ref-for-requestinit\u2460"}],"title":"9. Integration with other specifications"}],"url":"https://fetch.spec.whatwg.org/#requestinit"},
 "0e6b2056": {"dfnID":"0e6b2056","dfnText":"set (for map)","external":true,"refSections":[{"refs":[{"id":"ref-for-map-set"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-map-set\u2460"}],"title":"3.4. Storing fetched resources"}],"url":"https://infra.spec.whatwg.org/#map-set"},
-"1014b9fc": {"dfnID":"1014b9fc","dfnText":"serialization","external":true,"refSections":[{"refs":[{"id":"ref-for-ascii-serialisation-of-an-origin"}],"title":"3.2. Reading files"}],"url":"https://html.spec.whatwg.org/multipage/browsers.html#ascii-serialisation-of-an-origin"},
 "102df61f": {"dfnID":"102df61f","dfnText":"enqueue the following steps","external":true,"refSections":[{"refs":[{"id":"ref-for-enqueue-the-following-steps"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-enqueue-the-following-steps\u2460"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-enqueue-the-following-steps\u2461"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-enqueue-the-following-steps\u2462"}],"title":"3.4. Storing fetched resources"}],"url":"https://html.spec.whatwg.org/multipage/infrastructure.html#enqueue-the-following-steps"},
 "1243a891": {"dfnID":"1243a891","dfnText":"exist","external":true,"refSections":[{"refs":[{"id":"ref-for-map-exists"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-map-exists\u2460"}],"title":"3.3. Creating and writing files"}],"url":"https://infra.spec.whatwg.org/#map-exists"},
 "15e48c39": {"dfnID":"15e48c39","dfnText":"set","external":true,"refSections":[{"refs":[{"id":"ref-for-ordered-set"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-ordered-set\u2460"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-ordered-set\u2461"}],"title":"3.4. Storing fetched resources"},{"refs":[{"id":"ref-for-ordered-set\u2462"},{"id":"ref-for-ordered-set\u2463"},{"id":"ref-for-ordered-set\u2464"},{"id":"ref-for-ordered-set\u2465"},{"id":"ref-for-ordered-set\u2466"},{"id":"ref-for-ordered-set\u2467"},{"id":"ref-for-ordered-set\u2468"},{"id":"ref-for-ordered-set\u2460\u24ea"},{"id":"ref-for-ordered-set\u2460\u2460"},{"id":"ref-for-ordered-set\u2460\u2461"},{"id":"ref-for-ordered-set\u2460\u2462"},{"id":"ref-for-ordered-set\u2460\u2463"},{"id":"ref-for-ordered-set\u2460\u2464"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"}],"url":"https://infra.spec.whatwg.org/#ordered-set"},
@@ -3061,7 +3064,7 @@ let dfnPanelData = {
 "5d7209e9": {"dfnID":"5d7209e9","dfnText":"Window","external":true,"refSections":[{"refs":[{"id":"ref-for-window"}],"title":"6. Permissions Policy integration"},{"refs":[{"id":"ref-for-window\u2460"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"}],"url":"https://html.spec.whatwg.org/multipage/nav-history-apis.html#window"},
 "5e129c74": {"dfnID":"5e129c74","dfnText":"QuotaExceededError","external":true,"refSections":[{"refs":[{"id":"ref-for-quotaexceedederror"}],"title":"5.1. Storage limits"}],"url":"https://webidl.spec.whatwg.org/#quotaexceedederror"},
 "645f7043": {"dfnID":"645f7043","dfnText":"FileSystemWritableFileStream","external":true,"refSections":[{"refs":[{"id":"ref-for-filesystemwritablefilestream"}],"title":"1. Introduction"},{"refs":[{"id":"ref-for-filesystemwritablefilestream\u2460"},{"id":"ref-for-filesystemwritablefilestream\u2461"},{"id":"ref-for-filesystemwritablefilestream\u2462"}],"title":"3.3. Creating and writing files"}],"url":"https://fs.spec.whatwg.org/#filesystemwritablefilestream"},
-"649608b9": {"dfnID":"649608b9","dfnText":"list","external":true,"refSections":[{"refs":[{"id":"ref-for-list"},{"id":"ref-for-list\u2460"},{"id":"ref-for-list\u2461"},{"id":"ref-for-list\u2462"},{"id":"ref-for-list\u2463"},{"id":"ref-for-list\u2464"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-list\u2465"}],"title":"2.3. The Public Hash List"},{"refs":[{"id":"ref-for-list\u2466"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-list\u2467"},{"id":"ref-for-list\u2468"},{"id":"ref-for-list\u2460\u24ea"},{"id":"ref-for-list\u2460\u2460"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-list\u2460\u2461"},{"id":"ref-for-list\u2460\u2462"},{"id":"ref-for-list\u2460\u2463"},{"id":"ref-for-list\u2460\u2464"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-list\u2460\u2465"},{"id":"ref-for-list\u2460\u2466"},{"id":"ref-for-list\u2460\u2467"}],"title":"3.4. Storing fetched resources"},{"refs":[{"id":"ref-for-list\u2460\u2468"},{"id":"ref-for-list\u2461\u24ea"},{"id":"ref-for-list\u2461\u2460"},{"id":"ref-for-list\u2461\u2461"}],"title":"3.5. Resource visibility upgrades"},{"refs":[{"id":"ref-for-list\u2461\u2462"}],"title":"4. The Cross-Origin Storage file system"},{"refs":[{"id":"ref-for-list\u2461\u2463"},{"id":"ref-for-list\u2461\u2464"},{"id":"ref-for-list\u2461\u2465"}],"title":"5.1. Storage limits"},{"refs":[{"id":"ref-for-list\u2461\u2466"}],"title":"5.3. Manually added entries"},{"refs":[{"id":"ref-for-list\u2461\u2467"},{"id":"ref-for-list\u2461\u2468"},{"id":"ref-for-list\u2462\u24ea"},{"id":"ref-for-list\u2462\u2460"},{"id":"ref-for-list\u2462\u2461"},{"id":"ref-for-list\u2462\u2462"},{"id":"ref-for-list\u2462\u2463"},{"id":"ref-for-list\u2462\u2464"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"},{"refs":[{"id":"ref-for-list\u2462\u2465"}],"title":"8.5. GREASE\u2019ing"}],"url":"https://infra.spec.whatwg.org/#list"},
+"649608b9": {"dfnID":"649608b9","dfnText":"list","external":true,"refSections":[{"refs":[{"id":"ref-for-list"},{"id":"ref-for-list\u2460"},{"id":"ref-for-list\u2461"},{"id":"ref-for-list\u2462"},{"id":"ref-for-list\u2463"},{"id":"ref-for-list\u2464"},{"id":"ref-for-list\u2465"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-list\u2466"}],"title":"2.3. The Public Hash List"},{"refs":[{"id":"ref-for-list\u2467"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-list\u2468"},{"id":"ref-for-list\u2460\u24ea"},{"id":"ref-for-list\u2460\u2460"},{"id":"ref-for-list\u2460\u2461"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-list\u2460\u2462"},{"id":"ref-for-list\u2460\u2463"},{"id":"ref-for-list\u2460\u2464"},{"id":"ref-for-list\u2460\u2465"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-list\u2460\u2466"},{"id":"ref-for-list\u2460\u2467"},{"id":"ref-for-list\u2460\u2468"}],"title":"3.4. Storing fetched resources"},{"refs":[{"id":"ref-for-list\u2461\u24ea"},{"id":"ref-for-list\u2461\u2460"},{"id":"ref-for-list\u2461\u2461"},{"id":"ref-for-list\u2461\u2462"}],"title":"3.5. Resource visibility upgrades"},{"refs":[{"id":"ref-for-list\u2461\u2463"}],"title":"4. The Cross-Origin Storage file system"},{"refs":[{"id":"ref-for-list\u2461\u2464"},{"id":"ref-for-list\u2461\u2465"},{"id":"ref-for-list\u2461\u2466"}],"title":"5.1. Storage limits"},{"refs":[{"id":"ref-for-list\u2461\u2467"}],"title":"5.3. Manually added entries"},{"refs":[{"id":"ref-for-list\u2461\u2468"},{"id":"ref-for-list\u2462\u24ea"},{"id":"ref-for-list\u2462\u2460"},{"id":"ref-for-list\u2462\u2461"},{"id":"ref-for-list\u2462\u2462"},{"id":"ref-for-list\u2462\u2463"},{"id":"ref-for-list\u2462\u2464"},{"id":"ref-for-list\u2462\u2465"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"},{"refs":[{"id":"ref-for-list\u2462\u2466"}],"title":"8.5. GREASE\u2019ing"}],"url":"https://infra.spec.whatwg.org/#list"},
 "6b815fdd": {"dfnID":"6b815fdd","dfnText":"is empty","external":true,"refSections":[{"refs":[{"id":"ref-for-list-is-empty"}],"title":"6. Permissions Policy integration"},{"refs":[{"id":"ref-for-list-is-empty\u2460"},{"id":"ref-for-list-is-empty\u2461"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"}],"url":"https://infra.spec.whatwg.org/#list-is-empty"},
 "6cd8ae45": {"dfnID":"6cd8ae45","dfnText":"createWritable()","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-filesystemfilehandle-createwritable"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-dom-filesystemfilehandle-createwritable\u2460"},{"id":"ref-for-dom-filesystemfilehandle-createwritable\u2461"},{"id":"ref-for-dom-filesystemfilehandle-createwritable\u2462"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-dom-filesystemfilehandle-createwritable\u2463"},{"id":"ref-for-dom-filesystemfilehandle-createwritable\u2464"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#dom-filesystemfilehandle-createwritable"},
 "6cfa013d": {"dfnID":"6cfa013d","dfnText":"link","external":true,"refSections":[{"refs":[{"id":"ref-for-the-link-element"}],"title":"1. Introduction"},{"refs":[{"id":"ref-for-the-link-element\u2460"}],"title":"9. Integration with other specifications"}],"url":"https://html.spec.whatwg.org/multipage/semantics.html#the-link-element"},
@@ -3166,7 +3169,7 @@ let dfnPanelData = {
 "f8e97aa4": {"dfnID":"f8e97aa4","dfnText":"file system locator","external":true,"refSections":[{"refs":[{"id":"ref-for-file-system-locator"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#file-system-locator"},
 "f937b7b6": {"dfnID":"f937b7b6","dfnText":"continue","external":true,"refSections":[{"refs":[{"id":"ref-for-iteration-continue"}],"title":"3.5. Resource visibility upgrades"},{"refs":[{"id":"ref-for-iteration-continue\u2460"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"}],"url":"https://infra.spec.whatwg.org/#iteration-continue"},
 "fd83f0b6": {"dfnID":"fd83f0b6","dfnText":"service worker client","external":true,"refSections":[{"refs":[{"id":"ref-for-dfn-service-worker-client"}],"title":"6. Permissions Policy integration"}],"url":"https://w3c.github.io/ServiceWorker/#dfn-service-worker-client"},
-"feac4ab3": {"dfnID":"feac4ab3","dfnText":"same site","external":true,"refSections":[{"refs":[{"id":"ref-for-same-site"},{"id":"ref-for-same-site\u2460"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-same-site\u2461"}],"title":"3. The CrossOriginStorageManager interface"},{"refs":[{"id":"ref-for-same-site\u2462"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-same-site\u2463"}],"title":"8.5. GREASE\u2019ing"}],"url":"https://html.spec.whatwg.org/multipage/browsers.html#same-site"},
+"feac4ab3": {"dfnID":"feac4ab3","dfnText":"same site","external":true,"refSections":[{"refs":[{"id":"ref-for-same-site"},{"id":"ref-for-same-site\u2460"},{"id":"ref-for-same-site\u2461"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-same-site\u2462"}],"title":"3. The CrossOriginStorageManager interface"},{"refs":[{"id":"ref-for-same-site\u2463"},{"id":"ref-for-same-site\u2464"}],"title":"3.1. The requestFileHandle() method"},{"refs":[{"id":"ref-for-same-site\u2465"},{"id":"ref-for-same-site\u2466"},{"id":"ref-for-same-site\u2467"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-same-site\u2468"}],"title":"8.2. Cross-site probing"},{"refs":[{"id":"ref-for-same-site\u2460\u24ea"}],"title":"8.5. GREASE\u2019ing"}],"url":"https://html.spec.whatwg.org/multipage/browsers.html#same-site"},
 "filesystemfilehandle-cos-hash": {"dfnID":"filesystemfilehandle-cos-hash","dfnText":"COS hash","external":false,"refSections":[{"refs":[{"id":"ref-for-filesystemfilehandle-cos-hash"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-hash\u2460"},{"id":"ref-for-filesystemfilehandle-cos-hash\u2461"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-hash\u2462"},{"id":"ref-for-filesystemfilehandle-cos-hash\u2463"}],"title":"4. The Cross-Origin Storage file system"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-hash\u2464"},{"id":"ref-for-filesystemfilehandle-cos-hash\u2465"}],"title":"4.1. Transferring handles"}],"url":"#filesystemfilehandle-cos-hash"},
 "filesystemfilehandle-cos-origin": {"dfnID":"filesystemfilehandle-cos-origin","dfnText":"COS origin","external":false,"refSections":[{"refs":[{"id":"ref-for-filesystemfilehandle-cos-origin"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-origin\u2460"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-filesystemfilehandle-cos-origin\u2461"},{"id":"ref-for-filesystemfilehandle-cos-origin\u2462"}],"title":"4.1. Transferring handles"}],"url":"#filesystemfilehandle-cos-origin"},
 "filesystemfilehandle-may-read": {"dfnID":"filesystemfilehandle-may-read","dfnText":"may read","external":false,"refSections":[{"refs":[{"id":"ref-for-filesystemfilehandle-may-read"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-filesystemfilehandle-may-read\u2460"},{"id":"ref-for-filesystemfilehandle-may-read\u2461"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-filesystemfilehandle-may-read\u2462"},{"id":"ref-for-filesystemfilehandle-may-read\u2463"}],"title":"4. The Cross-Origin Storage file system"},{"refs":[{"id":"ref-for-filesystemfilehandle-may-read\u2464"},{"id":"ref-for-filesystemfilehandle-may-read\u2465"},{"id":"ref-for-filesystemfilehandle-may-read\u2466"},{"id":"ref-for-filesystemfilehandle-may-read\u2467"}],"title":"4.1. Transferring handles"}],"url":"#filesystemfilehandle-may-read"},
@@ -3651,7 +3654,6 @@ let refsData = {
 "https://fs.spec.whatwg.org/#locator-path": {"displayText":"path","export":true,"for_":["file system locator"],"level":"1","normative":true,"shortname":"fs","spec":"fs","status":"current","text":"path","type":"dfn","url":"https://fs.spec.whatwg.org/#locator-path"},
 "https://fs.spec.whatwg.org/#locator-root": {"displayText":"root","export":true,"for_":["file system locator"],"level":"1","normative":true,"shortname":"fs","spec":"fs","status":"current","text":"root","type":"dfn","url":"https://fs.spec.whatwg.org/#locator-root"},
 "https://fs.spec.whatwg.org/#origin-private-file-system": {"displayText":"bucket file system","export":true,"for_":[],"level":"1","normative":true,"shortname":"fs","spec":"fs","status":"current","text":"bucket file system","type":"dfn","url":"https://fs.spec.whatwg.org/#origin-private-file-system"},
-"https://html.spec.whatwg.org/multipage/browsers.html#ascii-serialisation-of-an-origin": {"displayText":"serialization","export":true,"for_":["origin"],"level":"","normative":true,"shortname":"html","spec":"html","status":"anchor-block","text":"serialization","type":"dfn","url":"https://html.spec.whatwg.org/multipage/browsers.html#ascii-serialisation-of-an-origin"},
 "https://html.spec.whatwg.org/multipage/browsers.html#concept-origin": {"displayText":"origin","export":true,"for_":[],"level":"1","normative":true,"shortname":"html","spec":"html","status":"current","text":"origin","type":"dfn","url":"https://html.spec.whatwg.org/multipage/browsers.html#concept-origin"},
 "https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-opaque": {"displayText":"opaque origin","export":true,"for_":[],"level":"1","normative":true,"shortname":"html","spec":"html","status":"current","text":"opaque origin","type":"dfn","url":"https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-opaque"},
 "https://html.spec.whatwg.org/multipage/browsers.html#same-origin": {"displayText":"same origin","export":true,"for_":[],"level":"1","normative":true,"shortname":"html","spec":"html","status":"current","text":"same origin","type":"dfn","url":"https://html.spec.whatwg.org/multipage/browsers.html#same-origin"},
