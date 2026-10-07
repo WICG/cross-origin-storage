@@ -7,7 +7,7 @@ cryptographic hash rather than by origin, that lets independent sites share one 
 large, byte-identical resource (AI model weights, Wasm modules, popular JS libraries, fonts)
 instead of each downloading and storing it separately. The full spec (draft at
 `/Users/tsteiner/Documents/javascript/cross-origin-storage/index.bs`) defines the
-`navigator.crossOriginStorage.requestFileHandle()` entry point; a registry of hash-keyed entries
+`navigator.crossOriginStorage.getFileHandle()` entry point; a registry of hash-keyed entries
 with a pending→written lifecycle; three disclosure scopes (same-site-only, an explicit origin
 list, or a PHL/GREASE-gated wildcard); storage-budget and eviction rules; and rate-limiting/probing
 defenses. WPTs exist at `/Volumes/120GB_SSD/Documents/wpt/cross-origin-storage`
@@ -252,7 +252,7 @@ branch off `main`:
 
 1. **WebIDL surface + Navigator/WorkerNavigator wiring**, pref-gated
    (`dom.crossOriginStorage.enabled`): `CrossOriginStorageManager` interface,
-   `CrossOriginStorageRequestFileHandleHash`/`Options` dictionaries transcribed from the spec's IDL
+   `CrossOriginStorageGetFileHandleHash`/`Options` dictionaries transcribed from the spec's IDL
    block, in a new `dom/crossoriginstorage/` directory. Methods reject with a placeholder error
    until the actor exists.
 2. **Request validation + Permissions Policy gating**: per-algorithm hash-shape checks for every
@@ -260,7 +260,7 @@ branch off `main`:
    in `sSupportedFeatures[]` and check via `FeaturePolicyUtils::IsFeatureAllowed` before validation.
 3. **`PCrossOriginStorage` actor + in-memory `CrossOriginStorageRegistry` singleton** on the
    PBackground thread (decisions 1, 7, 8).
-4. **Wire `CrossOriginStorageManager::RequestFileHandle()` to the actor** for both read and create
+4. **Wire `CrossOriginStorageManager::GetFileHandle()` to the actor** for both read and create
    requests, constructing a real `dom::FileSystemFileHandle` (decision 2) and
    `CrossOriginStorageWritableFileStream` (decisions 2–4) for the write path.
 5. **Import and run the COS WPT suite** (`testing/web-platform/tests/cross-origin-storage/`, plus
@@ -355,7 +355,7 @@ user-visible failure.
 - **Run the imported WPT suite**: `./mach wpt --headless --setpref
   dom.crossOriginStorage.enabled=true testing/web-platform/tests/cross-origin-storage/`. Expected
   current state: `filesystemwritablefilestream-verify.tentative.https.any.js` and
-  `requestFileHandle-create-and-read.tentative.https.any.js` pass in full across all 4 globals; the
+  `getFileHandle-create-and-read.tentative.https.any.js` pass in full across all 4 globals; the
   declarative HTML/CSS/import-attribute integration tests and two `Permissions-Policy`-header tests
   are expected to fail (out of scope / pre-existing platform gap — see Deferred work above).
 - **Persistence needs verification via a real cross-process restart, not just WPT** — a WPT run
@@ -363,13 +363,13 @@ user-visible failure.
   Recommended technique: a `marionette_driver`-scripted Python harness launches the built Firefox
   against a persistent (not auto-deleted) profile, writes an entry, confirms the `.bytes`/`.meta`
   pair on disk, force-quits the browser, relaunches against the *same* profile, and confirms
-  `requestFileHandle()` (no `create`) + `getFile()` still returns the original content.
+  `getFileHandle()` (no `create`) + `getFile()` still returns the original content.
 - **The write-size cap (4 GiB)** doesn't yet have a dedicated boundary test; worth adding as a
   regression test that seeks to just past 4 GiB and writes one byte, expecting `close()` to fail
   with `DataError` — not a test that actually writes 4 GiB.
 - **The concurrent-writers-one-fails-one-succeeds invariant** the outstanding-writer-count design
   (decision 8) exists to handle is covered by the imported WPT suite's own test for it
-  (`requestFileHandle-create-and-read.tentative.https.any.js`, "a failed write does not disrupt a
+  (`getFileHandle-create-and-read.tentative.https.any.js`, "a failed write does not disrupt a
   concurrent, still-outstanding write for the same hash that succeeds") — no separate WPT-level
   test is needed for this, though the gtest suite (below) also covers it directly for speed.
 - **Storage-budget eviction, rate limiting, and GREASE'ing**: the gtest suite covers rate-limiter

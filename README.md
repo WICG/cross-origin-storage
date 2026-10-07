@@ -109,7 +109,7 @@ const hash = {
   value: '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
 };
 try {
-  const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
+  const handle = await navigator.crossOriginStorage.getFileHandle(hash);
   // The file exists in Cross-Origin Storage.
   const fileBlob = await handle.getFile();
   // Do something with the blob.
@@ -250,7 +250,7 @@ const hash = {
 
 // First, check if the file is already in COS.
 try {
-  const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
+  const handle = await navigator.crossOriginStorage.getFileHandle(hash);
   // The file exists in COS.
   const fileBlob = await handle.getFile();
   // Do something with the blob.
@@ -262,7 +262,7 @@ try {
     // Load the file from the network.
     const fileBlob = await loadFileFromNetwork();
     try {
-      const handle = await navigator.crossOriginStorage.requestFileHandle(
+      const handle = await navigator.crossOriginStorage.getFileHandle(
         hash,
         {
           create: true,
@@ -301,7 +301,7 @@ const wasmHeaders = { headers: { 'Content-Type': 'application/wasm' } };
 try {
   // Cache hit: stream from the stored file. The bytes were hash-verified when
   // they were written, so a fixed MIME type is safe.
-  const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
+  const handle = await navigator.crossOriginStorage.getFileHandle(hash);
   const file = await handle.getFile();
   const { instance } = await WebAssembly.instantiateStreaming(
     new Response(file.stream(), wasmHeaders),
@@ -324,7 +324,7 @@ const [compileStream, storeStream] = response.body.tee();
 // Fire-and-forget store; never block on the write.
 (async () => {
   try {
-    const handle = await navigator.crossOriginStorage.requestFileHandle(hash, {
+    const handle = await navigator.crossOriginStorage.getFileHandle(hash, {
       create: true,
       origins: '*',
     });
@@ -360,17 +360,17 @@ The `origins` option decides who can read a file once it is stored:
 
 ```js
 // Same-site only.
-await navigator.crossOriginStorage.requestFileHandle(hash, { create: true });
+await navigator.crossOriginStorage.getFileHandle(hash, { create: true });
 
 // Only `calculate.example` and `write.example`. Any other origin gets a
 // `NotFoundError`, even if the file is stored in COS.
-await navigator.crossOriginStorage.requestFileHandle(hash, {
+await navigator.crossOriginStorage.getFileHandle(hash, {
   create: true,
   origins: ['https://calculate.example', 'https://write.example'],
 });
 
 // Any origin, if the hash is on the Public Hash List.
-await navigator.crossOriginStorage.requestFileHandle(hash, {
+await navigator.crossOriginStorage.getFileHandle(hash, {
   create: true,
   origins: '*',
 });
@@ -391,7 +391,7 @@ The visibility of a resource in COS can be upgraded but never downgraded:
 
 #### Retrieving files
 
-To retrieve a file, call `requestFileHandle()` with its hash and no `create` option, as shown in the [Introduction](#introduction). To work with several files, call `requestFileHandle()` once per file and combine the calls with `Promise.all()`; the [FAQ entry on why the API is singular](#appendixc-frequently-asked-questions-faq) explains why there is no batched form.
+To retrieve a file, call `getFileHandle()` with its hash and no `create` option, as shown in the [Introduction](#introduction). To work with several files, call `getFileHandle()` once per file and combine the calls with `Promise.all()`; the [FAQ entry on why the API is singular](#appendixc-frequently-asked-questions-faq) explains why there is no batched form.
 
 > [!NOTE]
 > A `NotFoundError` `DOMException` does not necessarily mean the file is absent from COS. User agents may suppress availability of a file for privacy reasons (see [Availability gating](#availability-gating)). Callers should handle `NotFoundError` by falling back to a network fetch, regardless of the cause.
@@ -442,7 +442,7 @@ const upgrades = [
 // already have from another site.
 for (const candidate of [...upgrades, download]) {
   try {
-    const handle = await navigator.crossOriginStorage.requestFileHandle(
+    const handle = await navigator.crossOriginStorage.getFileHandle(
       candidate.hash
     );
     // Found one, so nothing needs to be downloaded at all.
@@ -465,7 +465,7 @@ console.log('Obtained model from network', download.name);
 Only `whisper-tiny` carries a URL, because it is the only variant the app will ever download. Every probe is a read with no URL attached: the app has no download URL to offer for `whisper-large-v3`, since it never intended to fetch that variant, and the whole point of asking is to avoid a network request. A [fetch integration](#fetch-integration) cannot express this, which is one of the reasons it complements the imperative API (see [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration)).
 
 > [!NOTE]
-> Each `requestFileHandle()` call counts as a probe against the user agent's [cross-site probing](#cross-site-probing) safeguards, so candidate lists are expected to be short, in the order of the handful of variants a model family actually ships.
+> Each `getFileHandle()` call counts as a probe against the user agent's [cross-site probing](#cross-site-probing) safeguards, so candidate lists are expected to be short, in the order of the handful of variants a model family actually ships.
 
 #### Transferring a handle
 
@@ -476,7 +476,7 @@ A `FileSystemFileHandle` is serializable, so a handle for a COS entry can be pas
 
 ```js
 // Same-origin: fine. The worker gets a handle it can read from.
-const handle = await navigator.crossOriginStorage.requestFileHandle(hash);
+const handle = await navigator.crossOriginStorage.getFileHandle(hash);
 worker.postMessage(handle);
 
 // Cross-origin: throws `DataCloneError` on the receiving side.
@@ -485,7 +485,7 @@ otherOriginFrame.postMessage(handle, 'https://other.example');
 
 ### Additional integration surfaces
 
-The imperative JavaScript API in the previous section covers the general case, but a large share of real-world resource loading already happens through constructs that carry a URL and, increasingly, an [`integrity`](https://w3c.github.io/webappsec-subresource-integrity/) hash. Routing those through `requestFileHandle()` means hand-writing a cache check, a fallback fetch, and a store, which is boilerplate the user agent can just as well perform itself. COS is therefore designed to be reachable from four host integrations:
+The imperative JavaScript API in the previous section covers the general case, but a large share of real-world resource loading already happens through constructs that carry a URL and, increasingly, an [`integrity`](https://w3c.github.io/webappsec-subresource-integrity/) hash. Routing those through `getFileHandle()` means hand-writing a cache check, a fallback fetch, and a store, which is boilerplate the user agent can just as well perform itself. COS is therefore designed to be reachable from four host integrations:
 
 | Surface | Opt-in | Reaches |
 | --- | --- | --- |
@@ -494,11 +494,11 @@ The imperative JavaScript API in the previous section covers the general case, b
 | [CSS](#css-integration) | `cross-origin-storage()` URL modifier | CSS-referenced assets such as web fonts |
 | [Fetch](#fetch-integration) | `crossOriginStorage` request option | imperative fetches of a known URL |
 
-In all four, the `integrity` hash identifies the file in COS, and the COS option takes the same values as the `origins` option of `requestFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins and their same-site origins, or `*` for global availability. Each is defined in its own host specification.
+In all four, the `integrity` hash identifies the file in COS, and the COS option takes the same values as the `origins` option of `getFileHandle()`: omitted or empty for same-site only, a list of origins for a specific set of origins and their same-site origins, or `*` for global availability. Each is defined in its own host specification.
 
 As with the imperative API, the list form is bounded by a response header so that injected markup cannot widen the sharing scope. Only the list form needs this header: a resource shared with every origin (`*`) or left at the same-site default (value omitted or empty) needs no `Cross-Origin-Storage-Allow-Origin` header. Whoever supplies the bytes sends the header, and for these integrations that is the server of the fetched resource, such as the origin serving a font or a library. That origin is the one entitled to decide that those particular bytes may be shared, and the referencing page can only narrow that; the embedding document's own header plays no part. The effective scope is the intersection of the declared value and what the resource's `Cross-Origin-Storage-Allow-Origin` header permits. See [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header).
 
-What the four have in common is that the caller holds both a URL and a hash, and wants the bytes. The imperative API remains the surface for everything that does not fit that shape: writes whose bytes did not come from a single `fetch()`, reads that have no URL to offer at all, and lookups across a set of interchangeable candidates (see [Choosing among interchangeable resources](#example-choosing-among-interchangeable-resources)). See [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration) for why the last row of the table does not subsume `requestFileHandle()`.
+What the four have in common is that the caller holds both a URL and a hash, and wants the bytes. The imperative API remains the surface for everything that does not fit that shape: writes whose bytes did not come from a single `fetch()`, reads that have no URL to offer at all, and lookups across a set of interchangeable candidates (see [Choosing among interchangeable resources](#example-choosing-among-interchangeable-resources)). See [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration) for why the last row of the table does not subsume `getFileHandle()`.
 
 #### HTML integration
 
@@ -718,17 +718,17 @@ The user agent performs the COS lookup, serves the bytes from storage on a hit, 
 Two questions are specific to this integration and need answers in the [Fetch Standard discussion](https://github.com/whatwg/fetch/issues/1954):
 
 - **Response fidelity on a cache hit.** A COS entry stores bytes only (see [Storing the original URL as part of a COS entry](#storing-the-original-url-as-part-of-a-cos-entry)), so a `Response` served from a hit has no `Content-Type`. The three other integrations take the type from the element, the module type, or the CSS property; a plain `fetch()` has no destination to take it from. `WebAssembly.instantiateStreaming()` requires `application/wasm`, so without a declared type the collapsed example above works on a cold cache and fails on a warm one. The proposed answer is a caller-declared `contentType` in the option's dictionary form, applied on hits and misses alike, so both return the same `Content-Type`.
-- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `requestFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A declared `contentType` settles `Content-Type`; which `status`, `Content-Length`, and `type` a hit reports is open.
+- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A declared `contentType` settles `Content-Type`; which `status`, `Content-Length`, and `type` a hit reports is open.
 
 #### Processing flow common to all four integrations
 
 1. The user agent looks the `integrity` hash up in COS. If the requesting origin may read the entry (see [Availability gating](#availability-gating)), the resource is served from COS and no network request is made.
 2. Otherwise, the resource is fetched as usual. If it matches the `integrity` hash, the user agent stores it in COS with the declared scope; if not, it fails per existing `integrity` behavior and nothing is stored.
 
-A lookup that doesn't succeed is indistinguishable from a cache miss, exactly as `requestFileHandle()`'s `NotFoundError` is.
+A lookup that doesn't succeed is indistinguishable from a cache miss, exactly as `getFileHandle()`'s `NotFoundError` is.
 
 > [!NOTE]
-> The hash format differs between these four integrations and the imperative form. The `integrity` attribute, the `integrity` import attribute, the `integrity()` CSS modifier, and the `integrity` request option follow the [Subresource Integrity](https://w3c.github.io/webappsec-subresource-integrity/) convention and express hashes as base64-encoded strings (e.g., `sha256-abc123…`). The imperative `requestFileHandle()` API uses lowercase hexadecimal strings (e.g., `8f434346…`), which matches the format AI model hubs such as [Hugging Face](https://huggingface.co/) use for model checksums. The user agent normalizes both representations internally; they identify the same bytes.
+> The hash format differs between these four integrations and the imperative form. The `integrity` attribute, the `integrity` import attribute, the `integrity()` CSS modifier, and the `integrity` request option follow the [Subresource Integrity](https://w3c.github.io/webappsec-subresource-integrity/) convention and express hashes as base64-encoded strings (e.g., `sha256-abc123…`). The imperative `getFileHandle()` API uses lowercase hexadecimal strings (e.g., `8f434346…`), which matches the format AI model hubs such as [Hugging Face](https://huggingface.co/) use for model checksums. The user agent normalizes both representations internally; they identify the same bytes.
 
 ## Detailed design discussion
 
@@ -760,7 +760,7 @@ Related origins can still deduplicate downloads themselves, with Web Locks, a `B
 
 ### What a COS handle can and cannot do
 
-`requestFileHandle()` returns an ordinary `FileSystemFileHandle`. A COS entry has no name, no containing directory, and no identity beyond its hash, so the handle's operations behave as follows:
+`getFileHandle()` returns an ordinary `FileSystemFileHandle`. A COS entry has no name, no containing directory, and no identity beyond its hash, so the handle's operations behave as follows:
 
 - **`name`** is the entry's hash. The File System Standard defines `name` as the last component of the handle's locator path, and a COS locator path is the hash.
 - **`isSameEntry()`** reports whether the two handles' hashes match, since the registry holds at most one entry per hash. It rejects when the other handle belongs to a different file system or was not obtained by the calling origin, because the caller may not inspect that handle.
@@ -774,7 +774,7 @@ Related origins can still deduplicate downloads themselves, with Web Locks, a `B
 A `CrossOriginStorageManager` uses the origin of its context. For a worker, that is the origin of the worker's environment settings object, independent of its script URL:
 
 - **Workers created from a `blob:` URL** have the origin of the context that created them and share that page's COS view: each reads what the other stored, and the worker's writes count as the page's own. Revoking the `blob:` URL does not change this.
-- **Workers created from a `data:` URL** have an opaque origin, which has no stable identity to key storing origins or same-site checks on. This proposal does not yet define what `requestFileHandle()` does for an opaque calling origin; the opaque-origin rule in "validate a COS request" covers only the origins a caller names in `origins`. Implementations should at minimum reject such calls promptly, so the returned promise never stays pending.
+- **Workers created from a `data:` URL** have an opaque origin, which has no stable identity to key storing origins or same-site checks on. This proposal does not yet define what `getFileHandle()` does for an opaque calling origin; the opaque-origin rule in "validate a COS request" covers only the origins a caller names in `origins`. Implementations should at minimum reject such calls promptly, so the returned promise never stays pending.
 - **Service workers** cannot use COS for now; see below.
 
 The Permissions Policy check applies to the calling global. A dedicated or shared worker may use COS only if every document in its owner set may, resolved transitively through any intervening workers, so `Permissions-Policy: cross-origin-storage=()` also covers calls moved into `new Worker(URL.createObjectURL(blob))`. A service worker has no owner set: its registration persists, and the browser starts it in response to events, often with no client open. Supporting service workers needs a policy captured from their own script response, most plausibly a `Permissions-Policy` header, which is work for the Permissions Policy and Service Workers specifications.
@@ -799,7 +799,7 @@ To facilitate manual COS management, one approach would be to allow developers t
 
 ### Storing the original URL as part of a COS entry
 
-Recording the URL each file was fetched from would make a multi-gigabyte blob legible in the browser's storage UI and help a developer debug a `requestFileHandle()` miss. COS entries do not store it, for three reasons:
+Recording the URL each file was fetched from would make a multi-gigabyte blob legible in the browser's storage UI and help a developer debug a `getFileHandle()` miss. COS entries do not store it, for three reasons:
 
 - **The URL belongs to one writer's fetch.** An entry is shared by every origin that stores its bytes, and ten origins may fetch the same file from ten different URLs. No single URL represents the entry: the first storer has no special standing, and a set of URLs would grow without bound and accept additions from any origin that writes the bytes.
 - **It can't be verified.** The hash verifies the bytes; a URL is only the writer's claim, and an unverified label inside an otherwise verified structure would read as provenance.
@@ -830,7 +830,7 @@ Different origins can manually open the same file on disk, either using the File
 
 ### Replacing the imperative API with a `fetch()` integration
 
-COS is reachable from `fetch()` (see [Fetch integration](#fetch-integration)), and `requestFileHandle()` remains alongside it: a fetch couples naming a resource to downloading it, and the imperative API keeps the two separate. Three things depend on that separation:
+COS is reachable from `fetch()` (see [Fetch integration](#fetch-integration)), and `getFileHandle()` remains alongside it: a fetch couples naming a resource to downloading it, and the imperative API keeps the two separate. Three things depend on that separation:
 
 - **Bytes from sources other than a single `fetch()`.** Download management is a [non-goal](#non-goals), and stored bytes may come from a [Background Fetch](https://wicg.github.io/background-fetch/), from `Range` requests for a sharded resource the site reassembles itself, from a file the user picked from disk, or from another storage API. A shard has no URL that serves it, so a fetch integration cannot store it.
 - **Reads with no URL.** A lookup may only ask whether COS holds a hash, with nothing to download if it doesn't, for example when an app probes for a better model variant it never intended to fetch (see [Choosing among interchangeable resources](#example-choosing-among-interchangeable-resources)). A fetch-shaped probe would have to name a URL the app does not want to request.
@@ -889,7 +889,7 @@ Since every COS lookup and write passes through one explicit API, the user agent
 
 #### Cross-site tracking through writes
 
-COS lets a tracker write, which turns it into a potential cross-site store. Embedded as a third-party iframe, `tracker.example` can call `requestFileHandle(hash, { create: true })` on site A to store a chosen subset of small files, each file's presence encoding one bit, and read that subset back from the same iframe on site B. On both sites it is a storing origin, so every read succeeds without the Public Hash List, GREASE'ing, or any origins grant, and the recovered pattern links the user's visits the way a third-party cookie would. This requires each embedding site to grant the iframe `allow="cross-origin-storage"`.
+COS lets a tracker write, which turns it into a potential cross-site store. Embedded as a third-party iframe, `tracker.example` can call `getFileHandle(hash, { create: true })` on site A to store a chosen subset of small files, each file's presence encoding one bit, and read that subset back from the same iframe on site B. On both sites it is a storing origin, so every read succeeds without the Public Hash List, GREASE'ing, or any origins grant, and the recovered pattern links the user's visits the way a third-party cookie would. This requires each embedding site to grant the iframe `allow="cross-origin-storage"`.
 
 A tracker script loaded directly into the page runs as the site's own origin, so everything it stores belongs to site A, and a script on site B runs as B and is not a storing origin. To read those files back from B, it has to make them cross-origin readable. A list naming B needs site A to send a `Cross-Origin-Storage-Allow-Origin` header authorizing B, which only the site operator can do. With `origins: '*'`, the only files other origins can see are those whose hashes are on the Public Hash List, so the tracker has to encode its bits as a strategically chosen subset of well-known public files. It then reads through the global grant, where GREASE'ing may drop some bits at random and files the user already cached on other sites add false signals, so the tracker needs redundancy to recover a stable identifier. Eviction and the per-origin storage limit bound both variants, and the identifier lasts as long as the tracker rewrites it, or until the cache evicts it.
 
@@ -900,7 +900,7 @@ Mitigations need to carefully balance between ensuring the user's privacy and ma
 * Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself stay free. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
 * A written file becomes shareable with other sites only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page.
 * The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it.
-* Each call to `requestFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
+* Each call to `getFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
 
 Since each lookup reveals at most one bit, a budget of 8 limits a tracker to 8 bits per window, well short of the roughly 32 bits needed to identify a device. A patient tracker can still combine partial results over time, so cross-site tracking becomes slow and paced by the user's own engagement, but not impossible.
 
@@ -910,17 +910,17 @@ If a file is only used on certain kinds of websites, an attacker can discover th
 
 This mitigation only holds if a list stays meaningfully smaller than the web. A caller could otherwise enumerate a very large number of origins (for example, a public top-sites ranking) and approximate global disclosure without the explicit `'*'` opt-in. `origins` lists therefore have an implementation-defined maximum length that fits a handful of related origins under common control, and the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header bounds which origins a list may name.
 
-A lookup performed by one of the [host integrations](#additional-integration-surfaces) counts as a probe on the same terms. Such a lookup returns no error to the page, but a site learns its outcome anyway by observing whether its own server receives the fallback request, which is the same single bit a `NotFoundError` carries. This discloses nothing the imperative API would not, and the same `origins` scoping, availability gating, and GREASE'ing apply. It does mean a probe limit must count all four surfaces: the [fetch integration](#fetch-integration) in particular is as scriptable in a loop as `requestFileHandle()` is, so counting only imperative calls would leave the limit trivially avoidable.
+A lookup performed by one of the [host integrations](#additional-integration-surfaces) counts as a probe on the same terms. Such a lookup returns no error to the page, but a site learns its outcome anyway by observing whether its own server receives the fallback request, which is the same single bit a `NotFoundError` carries. This discloses nothing the imperative API would not, and the same `origins` scoping, availability gating, and GREASE'ing apply. It does mean a probe limit must count all four surfaces: the [fetch integration](#fetch-integration) in particular is as scriptable in a loop as `getFileHandle()` is, so counting only imperative calls would leave the limit trivially avoidable.
 
 #### In-progress writes
 
-A write that has been requested and not completed must look, to every origin, exactly like a hash that was never written. COS gets this structurally: `requestFileHandle()` with `create: true` neither reads nor writes the COS registry, and an entry is added only after a writer supplies the complete bytes and the user agent verifies them.
+A write that has been requested and not completed must look, to every origin, exactly like a hash that was never written. COS gets this structurally: `getFileHandle()` with `create: true` neither reads nor writes the COS registry, and an entry is added only after a writer supplies the complete bytes and the user agent verifies them.
 
 Registering a placeholder instead, and answering concurrent reads of it with a distinguishable error, would hand any origin one noiseless bit about any hash, ahead of `origins`, the PHL, and GREASE'ing, and without writing any bytes for the storage limit to bound.
 
 #### Availability gating
 
-Whether a `requestFileHandle()` call returns a handle depends on the grants an entry carries. Grants are set at write time, add up, and are never removed (see [Resource visibility upgrades](#resource-visibility-upgrades)):
+Whether a `getFileHandle()` call returns a handle depends on the grants an entry carries. Grants are set at write time, add up, and are never removed (see [Resource visibility upgrades](#resource-visibility-upgrades)):
 
 - **Storing origins** can always read the entry, mirroring the Cache API, where an origin can always read what it stored.
 - **Same-site origins of a storing origin** can read it. This is the default scope.
@@ -1032,17 +1032,17 @@ Copied from the [formal spec](https://wicg.github.io/cross-origin-storage/) on e
 ```webidl
 [Exposed=(Window,Worker), SecureContext]
 interface CrossOriginStorageManager {
-  Promise<FileSystemFileHandle> requestFileHandle(
-      CrossOriginStorageRequestFileHandleHash hash,
-      optional CrossOriginStorageRequestFileHandleOptions options = {});
+  Promise<FileSystemFileHandle> getFileHandle(
+      CrossOriginStorageGetFileHandleHash hash,
+      optional CrossOriginStorageGetFileHandleOptions options = {});
 };
 
-dictionary CrossOriginStorageRequestFileHandleHash {
+dictionary CrossOriginStorageGetFileHandleHash {
   required DOMString value;
   required DOMString algorithm;
 };
 
-dictionary CrossOriginStorageRequestFileHandleOptions {
+dictionary CrossOriginStorageGetFileHandleOptions {
   boolean create = false;
   (DOMString or sequence<DOMString>) origins;
 };
@@ -1105,12 +1105,21 @@ getBlobHash(fileBlob).then((hash) => {
 
 <details>
   <summary>
-    <strong>Question:</strong> Why does the API use <code>requestFileHandle()</code> (singular) rather than <code>requestFileHandles()</code> (plural)?
+    <strong>Question:</strong> Why does the API use <code>getFileHandle()</code> (singular) rather than <code>requestFileHandles()</code> (plural)?
   </summary>
   <p>
     <strong>Answer:</strong> Early drafts of the API exposed <code>requestFileHandles(hashes, options)</code>, which accepted an array of hashes and returned an array of <code>FileSystemFileHandle</code> objects. A <a href="https://github.com/WICG/cross-origin-storage/issues/61">survey of every known real-world implementation</a> (Hugging Face Transformers.js, wllama, Flutter, Apache TVM, MLC WebLLM, Emscripten, and others) found that <strong>every single call site passed a single-element array and immediately destructured the result to a single handle</strong>. No implementation ever passed more than one hash in a single call.
   </p>
   <p>
-    The plural form was therefore pure ergonomic friction: callers had to wrap a value in an array only to unwrap it again (<code>const [handle] = await ...requestFileHandles([hash])</code>). The singular form <code>requestFileHandle(hash, options)</code>, modeled directly on the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>FileSystemDirectoryHandle.getFileHandle()</code></a>, makes the common case clean and readable. Where <code>getFileHandle()</code> takes a <code>name</code>, <code>requestFileHandle()</code> takes a <code>hash</code> object that identifies the file, and the options follow the same model: without <code>create: true</code>, the user agent returns a handle for an existing file, and with it, a handle that can be written to. On a create request, <code>origins</code> restricts who can later read the file or makes it globally available. For the rare case where multiple files are needed concurrently, the idiomatic JavaScript pattern <code>Promise.all(hashes.map(hash =&gt; navigator.crossOriginStorage.requestFileHandle(hash)))</code> gives better per-file error granularity than a batched call would anyway.
+    The plural form was therefore pure ergonomic friction: callers had to wrap a value in an array only to unwrap it again (<code>const [handle] = await ...requestFileHandles([hash])</code>). The singular form <code>getFileHandle(hash, options)</code>, modeled directly on the File System Standard's <a href="https://fs.spec.whatwg.org/#api-filesystemdirectoryhandle-getfilehandle"><code>FileSystemDirectoryHandle.getFileHandle()</code></a>, makes the common case clean and readable. Where <code>FileSystemDirectoryHandle.getFileHandle()</code> takes a <code>name</code>, <code>crossOriginStorage.getFileHandle()</code> takes a <code>hash</code> object that identifies the file, and the options follow the same model: without <code>create: true</code>, the user agent returns a handle for an existing file, and with it, a handle that can be written to. On a create request, <code>origins</code> restricts who can later read the file or makes it globally available. For the rare case where multiple files are needed concurrently, the idiomatic JavaScript pattern <code>Promise.all(hashes.map(hash =&gt; navigator.crossOriginStorage.getFileHandle(hash)))</code> gives better per-file error granularity than a batched call would anyway.
+  </p>
+</details>
+
+<details>
+  <summary>
+    <strong>Question:</strong> Was <code>getFileHandle()</code> always called <code>getFileHandle()</code>?
+  </summary>
+  <p>
+    <strong>Answer:</strong> No. A previous version of this proposal called the method <code>requestFileHandle()</code>. The name <code>getFileHandle()</code> was changed to <code>requestFileHandle()</code> in <a href="https://github.com/WICG/cross-origin-storage/issues/4">issue #4</a>, at a time when the method showed a permission prompt and the <code>request</code> prefix matched other prompting web APIs. Handles are now pre-authorized and the method never prompts, so it uses the same <code>get</code> prefix as <code>FileSystemDirectoryHandle.getFileHandle()</code> again.
   </p>
 </details>

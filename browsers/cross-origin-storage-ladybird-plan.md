@@ -69,7 +69,7 @@ throughout:
 ### Phase 1 — IDL/JS skeleton, no registry, no IPC
 
 **Goal:** `navigator.crossOriginStorage` exists and returns a real `CrossOriginStorageManager`;
-`requestFileHandle()` exists and always rejects. Establishes all build-system wiring.
+`getFileHandle()` exists and always rejects. Establishes all build-system wiring.
 
 New files:
 - `Libraries/LibWeb/CrossOriginStorage/CrossOriginStorageManager.{h,cpp,idl}`
@@ -79,17 +79,17 @@ New files:
 ```webidl
 [Exposed=(Window,Worker), SecureContext, Experimental]
 interface CrossOriginStorageManager {
-    Promise<FileSystemFileHandle> requestFileHandle(
-        CrossOriginStorageRequestFileHandleHash hash,
-        optional CrossOriginStorageRequestFileHandleOptions options = {});
+    Promise<FileSystemFileHandle> getFileHandle(
+        CrossOriginStorageGetFileHandleHash hash,
+        optional CrossOriginStorageGetFileHandleOptions options = {});
 };
 
-dictionary CrossOriginStorageRequestFileHandleHash {
+dictionary CrossOriginStorageGetFileHandleHash {
     required DOMString value;
     required DOMString algorithm;
 };
 
-dictionary CrossOriginStorageRequestFileHandleOptions {
+dictionary CrossOriginStorageGetFileHandleOptions {
     boolean create = false;
     (DOMString or sequence<DOMString>) origins;
 };
@@ -117,7 +117,7 @@ protected:
 `.cpp`: `return HTML::relevant_settings_object(this_navigator_cross_origin_storage_object()).cross_origin_storage_manager();`
 
 `CrossOriginStorageManager.h/.cpp` — copy `StorageManager`'s `PlatformObject` shape. Phase 1 body
-of `request_file_handle()`: create promise, immediately reject with `TypeError`/placeholder,
+of `get_file_handle()`: create promise, immediately reject with `TypeError`/placeholder,
 return promise.
 
 Existing files to edit:
@@ -146,7 +146,7 @@ Existing files to edit:
 
 ### Phase 2 — Synchronous validation contract
 
-**Goal:** `requestFileHandle()` performs all spec-mandated synchronous validation before any
+**Goal:** `getFileHandle()` performs all spec-mandated synchronous validation before any
 async work. Still no registry — async tail unconditionally rejects `NotFoundError`.
 
 New file: `Libraries/LibWeb/CrossOriginStorage/AbstractOperations.{h,cpp}` (mirrors
@@ -162,7 +162,7 @@ New file: `Libraries/LibWeb/CrossOriginStorage/AbstractOperations.{h,cpp}` (mirr
   enforce a max list length of **100** (matches Servo's own choice) with `TypeError` at this
   single-call site.
 
-`CrossOriginStorageManager::request_file_handle()`: run both validators synchronously (return an
+`CrossOriginStorageManager::get_file_handle()`: run both validators synchronously (return an
 already-rejected promise on failure — WebIDL requires this be synchronous, not deferred); check
 `document.is_allowed_to_use_feature(PolicyControlledFeature::CrossOriginStorage)`, reject
 `NotAllowedError` if false; otherwise reject `NotFoundError` (placeholder).
@@ -179,7 +179,7 @@ bad hex → `TypeError`; bad origin string → `TypeError`; valid input → `Not
 
 ### Phase 3 — Real IPC round trip to an in-memory LibWebView registry
 
-**Goal:** Stand up the actual cross-process registry skeleton and both `requestFileHandle` code
+**Goal:** Stand up the actual cross-process registry skeleton and both `getFileHandle` code
 paths hitting it over real IPC — fully in-memory (no persistence, no disk blobs yet). Proves the
 IPC shape before layering persistence/streaming on top.
 
@@ -239,7 +239,7 @@ Existing files to edit:
   placeholder response object (not yet a real `FileSystemFileHandle` — Phase 4).
 - `Libraries/LibWebView/CMakeLists.txt` — add `CrossOriginStorageRegistry.cpp`.
 
-**Done when:** `requestFileHandle(hash, {create:true})` then `requestFileHandle(hash)` (read, same
+**Done when:** `getFileHandle(hash, {create:true})` then `getFileHandle(hash)` (read, same
 hash, same session) shows the registry created a `Pending` entry and the read path sees it —
 correctly rejecting per spec (pending → `NotAllowedError`, not `NotFoundError`; this distinction
 is the phase's correctness check). Verify via dbgln traces correlating the hash across the IPC hop.
@@ -356,11 +356,11 @@ and `idl_files.cmake` for the three new IDL-bearing classes.
 const enc = new TextEncoder().encode("hello cos");
 const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", enc))]
   .map(b => b.toString(16).padStart(2,'0')).join('');
-const h = await navigator.crossOriginStorage.requestFileHandle({value: digest, algorithm: "SHA-256"}, {create: true});
+const h = await navigator.crossOriginStorage.getFileHandle({value: digest, algorithm: "SHA-256"}, {create: true});
 const w = await h.createWritable();
 await w.write(enc);
 await w.close();
-const h2 = await navigator.crossOriginStorage.requestFileHandle({value: digest, algorithm: "SHA-256"});
+const h2 = await navigator.crossOriginStorage.getFileHandle({value: digest, algorithm: "SHA-256"});
 const f = await h2.getFile();
 console.log(await f.text()); // "hello cos"
 ```

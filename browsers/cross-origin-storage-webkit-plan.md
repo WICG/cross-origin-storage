@@ -6,7 +6,7 @@ Cross-Origin Storage (COS) is a new WICG API: a content-addressable file cache, 
 cryptographic hash rather than by origin, that lets independent sites share one stored copy of a
 large, byte-identical resource (AI model weights, Wasm modules, popular JS libraries, fonts)
 instead of each downloading and storing it separately. The spec draft defines the
-`navigator.crossOriginStorage.requestFileHandle()` entry point; a registry of hash-keyed entries
+`navigator.crossOriginStorage.getFileHandle()` entry point; a registry of hash-keyed entries
 with a pending→written lifecycle; three disclosure scopes (same-site-only, an explicit origin
 list, or a PHL/GREASE-gated wildcard); storage-budget and eviction rules; and
 rate-limiting/probing defenses. WPTs exist at
@@ -63,7 +63,7 @@ unrelated to this feature (see [Verification results](#verification-results)).
    identifier in that shared registry, so `getFile()`, `createWritable()`, `write()`, `seek()`,
    `truncate()`, and `close()` work on a COS handle with **zero** new IPC messages and no new
    WebCore classes. Exactly one new message exists in the whole feature:
-   `CrossOriginStorageRequestFileHandle`. Everything else is interception, described next.
+   `CrossOriginStorageGetFileHandle`. Everything else is interception, described next.
 
    This is a genuinely different shape from Gecko's, which had to build
    `CrossOriginStorageRequestHandler` and `CrossOriginStorageWritableFileStream` from scratch
@@ -107,7 +107,7 @@ unrelated to this feature (see [Verification results](#verification-results)).
    `Source/WebCore/Modules/cross-origin-storage/CrossOriginStorageRequestData.h` carries the table
    of recognized WebCrypto algorithms with each one's expected hex digest length (SHA-1/40,
    SHA-256/64, SHA-384/96, SHA-512/128). The WebIDL layer uses it to turn a malformed request into
-   a `TypeError`; `NetworkStorageManager::crossOriginStorageRequestFileHandle()` uses it again
+   a `TypeError`; `NetworkStorageManager::crossOriginStorageGetFileHandle()` uses it again
    under `MESSAGE_CHECK_COMPLETION`, because a compromised or simply buggy WebContent process can
    speak the IPC protocol directly and the hash value becomes a path component in the network
    process. Validating *every* recognized algorithm rather than only SHA-256 — the only one the
@@ -402,8 +402,8 @@ fetch error that reads like a real failure.
 | Test file (window + worker where applicable) | Pass | Fail |
 |---|---:|---:|
 | `idlharness` | 30 + 30 | 0 |
-| `requestFileHandle-validation` | 12 + 12 | 0 |
-| `requestFileHandle-create-and-read` | 13 + 13 | 0 |
+| `getFileHandle-validation` | 12 + 12 | 0 |
+| `getFileHandle-create-and-read` | 13 + 13 | 0 |
 | `filesystemwritablefilestream-verify` | 4 + 4 | 0 |
 | `storage-limits` | 2 + 2 | 0 |
 | `insecure-context` | 1 + 1 | 0 |
