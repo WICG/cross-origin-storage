@@ -308,13 +308,6 @@ it to be granted.
      [=COS entry/storing origins=], and the origins [=same site=] with those).
 </div>
 
-Note: A previous version of this specification called this method <code>requestFileHandle()</code>.
-The name <code>getFileHandle()</code> was changed to <code>requestFileHandle()</code> in
-<a href="https://github.com/WICG/cross-origin-storage/issues/4">issue #4</a>, at a time when the
-method showed a permission prompt and the <code>request</code> prefix matched other prompting web
-APIs. Handles are now pre-authorized and the method never prompts, so it uses the same
-<code>get</code> prefix as {{FileSystemDirectoryHandle/getFileHandle()}} again.
-
 <div algorithm>
 The <dfn method for="CrossOriginStorageManager">getFileHandle(|hash|, |options|)</dfn> method
 steps are:
