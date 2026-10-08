@@ -147,7 +147,7 @@ it.
 | [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | Read private data out of another site, by choosing what that site is asked.                                | **Partially**. Apply the declared sharing scope only after a gesture, and cap the cross-site lookups. |
 | [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | Control what the device holds, by filling the cache until the browser reclaims space.                      | **Partially**. Cap the writes by size.                                                                |
 | [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | Spend more lookups than the budget allows, by presenting as several origins at once.                       | **Completely**. Tie the cap to the top-level site.                                                    |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Keep the cap across reloads.                                                          |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Keep the cap across reloads and site-requested clearing.                              |
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Apply the cap to every surface.                                                       |
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Make the lie depend on the origin and a time period.                                   |
 
@@ -744,7 +744,9 @@ number of origins it brings. Wildcard DNS makes subdomains free, so one tracker
 presents as several origins, embeds each as a frame, partitions the work, and
 collects the answers in the parent through `postMessage`. Independent trackers
 on one page can pool allowances the same way, making this collusion as well as
-Sybil.
+Sybil. Sandboxed frames without `allow-same-origin` would be cheaper still,
+since each gets a fresh opaque origin without registering anything, and the
+top-level-site key pools them into the same allowance as well.
 
 The orchestrator page embeds one frame per origin.
 
@@ -787,8 +789,14 @@ counter that holds it.
 ### Description
 
 A counter bound to a context the attacker controls is a counter the attacker
-resets. A page reloads itself without user interaction, and a per-page-load
-allowance is fresh on each load.
+resets. The attacker can reset it in two ways:
+[reloading the page](#variant-1-a101-reloading-the-page) and
+[clearing its own site data](#variant-2-a102-clearing-its-own-site-data).
+
+#### Variant 1 (A10.1): Reloading the page
+
+A page reloads itself without user interaction, and a per-page-load allowance is
+fresh on each load.
 
 ```js
 // Spend this load's allowance on a slice of the same `probes` as Attack 2,
@@ -802,10 +810,34 @@ sessionStorage.round = round + 1;
 if (round < 3) location.reload();
 ```
 
-### Example
+**Example.** At eight lookups per page load, four silent reloads inside two
+seconds yield 32 answers. This is why the count has to persist across reloads
+and navigations.
 
-At eight lookups per page load, four silent reloads inside two seconds yield 32
-answers. This is why the count has to persist across reloads and navigations.
+#### Variant 2 (A10.2): Clearing its own site data
+
+A count that survives reloads is still part of the site's data, and a site can
+clear its own data without involving the user, by answering any request with a
+`Clear-Site-Data` header. If that clearing also reset the count, the attacker
+would spend its allowance, clear, and spend a fresh one, all within one page
+load.
+
+```js
+// Spend this round's allowance on a slice of the same `probes` as Attack 2. The
+// answers stay in memory, which the clearing does not touch.
+const answers = [];
+for (let round = 0; round < 4; round++) {
+  const mine = probes.slice(round * 8, round * 8 + 8);
+  answers.push(...(await Promise.all(mine.map(has))));
+  // The response carries `Clear-Site-Data: "storage"`.
+  await fetch('/clear');
+}
+```
+
+**Example.** At eight lookups per window, four rounds each followed by a request
+the server answers with `Clear-Site-Data` yield 32 answers, if the clearing
+resets the count. This is why only a clearing the user asks for, through the
+browser's own settings, resets it.
 
 ## Attack 11 (A11): Cross-site leak by combining COS integration points
 
@@ -1084,7 +1116,7 @@ the page draws from the same one.
 | [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡                         | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                  |
 | [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                         | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                       |
 | [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ✅                         | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                 |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪ (needs Mitigation 3)    | Not closed by the allowance alone. A fresh page load starts a fresh one, so this waits on Mitigation 3.                                                                                                       |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪ (needs Mitigation 3)    | Not closed by the allowance alone. A fresh page load, or a clearing the site requests itself, starts a fresh one, so this waits on Mitigation 3.                                                              |
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.              |
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (A12.1)                 | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                           |
 
@@ -1108,7 +1140,7 @@ disclosure.
 | [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 (induced loads)  | Bounded the same way, and every question needs its own induced load on a URL the attacker chose, which the user has no reason to touch. A user led to interact with the victim's own page supplies the gesture anyway.                                                                                                                             |
 | [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                  | Out of reach. Flooding needs no sharing scope to apply, since a same-site write consumes the same space and forces the same eviction.                                                                                                                                                                                                              |
 | [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪                  | Out of reach. It concerns reads.                                                                                                                                                                                                                                                                                                                   |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡                  | Helps, since a page reloading itself cannot write on each pass.                                                                                                                                                                                                                                                                                    |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 (A10.1)          | Helps against Variant 1, since a page reloading itself cannot write on each pass. Variant 2 needs no write.                                                                                                                                                                                                                                        |
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪                  | Same as [A9](#attack-9-a9-sybil-attack-on-the-budget).                                                                                                                                                                                                                                                                                             |
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪                  | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                                                                                   |
 
@@ -1121,24 +1153,26 @@ happens under a different top-level site.
 ### Mitigation 3 (M3): A count that survives reloads and tabs
 
 The lookup count persists across page reloads for the whole top-level site, and
-across tabs.
+across tabs. Only a clearing of site data that the user asks for, through the
+browser's own settings or storage UI, resets it. A clearing the site requests
+itself, such as with the `Clear-Site-Data` header, leaves the count untouched.
 
 #### Coverage
 
-| Attack                                                                                                          | Covered          | Description                                                                                                                                   |
-| --------------------------------------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡               | Carries Mitigation 1's partial bounds. Without persistence the allowance would cover one page load, and this attack could reload for another. |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡               | Same as [A1](#attack-1-a1-supercookie).                                                                                                       |
-| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡               | Same as [A1](#attack-1-a1-supercookie).                                                                                                       |
-| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡               | Same as [A1](#attack-1-a1-supercookie).                                                                                                       |
-| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪               | Untouched, for the same reason the budget misses it.                                                                                          |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪               | Same as [A5](#attack-5-a5-targeted-de-anonymization).                                                                                         |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 (the refresh) | Closes the refresh that would otherwise give each question its own allowance, since the attacker's page can reload between induced loads.     |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪               | Out of reach, for the same reason the budget misses it: the count tracks lookups, and this attack writes.                                     |
-| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns whose count it is.                                         |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ✅               | Closed. The count belongs to the top-level site and survives reloads and tabs, so a fresh load starts with the allowance already spent.       |
-| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns what the count covers.                                     |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (A12.1)       | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                            |
+| Attack                                                                                                          | Covered          | Description                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡               | Carries Mitigation 1's partial bounds. Without persistence the allowance would cover one page load, and this attack could reload for another.                                                     |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡               | Same as [A1](#attack-1-a1-supercookie).                                                                                                                                                           |
+| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡               | Same as [A1](#attack-1-a1-supercookie).                                                                                                                                                           |
+| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡               | Same as [A1](#attack-1-a1-supercookie).                                                                                                                                                           |
+| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪               | Untouched, for the same reason the budget misses it.                                                                                                                                              |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪               | Same as [A5](#attack-5-a5-targeted-de-anonymization).                                                                                                                                             |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 (the refresh) | Closes the refresh that would otherwise give each question its own allowance, since the attacker's page can reload between induced loads.                                                         |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪               | Out of reach, for the same reason the budget misses it: the count tracks lookups, and this attack writes.                                                                                         |
+| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns whose count it is.                                                                                             |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ✅               | Closed. The count belongs to the top-level site and survives reloads, tabs, and any clearing the site requests itself, so a fresh load or a cleared site starts with the allowance already spent. |
+| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪               | Out of reach. Persistence decides how long a count lasts, and this attack concerns what the count covers.                                                                                         |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (A12.1)       | Carries Mitigation 1's bound on Variant 1, since an attacker cannot reload to buy further repeats.                                                                                                |
 
 ### Mitigation 4 (M4): Tighter limits for origins on a blocklist
 
