@@ -1397,7 +1397,10 @@ PHL-eligible resources by choosing which subset to write. A user agent that bloc
 cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for example with a
 small budget of cross-site lookups keyed on the top-level site and shared by every frame on
 the page, a count that persists across reloads for a time window, and sharing of written entries only
-after a user gesture. The README's
+after a user gesture. Such a count bounds disclosure only if the site cannot reset it, so a
+clearing of site data that the site requests itself, for example with the `Clear-Site-Data`
+header [[CLEAR-SITE-DATA]], has to leave it untouched, and only a clearing the user asks for
+through the user agent's own settings resets it. The README's
 [privacy considerations](README.md#privacy-considerations) describe these mitigations.
 
 ## GREASE'ing ## {#greaseing}
