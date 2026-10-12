@@ -272,12 +272,10 @@ script itself, has a consequence worth spelling out for workers. A worker create
 Cross-Origin Storage view exactly: what such a worker writes, its creating page can read back, and
 what the page stored, the worker can read. The `blob:` URL is not an origin of its own, and
 revoking it does not detach the worker from that view. A worker created from a `data:` URL
-has an [=opaque origin=]. This specification does not currently define what
-{{CrossOriginStorageManager/getFileHandle()}} does when the <em>calling</em> origin is opaque;
-the [=opaque origin=] rule in [=validate a COS request=] governs only the origins a
-caller <em>names</em>. An opaque origin has no stable identity to key
-[=COS entry/storing origins=] or [=same site=] comparisons on, so there is nothing meaningful for
-it to be granted.
+has an [=opaque origin=], and {{CrossOriginStorageManager/getFileHandle()}} rejects when the
+<em>calling</em> origin is opaque; see [[#getfilehandle]]. This is separate from the
+[=opaque origin=] rule in [=validate a COS request=], which governs only the origins a caller
+<em>names</em>.
 
 ## The {{CrossOriginStorageManager/getFileHandle()}} method ## {#getfilehandle}
 
@@ -316,6 +314,16 @@ steps are:
 1. Let |realm| be [=this=]'s [=relevant Realm=].
 1. Let |global| be [=this=]'s [=relevant global object=].
 1. Let |origin| be [=this=]'s associated [=/origin=].
+1. If |origin| is an [=opaque origin=], then:
+   1. [=Queue a global task=] on the [=DOM manipulation task source=] given |global| to
+      [=/reject=] |result| with a "{{NotAllowedError}}" {{DOMException}}.
+   1. Return |result|.
+
+   Note: A context with an [=opaque origin=], such as a sandboxed <{iframe}> without
+   `allow-same-origin` or a worker created from a `data:` URL, has no stable identity, and each
+   such context gets a fresh one. [=COS entry/storing origins=] membership and the [=same site=]
+   comparison behind the default scope both key on the calling origin, so there is nothing
+   meaningful to grant such a context.
 1. If the result of running [=check Cross-Origin Storage permission=] given |global| is
    false, then:
    1. [=Queue a global task=] on the [=DOM manipulation task source=] given |global| to
@@ -1389,7 +1397,10 @@ PHL-eligible resources by choosing which subset to write. A user agent that bloc
 cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for example with a
 small budget of cross-site lookups keyed on the top-level site and shared by every frame on
 the page, a count that persists across reloads for a time window, and sharing of written entries only
-after a user gesture. The README's
+after a user gesture. Such a count bounds disclosure only if the site cannot reset it, so a
+clearing of site data that the site requests itself, for example with the `Clear-Site-Data`
+header [[CLEAR-SITE-DATA]], has to leave it untouched, and only a clearing the user asks for
+through the user agent's own settings resets it. The README's
 [privacy considerations](README.md#privacy-considerations) describe these mitigations.
 
 ## GREASE'ing ## {#greaseing}
