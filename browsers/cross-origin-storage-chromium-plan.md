@@ -6,7 +6,7 @@ Cross-Origin Storage (COS) is a new WICG API: a content-addressable file cache, 
 cryptographic hash rather than by origin, that lets independent sites share one stored copy of a
 large, byte-identical resource (AI model weights, Wasm modules, popular JS libraries, fonts)
 instead of each downloading and storing it separately. The spec defines the
-`navigator.crossOriginStorage.requestFileHandle()` entry point; a registry of hash-keyed entries
+`navigator.crossOriginStorage.getFileHandle()` entry point; a registry of hash-keyed entries
 that exist only once their bytes have been supplied and verified; three independent, additive
 disclosure grants (the same-site baseline, an explicit origins list, and a PHL/GREASE-gated
 global grant), bounded at write time by the `Cross-Origin-Storage-Allow-Origin` response header;
@@ -244,7 +244,7 @@ What is still open, beyond the architecture above:
   [Provenance metadata](https://wicg.github.io/cross-origin-storage/#provenance-metadata) section
   is implemented — per-storing-origin, never exposed to script, persisted with the entry,
   discarded with the entry or the origin — and DevTools now surfaces it. But
-  `requestFileHandle()` never names a URL, so in practice the records stay empty; the declarative
+  `getFileHandle()` never names a URL, so in practice the records stay empty; the declarative
   integrations are where a meaningful claim would come from. What DevTools does show today is the
   Public Hash List's *own* provenance for a listed hash (which upstream section listed it, which
   source corroborated it, and a URL the bytes were seen at), which is a different thing and comes

@@ -51,14 +51,15 @@ https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/webfonts/fa-regular-40
 https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/webfonts/fa-solid-900.woff2,,ae17c16afbea216707b2203ea1cf9bdb45b9bfe47d0f4ae3258ddbc6294dd02f,0
 https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css,,e5e202e3c899507992952533f57b634722b69b34241d271963559d31aa33ef81,0
 https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css,,74005d7c17d4a02f2f25404ec0655d9bc2fdaa53166874c87d7b7eec69d9088a,0
-https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/js/all.min.js,,0404741f742ed8f09fa15afa0ad66b7276cadd529e9e6505f42e88aa0b0db0d5,1
+https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/js/all.min.js,,0404741f742ed8f09fa15afa0ad66b7276cadd529e9e6505f42e88aa0b0db0d5,2
 https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2,,aa75998623a391e61c6901794ace832e3ecdd288b56d608f21bea0411acc0b8e,0
 https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css,,f6c5904966ef29cecdbc1d8d87240ac0fd595532db6475143e0e220924c688d0,0
+https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/webfonts/fa-solid-900.woff2,,ff6d96ef6f1b29124a8daa657809d480d7278401ab16320fdb3edf0b658d6492,0
 https://cdnjs.cloudflare.com/ajax/libs/gsap/1.19.1/TweenMax.min.js,,62b1cff44a5e34b9587ad49f7ca951160f1559c5c545bcf99e13574ccaa5425a,0
 https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js,,94f137c233766bb0015876c6cfbf8c28125aca4cb3a826d4f7a0495a38a8f3a5,0
 https://cdnjs.cloudflare.com/ajax/libs/gsap/3.10.4/gsap.min.js,,1b765b0cbd95391f6db0b565988eeb70ea68aa77bb9f8f7c8a880d96474c2aa8,0
 https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js,,b36764faf17f2803c4ef3a5ea18b0187dc9ae66b13ec253c71ddb3178d2ccf52,0
-https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js,,e5118140a15e5dbb471f19c06816bcfa44170878bd8fe0ade80c24b7a988d8ba,1
+https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js,,e5118140a15e5dbb471f19c06816bcfa44170878bd8fe0ade80c24b7a988d8ba,2
 https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js,,efc85c7eb141819717cda0033484a84b1c890d13b02e355a2fec79d424b20e7a,0
 https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js,,28033e449a31ebcc396e5be8b13b63152bf03094288fb5867034321927bce087,0
 https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/CSSRulePlugin.min.js,,b60a8b19b5544cc9617fbfe64105d8efa16dac4bde0fb164a1fdaa0b0f4916da,0
@@ -71,6 +72,7 @@ https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js,,e87
 https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js,,d40efcac911d8964f3728eaa767de281306ff55ba9377435a3364d4d1e1613f6,0
 https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/1.4.1/jquery-migrate.min.js,,48eb8b500ae6a38617b5738d2b3faec481922a7782246e31d2755c034a45cd5d,0
 https://cdnjs.cloudflare.com/ajax/libs/jquery-mousewheel/3.1.13/jquery.mousewheel.min.js,,8e73a30d35c83ea6a597c3343324d2b7df097ad26e67b62efb5266ee12d317b5,0
+https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.2/jquery.validate.min.js,,f8110a988bd0e88b0bf2c1dcbe276d0eb34e7593b70bd2ed14fb45d87d1d3872,0
 https://cdnjs.cloudflare.com/ajax/libs/jquery.lazyload/1.9.1/jquery.lazyload.min.js,,ad79ce7e34d1a788809bb853031133de2ae45f3c19ac4955dae46c7490188c2e,0
 https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js,,668b046d12db350ccba6728890476b3efee53b2f42dbb84743e5e9f1ae0cc404,0
 https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js,,2051d61446d4dbffb03727031022a08c84528ab44d203a7669c101e5fbdd5515,0
