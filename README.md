@@ -233,6 +233,9 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 > If `origins` is a list longer than an implementation-defined maximum length, the user agent must throw a `TypeError`; see [Cross-site probing](#cross-site-probing) for why.
 
 > [!NOTE]
+> Each entry in an `origins` list must be an `https:` origin or a loopback `http:` origin such as `http://localhost`, which are the only origins that can call the API. For any other entry, such as `http://a.example`, `wss://a.example`, or `chrome-extension://…`, the user agent must throw a `TypeError`.
+
+> [!NOTE]
 > If storing the file would cause the requesting origin to exceed its implementation-defined storage limit, the user agent must reject the closing operation's promise with a `QuotaExceededError` `DOMException` and should log a warning to the console. Each origin can only store a limited amount of data in COS, which prevents any one site from flooding the cache in an attempt to evict other sites' resources; see [Cache flooding](#cache-flooding).
 
 ##### Example: Storing a single file
@@ -774,7 +777,7 @@ Related origins can still deduplicate downloads themselves, with Web Locks, a `B
 A `CrossOriginStorageManager` uses the origin of its context. For a worker, that is the origin of the worker's environment settings object, independent of its script URL:
 
 - **Workers created from a `blob:` URL** have the origin of the context that created them and share that page's COS view: each reads what the other stored, and the worker's writes count as the page's own. Revoking the `blob:` URL does not change this.
-- **Workers created from a `data:` URL** have an opaque origin, which has no stable identity to key storing origins or same-site checks on. This proposal does not yet define what `getFileHandle()` does for an opaque calling origin; the opaque-origin rule in "validate a COS request" covers only the origins a caller names in `origins`. Implementations should at minimum reject such calls promptly, so the returned promise never stays pending.
+- **Workers created from a `data:` URL** have an opaque origin, which has no stable identity to key storing origins or same-site checks on. This proposal does not yet define what `getFileHandle()` does for an opaque calling origin; the origin rule in "validate a COS request" covers only the origins a caller names in `origins`. Implementations should at minimum reject such calls promptly, so the returned promise never stays pending.
 - **Service workers** cannot use COS for now; see below.
 
 The Permissions Policy check applies to the calling global. A dedicated or shared worker may use COS only if every document in its owner set may, resolved transitively through any intervening workers, so `Permissions-Policy: cross-origin-storage=()` also covers calls moved into `new Worker(URL.createObjectURL(blob))`. A service worker has no owner set: its registration persists, and the browser starts it in response to events, often with no client open. Supporting service workers needs a policy captured from their own script response, most plausibly a `Permissions-Policy` header, which is work for the Permissions Policy and Service Workers specifications.
@@ -875,7 +878,7 @@ A list therefore needs authorization from a response header that injected conten
 - **Imperative API:** the bytes may be generated in script, so the header comes from the **writing document's** response.
 - **Host integrations:** the bytes come from a fetched resource, so the header comes from that **resource's** response. This also keeps a site from declaring another site's asset shareable with origins of its choosing.
 
-The declared list is intersected with the origins the header names. Unnamed origins are dropped, and if no cross-origin recipient remains, the write still succeeds with the same-site default. The check applies per writer, so a later writer can add only origins its own response authorizes and cannot change an earlier writer's scope.
+The header lists origins separated by commas, each of which must be an `https:` origin or a loopback `http:` origin. A header with any other value, including `*`, authorizes nothing, exactly as an absent one does. The declared list is intersected with the origins the header names. Unnamed origins are dropped, and if no cross-origin recipient remains, the write still succeeds with the same-site default. The check applies per writer, so a later writer can add only origins its own response authorizes and cannot change an earlier writer's scope.
 
 Only the list form needs the header. A `'*'`-scoped resource reaches a non-storing origin only if its hash is on the [Public Hash List](#availability-gating), which a per-user secret never is, and the same-site default names no cross-origin recipient.
 
@@ -972,6 +975,7 @@ A hash whose only write is still in flight falls under the last row: it has no e
 | -- | -- | -- |
 | `hash.value` or `hash.algorithm` is malformed | Any | `TypeError` |
 | `origins` is a list longer than the implementation-defined maximum length | Any | `TypeError` |
+| An `origins` entry is not an `https:` origin or a loopback `http:` origin | List | `TypeError` |
 | Permissions Policy blocks COS | Any | `NotAllowedError` |
 | Valid hash, declared hash matches computed hash | Any | Success |
 | Valid hash, declared hash matches computed hash, but exceeds the requesting origin's storage limit | Any | `QuotaExceededError` |
