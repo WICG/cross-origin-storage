@@ -274,7 +274,7 @@ what the page stored, the worker can read. The `blob:` URL is not an origin of i
 revoking it does not detach the worker from that view. A worker created from a `data:` URL
 has an [=opaque origin=]. This specification does not currently define what
 {{CrossOriginStorageManager/getFileHandle()}} does when the <em>calling</em> origin is opaque;
-the [=opaque origin=] rule in [=validate a COS request=] governs only the origins a
+the origin rule in [=validate a COS request=] governs only the origins a
 caller <em>names</em>. An opaque origin has no stable identity to key
 [=COS entry/storing origins=] or [=same site=] comparisons on, so there is nothing meaningful for
 it to be granted.
@@ -359,8 +359,16 @@ and a {{CrossOriginStorageGetFileHandleOptions}} |options|, return null or a {{T
    1. If |candidates|'s [=list/size=] is greater than the user agent's
       [=maximum origins list length=], return a new {{TypeError}}.
    1. [=set/For each=] |candidate| of |candidates|:
-      1. If the result of running the [=basic URL parser=] on |candidate| is failure, or if the
-         parsed URL's [=/origin=] is an [=opaque origin=], return a new {{TypeError}}.
+      1. Let |url| be the result of running the [=basic URL parser=] on |candidate|.
+      1. If |url| is failure, return a new {{TypeError}}.
+      1. If |url|'s [=url/scheme=] is neither "`http`" nor "`https`", or if |url|'s
+         [=/origin=] is not a [=potentially trustworthy origin=], return a new {{TypeError}}.
+
+         Note: Only an origin that could itself call {{CrossOriginStorageManager/getFileHandle()}}
+         is a meaningful grant. The API is only exposed in [=secure contexts=], so this admits
+         `https:` origins and loopback `http:` origins such as `http://localhost`, and rejects
+         `http:` origins on other hosts, `ws:`, `wss:`, `ftp:`, and every scheme whose
+         origin is opaque, extension schemes such as `chrome-extension:` included.
 1. Return null.
 
 </div>
@@ -549,8 +557,8 @@ undefined |origins|, return "`*`", a [=list=] of [=/origins=], or null:
    1. Let |candidateOrigin| be the [=/origin=] resulting from running the [=basic URL parser=]
       on |candidate|.
 
-      Note: [=validate a COS request=] has already confirmed each |candidate| parses to a
-      non-opaque origin.
+      Note: [=validate a COS request=] has already confirmed each |candidate| parses to an
+      `http:` or `https:` URL whose origin is a [=potentially trustworthy origin=].
    1. If |list| does not [=list/contain=] |candidateOrigin|, [=list/append=] |candidateOrigin|
       to |list|.
 1. Return |list|.
@@ -1167,8 +1175,9 @@ To <dfn>parse a COS scope ceiling</dfn> given a [=/header list=] |headers|, retu
 1. [=list/For each=] |token| of |value|:
    1. [=strip leading and trailing ASCII whitespace=] from |token|.
    1. If |token| is the empty string, [=iteration/continue=].
-   1. Let |origin| be the [=/origin=] resulting from running the [=basic URL parser=] on |token|.
-   1. If |origin| is failure or is an [=opaque origin=], return an empty [=set=].
+   1. Let |url| be the result of running the [=basic URL parser=] on |token|.
+   1. If |url| is failure, |url|'s [=url/scheme=] is neither "`http`" nor "`https`", or
+      |url|'s [=/origin=] is not a [=potentially trustworthy origin=], return an empty [=set=].
 
       Note: This includes a |token| of "`*`", which does not parse to an origin. A
       `Cross-Origin-Storage-Allow-Origin` header can only enumerate a finite set of concrete
@@ -1178,7 +1187,7 @@ To <dfn>parse a COS scope ceiling</dfn> given a [=/header list=] |headers|, retu
       disclosure is reached only through the "`*`" [=COS entry/origins=] form, which is gated by
       the [=Public Hash List=] and never consults this header. A malformed or "`*`"-bearing header
       authorizes nothing, exactly as an absent one does; the failure is closed.
-   1. [=set/Append=] |origin| to |ceiling|.
+   1. [=set/Append=] |url|'s [=/origin=] to |ceiling|.
 1. Return |ceiling|.
 
 Note: [=header list/get, decode, and split=] splits on U+002C (,), so origins in the header
