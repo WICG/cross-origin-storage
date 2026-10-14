@@ -787,9 +787,14 @@ never triggers an additional permission prompt.
 that was not obtained by a [[#creating-and-writing-files|create request]], and "`granted`"
 otherwise.
 
+{{FileSystemFileHandle/createWritable()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=] that was not obtained by a
+[[#creating-and-writing-files|create request]] must reject with a "{{NotAllowedError}}"
+{{DOMException}}, without creating a {{FileSystemWritableFileStream}}.
+
 Note: Writing is the one capability a handle can genuinely lack. Only a create request yields a
 handle that can be written through, so reporting "`granted`" for a write mode on any other handle
-would claim a capability {{FileSystemFileHandle/createWritable()}} will refuse. Reading stays
+would claim a capability {{FileSystemFileHandle/createWritable()}} refuses. Reading stays
 "`granted`", since a caller holding a readable handle can read through it. Requesting cannot change
 either answer, as there is no prompt to show and no state a grant could be recorded in.
 
@@ -833,15 +838,19 @@ nothing to act on. Identity is the exception, and it is the one question a conte
 can always answer: the [=COS registry=] holds at most one [=COS entry=] per [=COS hash=], so two
 handles address the same entry exactly when their hashes are equal.
 
-{{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing a
-the [=Cross-Origin Storage file system=], with an argument that also addresses it and was obtained
+{{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=], with an argument that also addresses it and was obtained
 by the same [=/origin=], must return true if the two handles'
 [=FileSystemFileHandle/COS hash=] items are [=COS hash/equal=], and false otherwise.
 
 Note: Refusing this would discard information the user agent already holds.
 
-{{FileSystemHandle/isSameEntry()}} called with an argument the calling [=/origin=] did not obtain,
-or one addressing a file system other than the [=Cross-Origin Storage file system=], must reject.
+{{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=], with an argument the calling [=/origin=] did not obtain, or
+one addressing a file system other than the [=Cross-Origin Storage file system=], must reject with
+a "{{NotAllowedError}}" {{DOMException}}. A handle addressing another file system, such as the
+one {{StorageManager/getDirectory()}} returns, keeps the behavior [[FS]] defines for it when called with a
+{{FileSystemFileHandle}} addressing the [=Cross-Origin Storage file system=] as its argument.
 
 Note: Returning false in that case would assert that the two handles address different entries,
 which is a claim about a handle the calling origin is not entitled to inspect. Rejecting says only
