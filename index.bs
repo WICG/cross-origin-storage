@@ -107,7 +107,8 @@ defined in its own host specification; see [[#integration-with-other-specificati
 A <dfn export>COS hash</dfn> is a [=struct=] with the following [=struct/items=]:
 
 : <dfn for="COS hash">algorithm</dfn>
-:: A [=string=] naming a hash algorithm recognized by [[WEBCRYPTO]], for example "`SHA-256`".
+:: A [=string=] naming a hash algorithm recognized by [[WEBCRYPTO]] other than "`SHA-1`", for
+   example "`SHA-256`".
 : <dfn for="COS hash">value</dfn>
 :: A [=string=] that is a lowercase hexadecimal encoding of a digest produced by
    [=COS hash/algorithm=]. For "`SHA-256`", this is 64 characters long.
@@ -343,7 +344,12 @@ To <dfn>validate a COS request</dfn> given a {{CrossOriginStorageGetFileHandleHa
 and a {{CrossOriginStorageGetFileHandleOptions}} |options|, return null or a {{TypeError}}:
 
 1. If |hash|["{{CrossOriginStorageGetFileHandleHash/algorithm}}"] is not a hash algorithm
-   name recognized by [[WEBCRYPTO]], return a new {{TypeError}}.
+   name recognized by [[WEBCRYPTO]], or is an [=ASCII case-insensitive=] match for "`SHA-1`",
+   return a new {{TypeError}}.
+
+   Note: SHA-1 is not collision resistant. Since a [=COS entry=] is keyed by its
+   [=COS hash=] alone, a SHA-1 collision would let one origin's bytes answer reads that another
+   origin made for different bytes with the same digest.
 1. If |hash|["{{CrossOriginStorageGetFileHandleHash/value}}"] does not match the regular
    expression `/^[0-9a-f]{64}$/` when
    |hash|["{{CrossOriginStorageGetFileHandleHash/algorithm}}"] is an [=ASCII case-insensitive=]
@@ -787,9 +793,14 @@ never triggers an additional permission prompt.
 that was not obtained by a [[#creating-and-writing-files|create request]], and "`granted`"
 otherwise.
 
+{{FileSystemFileHandle/createWritable()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=] that was not obtained by a
+[[#creating-and-writing-files|create request]] must reject with a "{{NotAllowedError}}"
+{{DOMException}}, without creating a {{FileSystemWritableFileStream}}.
+
 Note: Writing is the one capability a handle can genuinely lack. Only a create request yields a
 handle that can be written through, so reporting "`granted`" for a write mode on any other handle
-would claim a capability {{FileSystemFileHandle/createWritable()}} will refuse. Reading stays
+would claim a capability {{FileSystemFileHandle/createWritable()}} refuses. Reading stays
 "`granted`", since a caller holding a readable handle can read through it. Requesting cannot change
 either answer, as there is no prompt to show and no state a grant could be recorded in.
 
@@ -833,15 +844,19 @@ nothing to act on. Identity is the exception, and it is the one question a conte
 can always answer: the [=COS registry=] holds at most one [=COS entry=] per [=COS hash=], so two
 handles address the same entry exactly when their hashes are equal.
 
-{{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing a
-the [=Cross-Origin Storage file system=], with an argument that also addresses it and was obtained
+{{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=], with an argument that also addresses it and was obtained
 by the same [=/origin=], must return true if the two handles'
 [=FileSystemFileHandle/COS hash=] items are [=COS hash/equal=], and false otherwise.
 
 Note: Refusing this would discard information the user agent already holds.
 
-{{FileSystemHandle/isSameEntry()}} called with an argument the calling [=/origin=] did not obtain,
-or one addressing a file system other than the [=Cross-Origin Storage file system=], must reject.
+{{FileSystemHandle/isSameEntry()}} called on a {{FileSystemFileHandle}} addressing the
+[=Cross-Origin Storage file system=], with an argument the calling [=/origin=] did not obtain, or
+one addressing a file system other than the [=Cross-Origin Storage file system=], must reject with
+a "{{NotAllowedError}}" {{DOMException}}. A handle addressing another file system, such as the
+one {{StorageManager/getDirectory()}} returns, keeps the behavior [[FS]] defines for it when called with a
+{{FileSystemFileHandle}} addressing the [=Cross-Origin Storage file system=] as its argument.
 
 Note: Returning false in that case would assert that the two handles address different entries,
 which is a claim about a handle the calling origin is not entitled to inspect. Rejecting says only
@@ -1397,9 +1412,13 @@ does not bound this: an attacker can build a cross-site identifier out of indivi
 PHL-eligible resources by choosing which subset to write. A user agent that blocks third-party
 cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for example with a
 small budget of cross-site lookups keyed on the top-level site and shared by every frame on
-the page, a count that persists across reloads for a time window, and sharing of written entries only
-after a user gesture. The README's
-[privacy considerations](README.md#privacy-considerations) describe these mitigations.
+the page, a count that persists across reloads for a time window, and making a written entry
+available through the "`*`" grant only after a user gesture. The README's
+[privacy considerations](README.md#privacy-considerations) describe these mitigations. Like
+[[#greaseing|GREASE'ing]], they apply only to an origin that qualifies through the
+[=COS entry/globally disclosable=] grant alone. [=COS entry/Storing origins=], origins on the
+explicit [=COS entry/origins=] [=list=], and origins [=same site=] with either read an entry
+as soon as [=determine COS disclosure=] returns it, with no user gesture and no lookup budget.
 
 ## GREASE'ing ## {#greaseing}
 
@@ -1457,9 +1476,11 @@ those integrations are expected to build on.
 * **Fetch**: a `crossOriginStorage` {{RequestInit}} option, usable alongside
   {{RequestInit/integrity}} [[FETCH]], proposed to the WHATWG in
   [whatwg/fetch#1954](https://github.com/whatwg/fetch/issues/1954).
-  This one has no host-defined destination, so how a
-  {{Response}} served from the [=COS registry=] reports its MIME type, status, and other metadata
-  is an open question for that specification; a [=COS entry=] stores [=COS entry/bytes=] only.
+  This one has no host-defined destination, and a [=COS entry=] stores [=COS entry/bytes=] only,
+  so that specification defines the {{Response}} served from the [=COS registry=]. The expected
+  shape is a successful response: its status is 200, its status message is `OK`, and its
+  body is a stream of the [=COS entry/bytes=]. Its `Content-Type` header is the MIME type the
+  caller declares, and it carries no other headers, since no network fetch took place.
 
 For illustration only, here is the same globally-shared resource opted into Cross-Origin Storage
 through each of the four forms:

@@ -207,7 +207,7 @@ Who may read an entry depends on how it was shared. An entry is always available
 
 Each resource stored in COS is conceptually represented as an entry with the following fields. An entry exists only once its bytes have been written and verified, so there is no half-written state; see [In-progress writes](#in-progress-writes).
 
-- **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
+- **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/) other than `"SHA-1"`, e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
 - **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError` and stores nothing.
 - **`origins`**: the declared sharing scope, stored as two independent, additive grants: an **explicit origins list** and a **globally disclosable** flag, set by a `'*'` write. A write requests `'*'`, a list of origins (each covering its same-site origins as well), or nothing (same-site only), and the request is merged into these grants (see [Resource visibility upgrades](#resource-visibility-upgrades)). A list is capped in length and bounded by the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header.
 - **`storing origins`**: the origins that have successfully written this entry. It is persisted across page loads and only ever grows.
@@ -224,7 +224,7 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 > A write registers nothing until its bytes have been verified, so a hash-mismatched write leaves no trace and a write in progress is invisible to every origin, including the writer's own later lookups; see [Concurrent writes](#concurrent-writes).
 
 > [!NOTE]
-> If `hash.value` is not a valid lowercase hexadecimal string of length 64, or `hash.algorithm` is not a hash algorithm name recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), the user agent must throw a `TypeError`.
+> If `hash.value` is not a valid lowercase hexadecimal string of length 64, or `hash.algorithm` is not a hash algorithm name recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), or is `"SHA-1"`, the user agent must throw a `TypeError`.
 
 > [!NOTE]
 > If the [Permissions Policy](https://www.w3.org/TR/permissions-policy/) for the current context does not allow Cross-Origin Storage, the user agent must throw a `NotAllowedError` `DOMException`.
@@ -658,7 +658,7 @@ partial dictionary RequestInit {
 };
 ```
 
-The string and array forms are shorthands for `{ origins }`. The dictionary form additionally lets the caller declare a `contentType`, a proposed answer to the first of the [open design questions](#open-design-questions) below.
+`"*"` and the array form are shorthands for `{ origins }`, and `""` for `{}`, which leaves `origins` out. The dictionary form additionally lets the caller declare a `contentType`, a proposed answer to the first of the [open design questions](#open-design-questions) below.
 
 ##### Example: Fetching through COS
 
@@ -721,7 +721,7 @@ The user agent performs the COS lookup, serves the bytes from storage on a hit, 
 Two questions are specific to this integration and need answers in the [Fetch Standard discussion](https://github.com/whatwg/fetch/issues/1954):
 
 - **Response fidelity on a cache hit.** A COS entry stores bytes only (see [Storing the original URL as part of a COS entry](#storing-the-original-url-as-part-of-a-cos-entry)), so a `Response` served from a hit has no `Content-Type`. The three other integrations take the type from the element, the module type, or the CSS property; a plain `fetch()` has no destination to take it from. `WebAssembly.instantiateStreaming()` requires `application/wasm`, so without a declared type the collapsed example above works on a cold cache and fails on a warm one. The proposed answer is a caller-declared `contentType` in the option's dictionary form, applied on hits and misses alike, so both return the same `Content-Type`.
-- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A declared `contentType` settles `Content-Type`; which `status`, `Content-Length`, and `type` a hit reports is open.
+- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A hit reports status `200` with status text `OK` and streams the stored bytes as its body. A declared `contentType` settles `Content-Type`, and the hit carries no other headers. Which `type` a hit reports is open.
 
 #### Processing flow common to all four integrations
 
@@ -739,7 +739,7 @@ A lookup that doesn't succeed is indistinguishable from a cache miss, exactly as
 
 The current hashing algorithm is [SHA-256](https://w3c.github.io/webcrypto/#alg-sha-256), implemented by the **Web Crypto API**. If hashing best practices should change, COS will reflect the [implementers' recommendation](https://w3c.github.io/webcrypto/#algorithm-recommendations-implementers) in the Web Crypto API.
 
-The hashing algorithm used is encoded in the hash object's `algorithm` field as a plain string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`. This flexible design allows changing the hashing algorithm in the future. The hash string must be a valid lowercase hexadecimal string of length 64 (for SHA-256).
+The hashing algorithm used is encoded in the hash object's `algorithm` field as a plain string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`. This flexible design allows changing the hashing algorithm in the future. `"SHA-1"` is excluded: it is not collision resistant, and a collision would let one site's bytes answer reads made for another site's bytes under the same key. The hash string must be a valid lowercase hexadecimal string of length 64 (for SHA-256).
 
 Note that `algorithm` is typed as a plain `DOMString`, even though its value space is exactly the set of names a [`HashAlgorithmIdentifier`](https://w3c.github.io/webcrypto/#dom-hashalgorithmidentifier) accepts. `HashAlgorithmIdentifier` is `(object or DOMString)`, and the `object` branch exists so parameterized algorithms like HMAC can carry extra fields (e.g. `{name: "HMAC", hash: "SHA-256"}`). Hash algorithms take no such parameters, and `algorithm` is stored, compared, and round-tripped as part of a content-addressable key, so admitting arbitrary objects here would add no capability while complicating equality and serialization.
 
@@ -901,7 +901,7 @@ A tracker script loaded directly into the page runs as the site's own origin, so
 Mitigations need to carefully balance between ensuring the user's privacy and maintaining the usefulness of the feature.
 
 * Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself stay free. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
-* A written file becomes shareable with other sites only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page.
+* A file written with `origins: '*'` becomes available through the global grant only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page. The gate applies to the `"*"` grant alone: same-site origins and origins on an explicit list, which the site authorizes with its `Cross-Origin-Storage-Allow-Origin` header, read the file as soon as it is written.
 * The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it.
 * Each call to `getFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
 
