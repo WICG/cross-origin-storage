@@ -1299,6 +1299,13 @@ unintended leak happens between parties that never set a cookie for each other,
 and a reader of one of those learns something a third-party cookie would never
 have told them.
 
+Same-site and list entries reach only the origins their storing site chose, so
+reading what other parties stored takes the global scope, where the PHL,
+GREASE'ing, and the lookup budget apply. A browser without third-party cookies
+can therefore offer the first two scopes alone by treating the PHL as empty, and
+the attacks that depend on the global scope go with it. Sites need no change,
+since a `'*'` write for a hash not on the PHL already stays same-site.
+
 ### Mitigation 6 (M6): Permission prompts
 
 A user agent can ask the user before letting a site read what other sites
