@@ -194,7 +194,7 @@ first site, one bit per file. A query for the same set on a second site recovers
 the subset. Eviction and the per-origin storage limit bound its lifetime and
 size, and the tracker refreshes it on each visit.
 
-The tracker can do this in three ways.
+The tracker can do this in four ways.
 
 #### Variant 1 (A1.1): Through an embedded frame
 
@@ -376,6 +376,30 @@ independently, without any of that.
 [Related Website Sets](https://privacysandbox.google.com/blog/update-on-plans-for-privacy-sandbox-technologies)
 were the sanctioned mechanism for linking domains a company owns, and Chrome
 retired them in October 2025.
+
+#### Variant 4 (A1.4): Through the tracker's own first-party list
+
+Variant 3 with the tracker as the operator. A redirect through
+`tracker.example`, which a user never notices, makes it the top-level page for a
+moment. It mints its marker resources there and writes them with an `origins`
+list naming the sites where its script runs first-party, and its own
+`Cross-Origin-Storage-Allow-Origin` header authorizes them. A list written
+first-party admits its origins wherever they run first-party, so the tracker's
+script on each named site reads the markers back, exactly and without the PHL.
+The header is no safeguard here, because the party it asks is the tracker.
+
+Each write's list is capped at a handful of origins, and the tracker needs a
+top-level visit to rewrite the markers, which browsers' bounce-tracking
+mitigations target. The write budget
+([Mitigation 8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) prices the
+marker resources as in the other variants. None of the other mitigations above
+reaches it, since its reads all qualify through a grant the tracker wrote.
+
+**Example.** A news site redirects a click on an ad through `tracker.example`
+and back. During that moment, `tracker.example` writes 32 marker files listing
+the news site, a shopping site, and three more that embed its script. A week
+later, its script on the shopping site reads all 32 back as the shopping site's
+own origin and links the two visits.
 
 ## Attack 2 (A2): Cache-based fingerprinting
 
@@ -1423,20 +1447,20 @@ stops and the user's bandwidth bill notices.
 
 #### Coverage
 
-| Attack                                                                                                          | Covered         | Description                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (write side) | Reached across all three variants, on the side the lookup budget misses. Sixty-four marker resources fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | ⚪              | Out of reach. It writes nothing.                                                                                                                                                                  |
-| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
-| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
-| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪              | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                          |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | ⚪              | Same as [A6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                                                                                       |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | 🟡              | Reached, and this is the first mitigation aimed at it. Flooding is writing at volume, which is exactly what the byte allowance meters.                                                            |
-| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
-| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                            |
+| Attack                                                                                                          | Covered         | Description                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (write side) | Reached across all four variants, on the side the lookup budget misses. Sixty-four marker resources fit in about 48 KB, so counting small writes is what makes planting an identifier expensive. |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | ⚪              | Out of reach. It writes nothing.                                                                                                                                                                 |
+| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
+| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
+| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪              | Out of reach. The writes belong to the victim site, at ordinary volume, and the attacker writes nothing.                                                                                         |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | ⚪              | Same as [A6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                                                                                      |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | 🟡              | Reached, and this is the first mitigation aimed at it. Flooding is writing at volume, which is exactly what the byte allowance meters.                                                           |
+| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
+| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪              | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                           |
 
 Mitigation 9 bounds a different thing. It caps what one origin holds at any
 moment, and an attacker spread across sixteen subdomains gets sixteen of them.
@@ -1485,7 +1509,7 @@ before, since it reads under its own site.
 A list written first-party, by a top-level page or a frame same-site with it,
 also admits the listed origins wherever they run first-party. That keeps
 restricted sharing between top-level sites working, which is what the list scope
-is for, and it is also why Variant 3 of Attack 1 survives this mitigation.
+is for, and it is also why Variants 3 and 4 of Attack 1 survive this mitigation.
 
 A list written from a cross-site frame needs the key as well. For the imperative
 API the
