@@ -207,10 +207,12 @@ Who may read an entry depends on how it was shared. An entry is always available
 
 Each resource stored in COS is conceptually represented as an entry with the following fields. An entry exists only once its bytes have been written and verified, so there is no half-written state; see [In-progress writes](#in-progress-writes).
 
-- **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
+- **`hash`**: the content identifier, consisting of an `algorithm` (a string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/) other than `"SHA-1"`, e.g. `"SHA-256"`) and a `value` (a 64-character lowercase hex string in the case of `"SHA-256"`). Entries are keyed by hash: two files with identical bytes and the same hash algorithm are the same entry, regardless of how many origins stored them or from how many URLs they were fetched.
 - **`bytes`**: the raw file contents. The user agent verifies at write time that hashing `bytes` with `hash.algorithm` produces `hash.value`; a mismatch throws a `DataError` and stores nothing.
 - **`origins`**: the declared sharing scope, stored as two independent, additive grants: an **explicit origins list** and a **globally disclosable** flag, set by a `'*'` write. A write requests `'*'`, a list of origins (each covering its same-site origins as well), or nothing (same-site only), and the request is merged into these grants (see [Resource visibility upgrades](#resource-visibility-upgrades)). A list is capped in length and bounded by the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header.
-- **`storing origins`**: the origins that have successfully written this entry. It is persisted across page loads and only ever grows.
+- **`storing origins`**: the origins that have successfully written this entry, each recorded with the top-level site it wrote under. It is persisted across page loads and only ever grows.
+
+Grants are keyed to the top-level site, the same way storage partitioning keys a frame's other storage. A storing origin's access, and the same-site default that follows from it, hold only under the top-level site of the write. An `origins` list admits the listed origins under the top-level site of the write, and a list written first-party (by a top-level page, or by a frame same-site with it) also admits them wherever they run first-party. The global grant is not keyed.
 
 [Availability gating](#availability-gating) describes who may read an entry through each grant.
 
@@ -224,7 +226,7 @@ Each resource stored in COS is conceptually represented as an entry with the fol
 > A write registers nothing until its bytes have been verified, so a hash-mismatched write leaves no trace and a write in progress is invisible to every origin, including the writer's own later lookups; see [Concurrent writes](#concurrent-writes).
 
 > [!NOTE]
-> If `hash.value` is not a valid lowercase hexadecimal string of length 64, or `hash.algorithm` is not a hash algorithm name recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), the user agent must throw a `TypeError`.
+> If `hash.value` is not a valid lowercase hexadecimal string of length 64, or `hash.algorithm` is not a hash algorithm name recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), or is `"SHA-1"`, the user agent must throw a `TypeError`.
 
 > [!NOTE]
 > If the [Permissions Policy](https://www.w3.org/TR/permissions-policy/) for the current context does not allow Cross-Origin Storage, the user agent must throw a `NotAllowedError` `DOMException`.
@@ -658,7 +660,7 @@ partial dictionary RequestInit {
 };
 ```
 
-The string and array forms are shorthands for `{ origins }`. The dictionary form additionally lets the caller declare a `contentType`, a proposed answer to the first of the [open design questions](#open-design-questions) below.
+`"*"` and the array form are shorthands for `{ origins }`, and `""` for `{}`, which leaves `origins` out. The dictionary form additionally lets the caller declare a `contentType`, a proposed answer to the first of the [open design questions](#open-design-questions) below.
 
 ##### Example: Fetching through COS
 
@@ -721,7 +723,7 @@ The user agent performs the COS lookup, serves the bytes from storage on a hit, 
 Two questions are specific to this integration and need answers in the [Fetch Standard discussion](https://github.com/whatwg/fetch/issues/1954):
 
 - **Response fidelity on a cache hit.** A COS entry stores bytes only (see [Storing the original URL as part of a COS entry](#storing-the-original-url-as-part-of-a-cos-entry)), so a `Response` served from a hit has no `Content-Type`. The three other integrations take the type from the element, the module type, or the CSS property; a plain `fetch()` has no destination to take it from. `WebAssembly.instantiateStreaming()` requires `application/wasm`, so without a declared type the collapsed example above works on a cold cache and fails on a warm one. The proposed answer is a caller-declared `contentType` in the option's dictionary form, applied on hits and misses alike, so both return the same `Content-Type`.
-- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A declared `contentType` settles `Content-Type`; which `status`, `Content-Length`, and `type` a hit reports is open.
+- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A hit reports status `200` with status text `OK` and streams the stored bytes as its body. A declared `contentType` settles `Content-Type`, and the hit carries no other headers. Which `type` a hit reports is open.
 
 #### Processing flow common to all four integrations
 
@@ -739,7 +741,7 @@ A lookup that doesn't succeed is indistinguishable from a cache miss, exactly as
 
 The current hashing algorithm is [SHA-256](https://w3c.github.io/webcrypto/#alg-sha-256), implemented by the **Web Crypto API**. If hashing best practices should change, COS will reflect the [implementers' recommendation](https://w3c.github.io/webcrypto/#algorithm-recommendations-implementers) in the Web Crypto API.
 
-The hashing algorithm used is encoded in the hash object's `algorithm` field as a plain string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`. This flexible design allows changing the hashing algorithm in the future. The hash string must be a valid lowercase hexadecimal string of length 64 (for SHA-256).
+The hashing algorithm used is encoded in the hash object's `algorithm` field as a plain string naming a hash algorithm recognized by the [Web Crypto API](https://w3c.github.io/webcrypto/), e.g. `"SHA-256"`. This flexible design allows changing the hashing algorithm in the future. `"SHA-1"` is excluded: it is not collision resistant, and a collision would let one site's bytes answer reads made for another site's bytes under the same key. The hash string must be a valid lowercase hexadecimal string of length 64 (for SHA-256).
 
 Note that `algorithm` is typed as a plain `DOMString`, even though its value space is exactly the set of names a [`HashAlgorithmIdentifier`](https://w3c.github.io/webcrypto/#dom-hashalgorithmidentifier) accepts. `HashAlgorithmIdentifier` is `(object or DOMString)`, and the `object` branch exists so parameterized algorithms like HMAC can carry extra fields (e.g. `{name: "HMAC", hash: "SHA-256"}`). Hash algorithms take no such parameters, and `algorithm` is stored, compared, and round-tripped as part of a content-addressable key, so admitting arbitrary objects here would add no capability while complicating equality and serialization.
 
@@ -892,7 +894,7 @@ Since every COS lookup and write passes through one explicit API, the user agent
 
 #### Cross-site tracking through writes
 
-COS lets a tracker write, which turns it into a potential cross-site store. Embedded as a third-party iframe, `tracker.example` can call `getFileHandle(hash, { create: true })` on site A to store a chosen subset of small files, each file's presence encoding one bit, and read that subset back from the same iframe on site B. On both sites it is a storing origin, so every read succeeds without the Public Hash List, GREASE'ing, or any origins grant, and the recovered pattern links the user's visits the way a third-party cookie would. This requires each embedding site to grant the iframe `allow="cross-origin-storage"`.
+COS lets a tracker write, which turns it into a potential cross-site store. Embedded as a third-party iframe, `tracker.example` can call `getFileHandle(hash, { create: true })` on site A to store a chosen subset of small files, each file's presence encoding one bit, and read that subset back from the same iframe on site B. COS rules this out by keying grants to the top-level site (see [COS entry](#cos-entry)). On site B, the frame is a storing origin only for what it wrote under site B, so reading site A's files takes the global grant, and minted marker files are never on the Public Hash List. The frame's lookups count against site B's budget like any other origin's.
 
 A tracker script loaded directly into the page runs as the site's own origin, so everything it stores belongs to site A, and a script on site B runs as B and is not a storing origin. To read those files back from B, it has to make them cross-origin readable. A list naming B needs site A to send a `Cross-Origin-Storage-Allow-Origin` header authorizing B, which only the site operator can do. With `origins: '*'`, the only files other origins can see are those whose hashes are on the Public Hash List, so the tracker has to encode its bits as a strategically chosen subset of well-known public files. It then reads through the global grant, where GREASE'ing may drop some bits at random and files the user already cached on other sites add false signals, so the tracker needs redundancy to recover a stable identifier. Eviction and the per-origin storage limit bound both variants, and the identifier lasts as long as the tracker rewrites it, or until the cache evicts it.
 
@@ -900,8 +902,8 @@ A tracker script loaded directly into the page runs as the site's own origin, so
 
 Mitigations need to carefully balance between ensuring the user's privacy and maintaining the usefulness of the feature.
 
-* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself stay free. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
-* A written file becomes shareable with other sites only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page.
+* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself, under this top-level site, stay free. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
+* A file written with `origins: '*'` becomes available through the global grant only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page. The gate applies to the `"*"` grant alone: same-site origins and origins on an explicit list, which the site authorizes with its `Cross-Origin-Storage-Allow-Origin` header, read the file as soon as it is written.
 * The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it.
 * Each call to `getFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
 
@@ -925,9 +927,9 @@ Registering a placeholder instead, and answering concurrent reads of it with a d
 
 Whether a `getFileHandle()` call returns a handle depends on the grants an entry carries. Grants are set at write time, add up, and are never removed (see [Resource visibility upgrades](#resource-visibility-upgrades)):
 
-- **Storing origins** can always read the entry, mirroring the Cache API, where an origin can always read what it stored.
-- **Same-site origins of a storing origin** can read it. This is the default scope.
-- **Origins on the explicit `origins` list, and origins same-site with any of them,** can read it, whether or not the hash is on the PHL.
+- **Storing origins** can always read the entry under the top-level site they wrote it under, mirroring the partitioned Cache API, where an origin can always read what it stored.
+- **Same-site origins of a storing origin** can read it under that same top-level site. This is the default scope.
+- **Origins on the explicit `origins` list, and origins same-site with any of them,** can read it, whether or not the hash is on the PHL. Any list admits them under the writer's top-level site, and a list written first-party also admits them wherever they run first-party.
 - **Any other origin** can read it only through the global grant (`origins: '*'`), and only if the hash is on the **Public Hash List (PHL)**, a shared, vendor-neutral allowlist all browser vendors are expected to respect. [GREASE'ing](#greaseing) may still withhold it.
 
 An origin that qualifies under none of these, or relies on the global grant for a hash not on the PHL, receives a `NotFoundError` `DOMException` that is identical in content and timing to the file being absent. A requester that qualifies through the first three grants never consults the PHL, even if the entry is also globally disclosable. The PHL gates only the global grant because the other grants already reflect a bounded disclosure decision by the storing origin; requiring public curation for them would block ordinary restricted sharing of proprietary resources (see [Choosing who can read a file](#example-choosing-who-can-read-a-file)).
