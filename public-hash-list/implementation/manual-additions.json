@@ -6,5 +6,13 @@
     "rationale": "Canonical image of the most-rickrolled resource on the web; embedded across millions of independent pages as the definitive internet meme, making its cache presence uninformative about any individual user.",
     "added": "2026-06-24",
     "pr": null
+  },
+  {
+    "url": "https://unpkg.com/@tailwindcss/browser@4.3.3/dist/index.global.js",
+    "sha256": "a60c785630a06196808cbe79e6f7bdb4abcc8f4421a47b56f29338fc84805e3b",
+    "description": "Tailwind CSS 4.3.3 browser build (@tailwindcss/browser, unpkg)",
+    "rationale": "The official in-browser build of Tailwind CSS, the script Tailwind's docs give for using it without a build step. Pinned versions of it are embedded by large numbers of unrelated prototypes, demos, and small sites, so its cache presence says nothing about an individual user.",
+    "added": "2026-10-20",
+    "pr": null
   }
 ]
