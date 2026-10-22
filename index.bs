@@ -393,6 +393,12 @@ and a {{CrossOriginStorageGetFileHandleOptions}} |options|, return null or a {{T
       with a single [=string=] treated as a [=list=] of one.
    1. If |candidates|'s [=list/size=] is greater than the user agent's
       [=maximum origins list length=], return a new {{TypeError}}.
+
+      Note: The bound applies to |candidates| as supplied, before any parsing or
+      deduplication (see [=normalize requested origins=]), so it also limits how much URL
+      parsing a single call can cause. A list of one more than the
+      [=maximum origins list length=] copies of the same origin is rejected, even though it
+      would normalize to a single [=/origin=].
    1. [=set/For each=] |candidate| of |candidates|:
       1. Let |url| be the result of running the [=basic URL parser=] on |candidate|.
       1. If |url| is failure, return a new {{TypeError}}.
