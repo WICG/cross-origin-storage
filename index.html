@@ -6,7 +6,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/cg-draft" rel="stylesheet">
   <meta content="Bikeshed version 49e9fdd4f, updated Tue Oct 13 14:27:53 2026 -0700" name="generator">
   <link href="https://wicg.github.io/cross-origin-storage/" rel="canonical">
-  <meta content="7ff2ce6ec370491ee726b56c1474dacef1fee0a2" name="revision">
+  <meta content="f6d823224bfccdc4ecdbf328f33c78561d9db60f" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -2113,7 +2113,8 @@ this specification would favor is to derive a service worker’s policy from the
 already carries that response’s CSP: it stays under the origin’s control, and it is
 re-evaluated on every update check. Snapshotting the registering client’s policy would make the opt-out stale, since removing the feature
 from a header would not take effect until the registration happened to update. Until such a
-model exists, failing closed is the one answer that cannot be used to escape an opt-out.</p>
+model exists, failing closed is the one answer that cannot be used to escape an opt-out. Also see
+<a href="https://github.com/explainers-by-googlers/workers-permissions-policy/issues/4">explainers-by-googlers/workers-permissions-policy#4</a>.</p>
    <p class="note" role="note"><span class="marker">Note:</span> A <code class="idl"><a data-link-type="idl" href="https://html.spec.whatwg.org/multipage/workers.html#sharedworkerglobalscope" id="ref-for-sharedworkerglobalscope">SharedWorkerGlobalScope</a></code>’s <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/workers.html#concept-WorkerGlobalScope-owner-set" id="ref-for-concept-WorkerGlobalScope-owner-set④">owner set</a> can hold several
 <code class="idl"><a data-link-type="idl" href="https://dom.spec.whatwg.org/#document" id="ref-for-document⑦">Document</a></code>s with different policies, and it gains and loses owners over the worker’s lifetime.
 Requiring every owner to permit the feature means one owner that disallows it disables
