@@ -1540,6 +1540,9 @@ those integrations are expected to build on.
   shape is a successful response: its status is 200, its status message is `OK`, and its
   body is a stream of the [=COS entry/bytes=]. Its `Content-Type` header is the MIME type the
   caller declares, and it carries no other headers, since no network fetch took place.
+  The option is expected to require a `GET` [=request/method=]: a hit answers the request
+  without sending it, which is only safe for a method whose request has no body and no side
+  effects, so the {{Request}} constructor would throw a {{TypeError}} for any other method.
 
 For illustration only, here is the same globally-shared resource opted into Cross-Origin Storage
 through each of the four forms:
