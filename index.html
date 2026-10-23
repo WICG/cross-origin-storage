@@ -6,7 +6,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/cg-draft" rel="stylesheet">
   <meta content="Bikeshed version 49e9fdd4f, updated Tue Oct 13 14:27:53 2026 -0700" name="generator">
   <link href="https://wicg.github.io/cross-origin-storage/" rel="canonical">
-  <meta content="3832c0d7edcbd8b223f853e0ab0e3d77a5e3d8d1" name="revision">
+  <meta content="880c5939ea3add68217904b4d1ccae470e0c2f8c" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -2487,7 +2487,10 @@ This one has no host-defined destination, and a <a data-link-type="dfn" href="#c
 so that specification defines the <code class="idl"><a data-link-type="idl" href="https://fetch.spec.whatwg.org/#response" id="ref-for-response">Response</a></code> served from the <a data-link-type="dfn" href="#cos-registry" id="ref-for-cos-registry②①">COS registry</a>. The expected
 shape is a successful response: its status is 200, its status message is <code>OK</code>, and its
 body is a stream of the <a data-link-type="dfn" href="#cos-entry-bytes" id="ref-for-cos-entry-bytes⑤">bytes</a>. Its <code>Content-Type</code> header is the MIME type the
-caller declares, and it carries no other headers, since no network fetch took place.</p>
+caller declares, and it carries no other headers, since no network fetch took place.
+The option is expected to require a <code>GET</code> <a data-link-type="dfn" href="https://fetch.spec.whatwg.org/#concept-request-method" id="ref-for-concept-request-method">method</a>: a hit answers the request
+without sending it, which is only safe for a method whose request has no body and no side
+effects, so the <code class="idl"><a data-link-type="idl" href="https://fetch.spec.whatwg.org/#request" id="ref-for-request">Request</a></code> constructor would throw a <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror⑦">TypeError</a></code> for any other method.</p>
    </ul>
    <p>For illustration only, here is the same globally-shared resource opted into Cross-Origin Storage
 through each of the four forms:</p>
@@ -2671,6 +2674,7 @@ and Document License</a>.
    <li>
     <a data-link-type="biblio">[FETCH]</a> defines the following terms:
     <ul>
+     <li><span class="dfn-paneled" id="f9da6f1f">Request</span>
      <li><span class="dfn-paneled" id="0dcd4ad9">RequestInit</span>
      <li><span class="dfn-paneled" id="08a12aad">Response</span>
      <li><span class="dfn-paneled" id="de82addd">filtered response</span>
@@ -2680,6 +2684,7 @@ and Document License</a>.
      <li><span class="dfn-paneled" id="9805bca9">integrity <small>(for Request)</small></span>
      <li><span class="dfn-paneled" id="347d6330">integrity <small>(for RequestInit)</small></span>
      <li><span class="dfn-paneled" id="9a95489b">internal response</span>
+     <li><span class="dfn-paneled" id="50b05fad">method</span>
      <li><span class="dfn-paneled" id="ee7bba09">response</span>
     </ul>
    <li>
@@ -3171,6 +3176,7 @@ let dfnPanelData = {
 "4c10050a": {"dfnID":"4c10050a","dfnText":"getDirectory()","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-storagemanager-getdirectory"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#dom-storagemanager-getdirectory"},
 "4e122df8": {"dfnID":"4e122df8","dfnText":"root","external":true,"refSections":[{"refs":[{"id":"ref-for-locator-root"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#locator-root"},
 "4e1cb6d8": {"dfnID":"4e1cb6d8","dfnText":"binary data","external":true,"refSections":[{"refs":[{"id":"ref-for-file-entry-binary-data"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#file-entry-binary-data"},
+"50b05fad": {"dfnID":"50b05fad","dfnText":"method","external":true,"refSections":[{"refs":[{"id":"ref-for-concept-request-method"}],"title":"9. Integration with other specifications"}],"url":"https://fetch.spec.whatwg.org/#concept-request-method"},
 "525d7867": {"dfnID":"525d7867","dfnText":"Algorithm","external":true,"refSections":[{"refs":[{"id":"ref-for-dfn-Algorithm"}],"title":"2.1. Hashes"}],"url":"https://w3c.github.io/webcrypto/#dfn-Algorithm"},
 "53275e46": {"dfnID":"53275e46","dfnText":"append (for list)","external":true,"refSections":[{"refs":[{"id":"ref-for-list-append"}],"title":"3.3. Creating and writing files"},{"refs":[{"id":"ref-for-list-append\u2460"}],"title":"3.5. Resource visibility upgrades"}],"url":"https://infra.spec.whatwg.org/#list-append"},
 "5372cca8": {"dfnID":"5372cca8","dfnText":"boolean","external":true,"refSections":[{"refs":[{"id":"ref-for-idl-boolean"}],"title":"3. The CrossOriginStorageManager interface"}],"url":"https://webidl.spec.whatwg.org/#idl-boolean"},
@@ -3194,7 +3200,7 @@ let dfnPanelData = {
 "797018a7": {"dfnID":"797018a7","dfnText":"InvalidStateError","external":true,"refSections":[{"refs":[{"id":"ref-for-invalidstateerror"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://webidl.spec.whatwg.org/#invalidstateerror"},
 "7f9469b5": {"dfnID":"7f9469b5","dfnText":"ASCII case-insensitive","external":true,"refSections":[{"refs":[{"id":"ref-for-ascii-case-insensitive"},{"id":"ref-for-ascii-case-insensitive\u2460"}],"title":"2.1. Hashes"},{"refs":[{"id":"ref-for-ascii-case-insensitive\u2461"},{"id":"ref-for-ascii-case-insensitive\u2462"}],"title":"3.1. The getFileHandle() method"}],"url":"https://infra.spec.whatwg.org/#ascii-case-insensitive"},
 "8219d486": {"dfnID":"8219d486","dfnText":"starting a new parallel queue","external":true,"refSections":[{"refs":[{"id":"ref-for-starting-a-new-parallel-queue"}],"title":"2.2. COS entries"}],"url":"https://html.spec.whatwg.org/multipage/infrastructure.html#starting-a-new-parallel-queue"},
-"82ca3efc": {"dfnID":"82ca3efc","dfnText":"TypeError","external":true,"refSections":[{"refs":[{"id":"ref-for-exceptiondef-typeerror"},{"id":"ref-for-exceptiondef-typeerror\u2460"},{"id":"ref-for-exceptiondef-typeerror\u2461"},{"id":"ref-for-exceptiondef-typeerror\u2462"},{"id":"ref-for-exceptiondef-typeerror\u2463"},{"id":"ref-for-exceptiondef-typeerror\u2464"}],"title":"3.1. The getFileHandle() method"},{"refs":[{"id":"ref-for-exceptiondef-typeerror\u2465"}],"title":"5.1. Storage limits"}],"url":"https://webidl.spec.whatwg.org/#exceptiondef-typeerror"},
+"82ca3efc": {"dfnID":"82ca3efc","dfnText":"TypeError","external":true,"refSections":[{"refs":[{"id":"ref-for-exceptiondef-typeerror"},{"id":"ref-for-exceptiondef-typeerror\u2460"},{"id":"ref-for-exceptiondef-typeerror\u2461"},{"id":"ref-for-exceptiondef-typeerror\u2462"},{"id":"ref-for-exceptiondef-typeerror\u2463"},{"id":"ref-for-exceptiondef-typeerror\u2464"}],"title":"3.1. The getFileHandle() method"},{"refs":[{"id":"ref-for-exceptiondef-typeerror\u2465"}],"title":"5.1. Storage limits"},{"refs":[{"id":"ref-for-exceptiondef-typeerror\u2466"}],"title":"9. Integration with other specifications"}],"url":"https://webidl.spec.whatwg.org/#exceptiondef-typeerror"},
 "83c59a3a": {"dfnID":"83c59a3a","dfnText":"WorkerGlobalScope","external":true,"refSections":[{"refs":[{"id":"ref-for-workerglobalscope"},{"id":"ref-for-workerglobalscope\u2460"},{"id":"ref-for-workerglobalscope\u2461"}],"title":"6. Permissions Policy integration"},{"refs":[{"id":"ref-for-workerglobalscope\u2462"},{"id":"ref-for-workerglobalscope\u2463"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"}],"url":"https://html.spec.whatwg.org/multipage/workers.html#workerglobalscope"},
 "83e04685": {"dfnID":"83e04685","dfnText":"file system entry","external":true,"refSections":[{"refs":[{"id":"ref-for-entry"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#entry"},
 "846c65c8": {"dfnID":"846c65c8","dfnText":"HashAlgorithmIdentifier","external":true,"refSections":[{"refs":[{"id":"ref-for-dom-hashalgorithmidentifier"}],"title":"2.1. Hashes"}],"url":"https://w3c.github.io/webcrypto/#dom-hashalgorithmidentifier"},
@@ -3296,6 +3302,7 @@ let dfnPanelData = {
 "f7b00a8b": {"dfnID":"f7b00a8b","dfnText":"header list (for response)","external":true,"refSections":[{"refs":[{"id":"ref-for-concept-response-header-list"}],"title":"3.4. Storing fetched resources"}],"url":"https://fetch.spec.whatwg.org/#concept-response-header-list"},
 "f8e97aa4": {"dfnID":"f8e97aa4","dfnText":"file system locator","external":true,"refSections":[{"refs":[{"id":"ref-for-file-system-locator"}],"title":"4. The Cross-Origin Storage file system"}],"url":"https://fs.spec.whatwg.org/#file-system-locator"},
 "f937b7b6": {"dfnID":"f937b7b6","dfnText":"continue","external":true,"refSections":[{"refs":[{"id":"ref-for-iteration-continue"}],"title":"3.5. Resource visibility upgrades"},{"refs":[{"id":"ref-for-iteration-continue\u2460"}],"title":"7. The Cross-Origin-Storage-Allow-Origin header"}],"url":"https://infra.spec.whatwg.org/#iteration-continue"},
+"f9da6f1f": {"dfnID":"f9da6f1f","dfnText":"Request","external":true,"refSections":[{"refs":[{"id":"ref-for-request"}],"title":"9. Integration with other specifications"}],"url":"https://fetch.spec.whatwg.org/#request"},
 "fb9bb722": {"dfnID":"fb9bb722","dfnText":"site","external":true,"refSections":[{"refs":[{"id":"ref-for-site"},{"id":"ref-for-site\u2460"},{"id":"ref-for-site\u2461"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-site\u2462"}],"title":"3.5. Resource visibility upgrades"}],"url":"https://html.spec.whatwg.org/multipage/browsers.html#site"},
 "fd83f0b6": {"dfnID":"fd83f0b6","dfnText":"service worker client","external":true,"refSections":[{"refs":[{"id":"ref-for-dfn-service-worker-client"}],"title":"6. Permissions Policy integration"}],"url":"https://w3c.github.io/ServiceWorker/#dfn-service-worker-client"},
 "feac4ab3": {"dfnID":"feac4ab3","dfnText":"same site","external":true,"refSections":[{"refs":[{"id":"ref-for-same-site"},{"id":"ref-for-same-site\u2460"},{"id":"ref-for-same-site\u2461"},{"id":"ref-for-same-site\u2462"},{"id":"ref-for-same-site\u2463"}],"title":"2.2. COS entries"},{"refs":[{"id":"ref-for-same-site\u2464"}],"title":"3. The CrossOriginStorageManager interface"},{"refs":[{"id":"ref-for-same-site\u2465"},{"id":"ref-for-same-site\u2466"}],"title":"3.1. The getFileHandle() method"},{"refs":[{"id":"ref-for-same-site\u2467"},{"id":"ref-for-same-site\u2468"},{"id":"ref-for-same-site\u2460\u24ea"},{"id":"ref-for-same-site\u2460\u2460"},{"id":"ref-for-same-site\u2460\u2461"},{"id":"ref-for-same-site\u2460\u2462"}],"title":"3.2. Reading files"},{"refs":[{"id":"ref-for-same-site\u2460\u2463"}],"title":"8.2. Cross-site probing"},{"refs":[{"id":"ref-for-same-site\u2460\u2464"}],"title":"8.4. Availability gating"},{"refs":[{"id":"ref-for-same-site\u2460\u2465"}],"title":"8.5. GREASE\u2019ing"}],"url":"https://html.spec.whatwg.org/multipage/browsers.html#same-site"},
@@ -3765,10 +3772,12 @@ let refsData = {
 "https://fetch.spec.whatwg.org/#concept-header-list": {"displayText":"header list","export":true,"for_":[],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"header list","type":"dfn","url":"https://fetch.spec.whatwg.org/#concept-header-list"},
 "https://fetch.spec.whatwg.org/#concept-header-list-get-decode-split": {"displayText":"get, decode, and split","export":true,"for_":["header list"],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"get, decode, and split","type":"dfn","url":"https://fetch.spec.whatwg.org/#concept-header-list-get-decode-split"},
 "https://fetch.spec.whatwg.org/#concept-internal-response": {"displayText":"internal response","export":true,"for_":["filtered response"],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"internal response","type":"dfn","url":"https://fetch.spec.whatwg.org/#concept-internal-response"},
+"https://fetch.spec.whatwg.org/#concept-request-method": {"displayText":"method","export":true,"for_":["request"],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"method","type":"dfn","url":"https://fetch.spec.whatwg.org/#concept-request-method"},
 "https://fetch.spec.whatwg.org/#concept-response": {"displayText":"response","export":true,"for_":[],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"response","type":"dfn","url":"https://fetch.spec.whatwg.org/#concept-response"},
 "https://fetch.spec.whatwg.org/#concept-response-header-list": {"displayText":"header list","export":true,"for_":["response"],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"header list","type":"dfn","url":"https://fetch.spec.whatwg.org/#concept-response-header-list"},
 "https://fetch.spec.whatwg.org/#dom-request-integrity": {"displayText":"integrity","export":true,"for_":["Request"],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"integrity","type":"attribute","url":"https://fetch.spec.whatwg.org/#dom-request-integrity"},
 "https://fetch.spec.whatwg.org/#dom-requestinit-integrity": {"displayText":"integrity","export":true,"for_":["RequestInit"],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"integrity","type":"dict-member","url":"https://fetch.spec.whatwg.org/#dom-requestinit-integrity"},
+"https://fetch.spec.whatwg.org/#request": {"displayText":"Request","export":true,"for_":[],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"Request","type":"interface","url":"https://fetch.spec.whatwg.org/#request"},
 "https://fetch.spec.whatwg.org/#requestinit": {"displayText":"RequestInit","export":true,"for_":[],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"RequestInit","type":"dictionary","url":"https://fetch.spec.whatwg.org/#requestinit"},
 "https://fetch.spec.whatwg.org/#response": {"displayText":"Response","export":true,"for_":[],"level":"1","normative":true,"shortname":"fetch","spec":"fetch","status":"current","text":"Response","type":"interface","url":"https://fetch.spec.whatwg.org/#response"},
 "https://fs.spec.whatwg.org/#creating-a-new-filesystemfilehandle": {"displayText":"creating a new FileSystemFileHandle","export":true,"for_":[],"level":"1","normative":true,"shortname":"fs","spec":"fs","status":"current","text":"creating a new filesystemfilehandle","type":"dfn","url":"https://fs.spec.whatwg.org/#creating-a-new-filesystemfilehandle"},
