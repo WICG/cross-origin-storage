@@ -77,7 +77,7 @@ New files:
 
 `CrossOriginStorageManager.idl` (mirrors `Libraries/LibWeb/StorageAPI/StorageManager.idl`):
 ```webidl
-[Exposed=(Window,Worker), SecureContext, Experimental]
+[Exposed=(Window,DedicatedWorker,SharedWorker), SecureContext, Experimental]
 interface CrossOriginStorageManager {
     Promise<FileSystemFileHandle> getFileHandle(
         CrossOriginStorageGetFileHandleHash hash,
@@ -99,7 +99,8 @@ dictionary CrossOriginStorageGetFileHandleOptions {
 ```webidl
 [SecureContext, Experimental]
 interface mixin NavigatorCrossOriginStorage {
-    [SameObject, SecureContext] readonly attribute CrossOriginStorageManager crossOriginStorage;
+    [Exposed=(Window,DedicatedWorker,SharedWorker), SameObject, SecureContext]
+    readonly attribute CrossOriginStorageManager crossOriginStorage;
 };
 ```
 
