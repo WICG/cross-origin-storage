@@ -693,6 +693,8 @@ const restricted = await fetch('https://acme-cdn.example/acme-inc-corporate.wasm
 
 Omitting `crossOriginStorage` while keeping `integrity` preserves today's behavior: the response is fetched and verified, and COS plays no part. This is why same-site scope is spelled as an empty string: `fetch()` has no `create: true` to carry the opt-in separately, so the member's presence is what opts the request into COS and its value is what scopes the result. The imperative API, which has `create: true`, expresses the same scope by omitting `origins`.
 
+`crossOriginStorage` only works with `GET` requests, which is the default `method`. A COS hit returns the stored bytes without sending the request to the server, so combining it with `POST`, `PUT`, or any other method would throw a `TypeError` up front, since those requests usually exist to send a body or change something on the server.
+
 > [!NOTE]
 > The list form is an array here, whereas the HTML attribute and the import attribute use a space-separated string and the CSS modifier a comma-separated list of `<string>`s. This is deliberate because a `RequestInit` member is an ordinary JavaScript value, so a `sequence<DOMString>` is the idiomatic spelling, and it matches the imperative `origins` option exactly, down to the IDL type. The three other surfaces have no such choice to make: HTML content attribute values are text, import attribute values are [currently restricted to strings by TC39](https://github.com/tc39/proposal-import-attributes#should-more-than-just-strings-be-supported-as-attribute-values), and CSS has no array type, so each takes the closest list syntax its host already provides. All four resolve to the same `origins` value space.
 
