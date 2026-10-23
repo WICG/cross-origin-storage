@@ -107,7 +107,7 @@ Chromium prototype, behind the `CrossOriginStorage` feature. Manifest V3 and lat
 
 **Entries.** An entry is a file in COS, identified by its algorithm and hash. It records which origins stored it, which origins it was shared with, and which origins have read it. One entry can serve many sites, so removing it removes it for every origin that stored it.
 
-**Paging.** `getEntries()` returns one page at a time, ordered by algorithm and hash. To list every entry, pass each page's `nextPageToken` as the next call's `pageToken` until a page comes back without one.
+**Paging.** `getEntries()` returns one page at a time, ordered by algorithm and hash. COS is shared by every site in the profile, so a full store can hold thousands of entries, from AI model shards to small scripts, fonts, and images, each with its lists of origins. Paging keeps each response small enough to transfer and render quickly. A page token names the last entry of the previous page, so listing stays consistent while entries are stored or removed between calls. To list every entry, pass each page's `nextPageToken` as the next call's `pageToken` until a page comes back without one.
 
 **Changes.** `onChanged` fires after entries are stored, read, or removed. It carries no details, and bursts of changes are coalesced into one event, so re-read the entries when it fires.
 
