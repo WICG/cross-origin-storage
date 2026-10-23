@@ -261,7 +261,7 @@ list's retrieval mechanism, governance model, or the rest of that design evolves
 # The {{CrossOriginStorageManager}} interface # {#the-crossoriginstoragemanager-interface}
 
 <xmp class="idl">
-[Exposed=(Window,Worker), SecureContext]
+[Exposed=(Window,DedicatedWorker,SharedWorker), SecureContext]
 interface CrossOriginStorageManager {
   Promise<FileSystemFileHandle> getFileHandle(
       CrossOriginStorageGetFileHandleHash hash,
@@ -279,7 +279,8 @@ dictionary CrossOriginStorageGetFileHandleOptions {
 };
 
 interface mixin NavigatorCrossOriginStorage {
-  [SameObject, SecureContext] readonly attribute CrossOriginStorageManager crossOriginStorage;
+  [Exposed=(Window,DedicatedWorker,SharedWorker), SameObject, SecureContext]
+  readonly attribute CrossOriginStorageManager crossOriginStorage;
 };
 Navigator includes NavigatorCrossOriginStorage;
 WorkerNavigator includes NavigatorCrossOriginStorage;
@@ -1168,8 +1169,9 @@ opt-out in name only. A worker created from a `blob:` URL runs in its creating p
 `new Worker(URL.createObjectURL(&hellip;))` would escape a `cross-origin-storage=()` policy
 without changing anything else about it.
 
-Note: A {{ServiceWorkerGlobalScope}}'s [=WorkerGlobalScope/owner set=] is empty, so this
-algorithm returns false there. That follows from what an [=WorkerGlobalScope/owner set=] is: a
+Note: {{CrossOriginStorageManager}} is not exposed on {{ServiceWorkerGlobalScope}}. Were it
+exposed, this algorithm would return false there anyway, since a {{ServiceWorkerGlobalScope}}'s
+[=WorkerGlobalScope/owner set=] is empty. That follows from what an [=WorkerGlobalScope/owner set=] is: a
 liveness relation, populated when a worker is created and consulted to decide whether that worker
 is still actively needed. A service worker deliberately has no such relation to any {{Document}}:
 its registration is persisted, the user agent starts the global in response to events, and it can
@@ -1185,7 +1187,7 @@ this specification would favor is to derive a service worker's policy from the
 already carries that response's CSP: it stays under the origin's control, and it is
 re-evaluated on every update check. Snapshotting the registering client's policy would make the opt-out stale, since removing the feature
 from a header would not take effect until the registration happened to update. Until such a
-model exists, failing closed is the one answer that cannot be used to escape an opt-out. Also see
+model exists, leaving the API unexposed in service workers is the one answer that cannot be used to escape an opt-out. Also see
 <a href="https://github.com/explainers-by-googlers/workers-permissions-policy/issues/4">explainers-by-googlers/workers-permissions-policy#4</a>.
 
 Note: A {{SharedWorkerGlobalScope}}'s [=WorkerGlobalScope/owner set=] can hold several

@@ -780,7 +780,7 @@ A `CrossOriginStorageManager` uses the origin of its context. For a worker, that
 
 - **Workers created from a `blob:` URL** have the origin of the context that created them and share that page's COS view: each reads what the other stored, and the worker's writes count as the page's own. Revoking the `blob:` URL does not change this.
 - **Workers created from a `data:` URL** have an opaque origin, which has no stable identity to key storing origins or same-site checks on. This proposal does not yet define what `getFileHandle()` does for an opaque calling origin; the origin rule in "validate a COS request" covers only the origins a caller names in `origins`. Implementations should at minimum reject such calls promptly, so the returned promise never stays pending.
-- **Service workers** cannot use COS for now; see below.
+- **Service workers** do not expose `navigator.crossOriginStorage` for now; see below.
 
 The Permissions Policy check applies to the calling global. A dedicated or shared worker may use COS only if every document in its owner set may, resolved transitively through any intervening workers, so `Permissions-Policy: cross-origin-storage=()` also covers calls moved into `new Worker(URL.createObjectURL(blob))`. A service worker has no owner set: its registration persists, and the browser starts it in response to events, often with no client open. Supporting service workers needs a policy captured from their own script response, most plausibly a `Permissions-Policy` header, which is work for the Permissions Policy and Service Workers specifications. Also see [explainers-by-googlers/workers-permissions-policy#4](https://github.com/explainers-by-googlers/workers-permissions-policy/issues/4).
 
@@ -1036,7 +1036,7 @@ Copied from the [formal spec](https://wicg.github.io/cross-origin-storage/) on e
 <!-- IDL -->
 
 ```webidl
-[Exposed=(Window,Worker), SecureContext]
+[Exposed=(Window,DedicatedWorker,SharedWorker), SecureContext]
 interface CrossOriginStorageManager {
   Promise<FileSystemFileHandle> getFileHandle(
       CrossOriginStorageGetFileHandleHash hash,
@@ -1054,7 +1054,8 @@ dictionary CrossOriginStorageGetFileHandleOptions {
 };
 
 interface mixin NavigatorCrossOriginStorage {
-  [SameObject, SecureContext] readonly attribute CrossOriginStorageManager crossOriginStorage;
+  [Exposed=(Window,DedicatedWorker,SharedWorker), SameObject, SecureContext]
+  readonly attribute CrossOriginStorageManager crossOriginStorage;
 };
 Navigator includes NavigatorCrossOriginStorage;
 WorkerNavigator includes NavigatorCrossOriginStorage;
