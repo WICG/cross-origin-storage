@@ -35,7 +35,9 @@ export async function run() {
   try {
     const { data } = await axios.get(REPORT_URL, {
       responseType: 'text',
-      timeout: 30000,
+      // The report is about 30 MB and growing, and the timeout covers the
+      // whole download; on the CI runner it has taken around 30s.
+      timeout: 180000,
     });
     entries = parse(data, { columns: true, skip_empty_lines: true });
   } catch (err) {
