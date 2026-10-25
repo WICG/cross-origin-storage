@@ -2,7 +2,7 @@ key,tag,sha256,idle
 https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",b294e973896f8f874e90a8eb1a8908ac790980d034c4c4bdf0fc3d37b8abf682,0
 https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",540bc6dec1dd4b92ea4d3fb903f69eabf6d919afd48f4e312b163c28cff0f441,0
 https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",aec3d419d50f05781a96f223e18289aeb52598b5db39be82a7b71dc67d6a7947,0
-https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",668b046d12db350ccba6728890476b3efee53b2f42dbb84743e5e9f1ae0cc404,0
+https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",668b046d12db350ccba6728890476b3efee53b2f42dbb84743e5e9f1ae0cc404,1
 https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",c12f6098e641aaca96c60215800f18f5671039aecf812217fab3c0d152f6adb4,0
 https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js,"Tue, 03 Mar 2020 19:15:00 GMT",160a426ff2894252cd7cebbdd6d6b7da8fcd319c65b70468f10b6690c45d02ef,0
 https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js,"Mon, 13 May 2019 14:37:17 GMT",0925e8ad7bd971391a8b1e98be8e87a6971919eb5b60c196485941c3c1df089a,0
@@ -12,7 +12,7 @@ https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js,"Tue, 12 Sep 20
 https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js,"Tue, 03 Mar 2020 19:15:00 GMT",81016ac6be850b72df5d4faa0c3cec8e2c1b0ba0045712144a6766adfad40bee,0
 https://assets.squarespace.com/@sqs/polyfiller/1.6/modern.js,"""fe0d53a94823df972dbf107bf190771a""",54e832663426c696b1f603379026e5e15720e8c812bbbc60d63aa2ad8a479f75,0
 https://assets.squarespace.com/universal/styles-compressed/commerce-d50e5960dc9fd059-min.en-US.css,"""cf179491c315c65afc0109937e168bc4""",6c5b868d0b0d6d8a650edcc31bd0127627d8280526f698f3733bc61bba91b5f7,0
-https://assets.squarespace.com/universal/styles-compressed/e237edef00ae5990-min.en-US.css,"""cc1a27718cf982ed6d1025e75c82d6dc""",b6df9ebd6ca8551a6c2caeda7c0801e9ca8249c3d2f19ac942f7235f4cd8f132,0
+https://assets.squarespace.com/universal/styles-compressed/e237edef00ae5990-min.en-US.css,"""33e9e4e846dab6b7661988c936471c9b""",b6df9ebd6ca8551a6c2caeda7c0801e9ca8249c3d2f19ac942f7235f4cd8f132,0
 https://assets.squarespace.com/universal/styles-compressed/popup-overlay-b742b752f5880972-min.en-US.css,"""504a68a03204f5482f03a43a8f326ee2""",3e94b694b0efc60e31fb14f9d37ba0d39dc282d27b713bf42f2e85b9d62afac5,0
 https://browser.sentry-cdn.com/7.120.3/bundle.tracing.es5.min.js,"""3dba122fff59f2079b3877b077a5c7c7""",d8f9a87c8d341033fd155386d74ca3104447edc1f81bfe3f3d9056ac6924c3b0,0
 https://browser.sentry-cdn.com/7.120.3/modulemetadata.es5.min.js,"""ccf0e1db3811d44808d97a63c7a72d1f""",3c9d035f17872f6a5972090b296a9f93e287a72313b1a8081250bee37299cc6e,0
@@ -56,8 +56,8 @@ https://static.parastorage.com/unpkg/react@16.14.0/umd/react.production.min.js,"
 https://static.parastorage.com/unpkg/react@18.3.1/umd/react.production.min.js,"W/""e91b2616629791b375867c298dc846cc""",d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd,0
 https://static.parastorage.com/unpkg/requirejs-bolt@2.3.6/requirejs.min.js,"W/""18823f6a6d208ee1e361bb266ab794d5""",d5f10f852b112a514a19f2b778eef5d2d1307878757f0a24539c051831cefaf8,0
 https://static.xx.fbcdn.net/rsrc.php/v4/yt/r/e0qnL2dG90H.js,"Mon, 01 Jan 2001 08:00:00 GMT",7638bd9c06c31aa2bb1f20e7ae33864cafbe8225533540339bde179f968c5719,0
-https://unpkg.com/aos@2.3.1/dist/aos.css,"Wed, 21 Oct 2026 11:36:52 GMT",1aa8845fd06e475aefe733d4e55b36a92fcd487975049c8172341827ac9cc03e,0
-https://unpkg.com/aos@2.3.1/dist/aos.js,"Mon, 19 Oct 2026 19:12:38 GMT",f268612ba59ead1b24353bb77d66783bcc435aff1c22be5f93c40bac3869968e,0
-https://www.blogger.com/static/v1/v-css/828616780-lightbox_bundle.css,"Sat, 24 Oct 2026 14:12:46 GMT",2ec4dd4029f6eda33351ada7fee8531878022ab400e80995b5cc0560d03500ae,0
-https://www.blogger.com/static/v1/widgets/3772415480-widget_css_mobile_2_bundle.css,"Sat, 24 Oct 2026 14:12:46 GMT",d9bf7f2b226b35b28c844d8afe3f161c7e3e2f559e8ca84bd128ecaadc5709a9,0
+https://unpkg.com/aos@2.3.1/dist/aos.css,"Sun, 18 Oct 2026 04:32:02 GMT",1aa8845fd06e475aefe733d4e55b36a92fcd487975049c8172341827ac9cc03e,0
+https://unpkg.com/aos@2.3.1/dist/aos.js,"Thu, 22 Oct 2026 05:04:10 GMT",f268612ba59ead1b24353bb77d66783bcc435aff1c22be5f93c40bac3869968e,0
+https://www.blogger.com/static/v1/v-css/828616780-lightbox_bundle.css,"Sat, 24 Oct 2026 09:11:19 GMT",2ec4dd4029f6eda33351ada7fee8531878022ab400e80995b5cc0560d03500ae,0
+https://www.blogger.com/static/v1/widgets/3772415480-widget_css_mobile_2_bundle.css,"Sun, 25 Oct 2026 06:51:12 GMT",d9bf7f2b226b35b28c844d8afe3f161c7e3e2f559e8ca84bd128ecaadc5709a9,0
 https://www.google.com/cse/static/style/look/v6/default.css,"Tue, 07 Apr 2026 15:00:00 GMT",77010a2029619300c9bf102c05c3f94fe1308d4f464681aec69d7c09b2524f8a,0
