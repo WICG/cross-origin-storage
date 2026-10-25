@@ -621,9 +621,8 @@ So each downloading source keeps a cache under [`hash-cache/`](hash-cache), one
 file per source, as `key,tag,sha256,idle` sorted by key. The files are committed
 as plain text, which is what makes them useful: the weekly workflow starts warm
 and skips re-fetching unchanged files, and a rebuilt cache diffs as just the
-rows that actually changed. They sit outside `data/`, which the pipeline wipes
-at the start of every run and which Git LFS tracks. Deleting one forces that
-source to rehash from scratch.
+rows that actually changed. They sit outside `data/`, which Git LFS tracks.
+Deleting one forces that source to rehash from scratch.
 
 What varies between sources is how much the key alone proves.
 
@@ -672,7 +671,10 @@ cp .env.example .env   # then fill in your keys
 | `HF_TOKEN` _(optional)_ | `npm run huggingface` | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens); a **Read** token is enough |
 
 Sources without an API key in `.env` are skipped gracefully with a log
-message; they do not abort the full pipeline.
+message; they do not abort the full pipeline. A skipped source, whether for a
+missing key or a failed fetch, keeps its CSV from the previous run, and the
+pipeline reads that back into the list, so a transient outage does not drop the
+source from the PHL.
 
 `HF_TOKEN` is the one optional entry: the model-hub source runs without it, but
 the Hub rate-limits anonymous traffic per IP and this source makes one request

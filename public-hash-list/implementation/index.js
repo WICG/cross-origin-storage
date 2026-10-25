@@ -8,43 +8,51 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
+import { parse } from 'csv-parse/sync';
 import { groupRecords, formatHashList } from './shared.js';
-import { run as runChromium } from './chromium-pervasive.js';
-import { run as runCdnjs } from './cdnjs.js';
-import { run as runGoogle } from './google-hosted-libraries.js';
-import { run as runGoogleMaps } from './google-maps.js';
-import { run as runJsdelivr } from './jsdelivr.js';
-import { run as runMicrosoft } from './microsoft-ajax.js';
-import { run as runNpmPopular } from './npm-popular.js';
-import { run as runYouTube } from './youtube-player.js';
-import { run as runGoogleFonts } from './google-fonts.js';
-import { run as runHuggingFace } from './huggingface.js';
-import { run as runHttpArchive } from './http-archive.js';
-import { run as runNuxtCos } from './nuxt-cos.js';
-import { run as runManual } from './manual.js';
+import { run as runChromium, OUTPUT_CSV as csvChromium } from './chromium-pervasive.js';
+import { run as runCdnjs, OUTPUT_CSV as csvCdnjs } from './cdnjs.js';
+import { run as runGoogle, OUTPUT_CSV as csvGoogle } from './google-hosted-libraries.js';
+import { run as runGoogleMaps, OUTPUT_CSV as csvGoogleMaps } from './google-maps.js';
+import { run as runJsdelivr, OUTPUT_CSV as csvJsdelivr } from './jsdelivr.js';
+import { run as runMicrosoft, OUTPUT_CSV as csvMicrosoft } from './microsoft-ajax.js';
+import { run as runNpmPopular, OUTPUT_CSV as csvNpmPopular } from './npm-popular.js';
+import { run as runYouTube, OUTPUT_CSV as csvYouTube } from './youtube-player.js';
+import { run as runGoogleFonts, OUTPUT_CSV as csvGoogleFonts } from './google-fonts.js';
+import { run as runHuggingFace, OUTPUT_CSV as csvHuggingFace } from './huggingface.js';
+import { run as runHttpArchive, OUTPUT_CSV as csvHttpArchive } from './http-archive.js';
+import { run as runNuxtCos, OUTPUT_CSV as csvNuxtCos } from './nuxt-cos.js';
+import { run as runManual, OUTPUT_CSV as csvManual } from './manual.js';
 
 const OUTPUT_DAT = 'data/public-hash-list.dat'; // canonical PHL output
 const OUTPUT_SHA256 = 'data/public-hash-list.dat.sha256'; // integrity file for the above
 
 // Core (objective, popularity-based) sources and the optional model-hub source.
 const CORE_SOURCES = [
-  ['google-hosted-libraries', runGoogle],
-  ['microsoft-ajax', runMicrosoft],
-  ['cdnjs', runCdnjs],
-  ['jsdelivr', runJsdelivr],
-  ['npm-popular', runNpmPopular],
-  ['chromium-pervasive', runChromium],
-  ['youtube-player', runYouTube],
-  ['google-maps', runGoogleMaps],
-  ['google-fonts', runGoogleFonts],
-  ['http-archive', runHttpArchive],
-  ['nuxt-cos', runNuxtCos],
+  ['google-hosted-libraries', runGoogle, csvGoogle],
+  ['microsoft-ajax', runMicrosoft, csvMicrosoft],
+  ['cdnjs', runCdnjs, csvCdnjs],
+  ['jsdelivr', runJsdelivr, csvJsdelivr],
+  ['npm-popular', runNpmPopular, csvNpmPopular],
+  ['chromium-pervasive', runChromium, csvChromium],
+  ['youtube-player', runYouTube, csvYouTube],
+  ['google-maps', runGoogleMaps, csvGoogleMaps],
+  ['google-fonts', runGoogleFonts, csvGoogleFonts],
+  ['http-archive', runHttpArchive, csvHttpArchive],
+  ['nuxt-cos', runNuxtCos, csvNuxtCos],
 ];
-const HUGGING_FACE_SOURCE = ['huggingface', runHuggingFace];
-const MANUAL_SOURCE = ['manual', runManual];
+const HUGGING_FACE_SOURCE = ['huggingface', runHuggingFace, csvHuggingFace];
+const MANUAL_SOURCE = ['manual', runManual, csvManual];
 
-async function collect([source, run]) {
-  const records = await run();
+// A source that comes back empty was skipped (a missing API key, a registry or
+// network failure) and has left its CSV from the previous run in place. Read
+// that back, so one failed fetch does not drop the source from the list.
+async function collect([source, run, csv]) {
+  let records = await run();
+  if (!records.length && fs.existsSync(csv)) {
+    records = parse(fs.readFileSync(csv), { columns: true, skip_empty_lines: true });
+    console.log(`[${source}] Keeping ${records.length} records from the previous '${csv}'.`);
+  }
   return records.map((r) => ({ ...r, source }));
 }
 
@@ -57,8 +65,14 @@ function commitId() {
 }
 
 async function main() {
-  fs.rmSync('data', { recursive: true, force: true });
+  // Each source overwrites its own CSV, so `data/` is kept between runs. Only
+  // files no current source writes are removed.
+  const sources = [...CORE_SOURCES, HUGGING_FACE_SOURCE, MANUAL_SOURCE];
+  const keep = new Set([OUTPUT_DAT, OUTPUT_SHA256, ...sources.map(([, , csv]) => csv)]);
   fs.mkdirSync('data', { recursive: true });
+  for (const file of fs.readdirSync('data')) {
+    if (!keep.has(`data/${file}`)) fs.rmSync(path.join('data', file), { recursive: true, force: true });
+  }
 
   const coreTagged = (await Promise.all(CORE_SOURCES.map(collect))).flat();
   const hfTagged = await collect(HUGGING_FACE_SOURCE);
