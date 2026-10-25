@@ -46,9 +46,16 @@ const MANUAL_SOURCE = ['manual', runManual, csvManual];
 
 // A source that comes back empty was skipped (a missing API key, a registry or
 // network failure) and has left its CSV from the previous run in place. Read
-// that back, so one failed fetch does not drop the source from the list.
+// that back, so one failed fetch does not drop the source from the list. A
+// source that throws is treated the same way, so it cannot abort the others.
 async function collect([source, run, csv]) {
-  let records = await run();
+  let records;
+  try {
+    records = await run();
+  } catch (err) {
+    console.log(`[${source}] FAILED: ${err.message}`);
+    records = [];
+  }
   if (!records.length && fs.existsSync(csv)) {
     records = parse(fs.readFileSync(csv), { columns: true, skip_empty_lines: true });
     console.log(`[${source}] Keeping ${records.length} records from the previous '${csv}'.`);
