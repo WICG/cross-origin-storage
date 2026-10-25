@@ -32,20 +32,34 @@ import { writeHashCsv } from './shared.js';
 //
 // What pins the recipe
 // --------------------
-// The plugin embeds a `RECIPE` constant (currently `cos1`) in every specifier,
-// but the constant alone does NOT capture everything: the emitted bytes also
-// depend on the exact rolldown/oxc minifier build, whose whitespace choices
-// differ between releases. Empirically, `vue@3.5.39` under rolldown 1.1.0,
-// 1.1.4 and 1.2.0 all produce *different*, same-length chunks. This is not a
-// problem here only because every published plugin version pins rolldown to an
-// exact version (`"rolldown": "1.2.0"`, no range), so
+// Two separate versions are involved. `cos1` in every specifier is the
+// *specifier format* version; it changes only if the meaning of a specifier
+// does. The *build recipe* is a number of its own: from 2.1.0 the plugin
+// exports `RECIPE` (starting at `1`) and records it as `recipe` in every COS
+// manifest. It covers the rolldown version and options that decide a chunk's
+// bytes, goes up whenever the chunks emitted for the same source change, and
+// only in a minor release; the plugin's CI fails if the bytes change without a
+// bump.
+//
+// The emitted bytes depend on the exact rolldown/oxc minifier build: even
+// rolldown patches change minifier whitespace (`vue@3.5.39` under rolldown
+// 1.1.0, 1.1.4 and 1.2.0 yields three different chunks). That is tractable
+// only because every published plugin version pins rolldown to an exact
+// version (no range) and the plugin requires approval for rolldown bumps, so
 //
 //   (plugin version, package version) → chunk hash
 //
-// is a total, reproducible function. Enumerating published plugin versions is
-// therefore enough to cover the recipes real sites can be shipping, and a new
-// plugin release is picked up automatically on the next weekly run — which
-// reports it, via the `--check-recipes` mode at the bottom of this file.
+// is a total, reproducible function.
+//
+// Releases are grouped into recipes by *identical output*: each release is
+// built once against a probe `vue` version, and releases whose chunks are
+// byte-identical share one recipe, built in full once. The manifest's `recipe`
+// number is recorded and cross-checked, but not trusted for grouping, so the
+// grouping also covers releases from before the field existed. Coverage is
+// then the most recent N recipes rather than releases, so a release that
+// changes no bytes does not push an older, still-shipping recipe off the
+// list. A new plugin release is picked up on the next weekly run and reported
+// via the `--check-recipes` mode at the bottom of this file.
 //
 // Registry APIs used:
 //   https://registry.npmjs.org/nuxt-cos
@@ -89,9 +103,10 @@ const MIN_PLUGIN_VERSION = '2.0.3';
 // which is the opposite of the ubiquity the PHL is gating on.
 const MANAGED_PACKAGES = '[/^(?:vue$|@vue\\/)/]';
 
-// Most recent N releases of each, newest first. The product of the two is the
-// number of builds a run performs, so the defaults are chosen to keep the full
-// pipeline within its CI budget. Raising them via the env vars widens coverage
+// Most recent N recipes (groups of byte-identical plugin releases) and N `vue`
+// releases, newest first. The product of the two is roughly the number of
+// builds a run performs (plus one probe build per plugin release examined), so
+// the defaults are chosen to keep the full pipeline within its CI budget. Raising them via the env vars widens coverage
 // backwards in time; both workflows deliberately use the defaults, because a
 // narrower run would otherwise shrink the committed CSV a wider one produced.
 const MAX_RECIPES = Number(process.env.NUXT_COS_MAX_RECIPES ?? 4);
@@ -154,13 +169,13 @@ function compareVersions(a, b) {
 
 const isStable = (v) => /^\d+\.\d+\.\d+$/.test(v);
 
-// --- recipe + version discovery ---------------------------------------------
+// --- release + version discovery --------------------------------------------
 
-// A recipe is one published plugin version. It carries the rolldown version it
-// pins (the thing that actually decides the emitted bytes) and the nuxt-cos
-// releases that depend on it, so the provenance record answers "which module
-// version would have shipped this hash?".
-async function getRecipes() {
+// Every reproducible plugin release in scope, newest first. Each carries the
+// rolldown version it pins and the nuxt-cos releases that depend on it, so the
+// provenance record answers "which module version would have shipped this
+// hash?". Releases are grouped into recipes later, by what they emit.
+async function getReleases() {
   const [plugin, module_] = await Promise.all([
     packument(PLUGIN_PKG),
     packument(MODULE_PKG).catch(() => ({ versions: {} })),
@@ -198,7 +213,7 @@ async function getRecipes() {
   }
 
   recipes.sort((a, b) => compareVersions(b.plugin, a.plugin));
-  return recipes.slice(0, MAX_RECIPES);
+  return recipes;
 }
 
 // Vue releases the whole `@vue/*` family in lockstep with exact interdependency
@@ -297,7 +312,8 @@ function extractManifest(html) {
   return null;
 }
 
-// Build one (plugin version, vue version) pair and return its chunk records.
+// Build one (plugin version, vue version) pair and return its chunk records,
+// plus the build recipe number the manifest declares (null before 2.1.0).
 function buildOnce(dir, recipe, vueVersion) {
   writeManifestJson(dir, {
     vite: recipe.viteRange,
@@ -317,6 +333,8 @@ function buildOnce(dir, recipe, vueVersion) {
   if (!manifest?.chunks) {
     throw new Error('the build emitted no COS manifest');
   }
+  // Recorded from 2.1.0 on; absent (null) before that.
+  const recipeNumber = Number.isInteger(manifest.recipe) ? manifest.recipe : null;
 
   const assetsDir = (manifest.base ?? '/assets/').replace(/^\/+/, '');
   const records = [];
@@ -353,7 +371,89 @@ function buildOnce(dir, recipe, vueVersion) {
     });
   }
 
-  return records;
+  return { records, recipeNumber };
+}
+
+// --- recipe grouping ---------------------------------------------------------
+
+// Group releases (newest first) into recipes by building each once against the
+// same probe `vue` version and comparing the resulting chunk hashes. Releases
+// with byte-identical output form one recipe, represented by its newest
+// release. Stops once `MAX_RECIPES` distinct recipes are found, so only the
+// oldest kept recipe may list fewer releases than actually share it.
+//
+// One probe version is a fingerprint, not a proof: two releases could in
+// principle agree on it and differ on another `vue` version. A change to the
+// build recipe changes every chunk it emits, so in practice it shows up on any
+// probe, and the manifest's `recipe` number is cross-checked below.
+function groupRecipes(root, releases, probeVue) {
+  const groups = [];
+  const byFingerprint = new Map();
+
+  for (const release of releases) {
+    if (groups.length >= MAX_RECIPES) break;
+
+    const dir = path.join(root, `plugin-${release.plugin}`);
+    scaffold(dir);
+    let probe;
+    try {
+      probe = buildOnce(dir, release, probeVue);
+    } catch (err) {
+      console.log(
+        `[nuxt-cos] OMITTED ${PLUGIN_PKG}@${release.plugin}: probe build with ` +
+          `${SOURCE_PKG}@${probeVue} failed (${err.message.split('\n')[0]}).`
+      );
+      fs.rmSync(dir, { recursive: true, force: true });
+      continue;
+    }
+
+    const fingerprint = [...new Set(probe.records.map((r) => r.sha256))].sort().join(',');
+    const existing = byFingerprint.get(fingerprint);
+    if (existing) {
+      existing.plugins.push(release.plugin);
+      existing.nuxtCos = [...new Set([...existing.nuxtCos, ...release.nuxtCos])].sort(compareVersions);
+      if (existing.recipe !== probe.recipeNumber && probe.recipeNumber !== null && existing.recipe !== null) {
+        // Harmless for the list (same bytes, same hashes), but worth seeing:
+        // the recipe number went up without the output changing.
+        console.log(
+          `[nuxt-cos] NOTE ${PLUGIN_PKG}@${release.plugin} declares recipe ` +
+            `${probe.recipeNumber} but emits the same bytes as recipe ${existing.recipe}.`
+        );
+      }
+      existing.recipe ??= probe.recipeNumber;
+      fs.rmSync(dir, { recursive: true, force: true });
+      continue;
+    }
+
+    const group = {
+      ...release,
+      recipe: probe.recipeNumber,
+      plugins: [release.plugin],
+      dir,
+      probeVue,
+      probeRecords: probe.records,
+    };
+    byFingerprint.set(fingerprint, group);
+    groups.push(group);
+  }
+
+  // Different bytes under the same declared recipe number is the case the
+  // plugin's own CI is meant to prevent; say so loudly if it ever happens.
+  const seenNumbers = new Map();
+  for (const g of groups) {
+    if (g.recipe === null) continue;
+    const prev = seenNumbers.get(g.recipe);
+    if (prev) {
+      console.log(
+        `[nuxt-cos] WARNING ${PLUGIN_PKG}@${g.plugin} and @${prev.plugin} both ` +
+          `declare recipe ${g.recipe} but emit different bytes.`
+      );
+    } else {
+      seenNumbers.set(g.recipe, g);
+    }
+  }
+
+  return groups;
 }
 
 // --- optional Nuxt conformance check ----------------------------------------
@@ -415,45 +515,56 @@ function nuxtCheck(root, recipe, vueVersion, covered) {
 // --- main --------------------------------------------------------------------
 
 export async function run() {
-  let recipes;
+  let releases;
   let vueVersions;
   try {
-    [recipes, vueVersions] = await Promise.all([getRecipes(), getSourceVersions()]);
+    [releases, vueVersions] = await Promise.all([getReleases(), getSourceVersions()]);
   } catch (err) {
     console.log(`[nuxt-cos] SKIP: registry lookup failed (${err.message}).`);
     return [];
   }
 
-  if (!recipes.length) {
+  if (!releases.length || !vueVersions.length) {
     console.log(`[nuxt-cos] SKIP: no reproducible ${PLUGIN_PKG} release found.`);
     return [];
-  }
-
-  console.log(
-    `[nuxt-cos] ${recipes.length} build ${recipes.length === 1 ? 'recipe' : 'recipes'} × ` +
-      `${vueVersions.length} ${SOURCE_PKG} versions:`
-  );
-  for (const r of recipes) {
-    console.log(
-      `[nuxt-cos]   ${PLUGIN_PKG}@${r.plugin} (rolldown ${r.rolldown})` +
-        (r.nuxtCos.length ? ` ← ${MODULE_PKG}@${r.nuxtCos.join(', ')}` : '')
-    );
   }
 
   const previous = readExistingHashes();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'phl-nuxt-cos-'));
   const records = [];
+  let recipes = [];
 
   try {
+    recipes = groupRecipes(root, releases, vueVersions[0]);
+    if (!recipes.length) {
+      console.log('[nuxt-cos] SKIP: no plugin release built successfully; leaving existing output untouched.');
+      return [];
+    }
+
+    console.log(
+      `[nuxt-cos] ${recipes.length} build ${recipes.length === 1 ? 'recipe' : 'recipes'} × ` +
+        `${vueVersions.length} ${SOURCE_PKG} versions:`
+    );
+    for (const r of recipes) {
+      console.log(
+        `[nuxt-cos]   recipe ${r.recipe ?? '(unnumbered)'}: ${PLUGIN_PKG}@${r.plugins.join(', ')} ` +
+          `(rolldown ${r.rolldown})` +
+          (r.nuxtCos.length ? ` ← ${MODULE_PKG}@${r.nuxtCos.join(', ')}` : '')
+      );
+    }
+
     for (const recipe of recipes) {
-      const dir = path.join(root, `plugin-${recipe.plugin}`);
-      scaffold(dir);
+      const dir = recipe.dir;
       const hashes = new Set();
 
       for (const vueVersion of vueVersions) {
         let built;
         try {
-          built = buildOnce(dir, recipe, vueVersion);
+          // The probe build already covered this cell; reuse it.
+          built =
+            vueVersion === recipe.probeVue
+              ? recipe.probeRecords
+              : buildOnce(dir, recipe, vueVersion).records;
         } catch (err) {
           console.log(
             `[nuxt-cos] OMITTED ${PLUGIN_PKG}@${recipe.plugin} × ${SOURCE_PKG}@${vueVersion}: ` +
@@ -480,10 +591,10 @@ export async function run() {
     fs.rmSync(root, { recursive: true, force: true });
   }
 
-  // Recipes that pin the same rolldown and share the relevant plugin code emit
-  // byte-identical chunks, so the same (hash, url) pair can arrive once per
-  // recipe. Collapse them — which recipe emitted a hash is not something the
-  // PHL carries. (No-op while only one release is in scope.)
+  // Recipes differ on the probe `vue` version by construction, but a chunk that
+  // the recipe change did not touch (or two `vue` versions with an identical
+  // package) can still yield the same (hash, url) pair more than once. Collapse
+  // them; which recipe emitted a hash is not something the PHL carries.
   const seen = new Set();
   const rows = records.filter(({ sha256, url }) => {
     const key = `${sha256},${url}`;
@@ -518,8 +629,13 @@ export async function run() {
     `${JSON.stringify(
       {
         source: 'https://github.com/danielroe/cross-origin-storage',
-        recipes: recipes.map(({ plugin, rolldown, vite, nuxtCos, chunkCount }) => ({
+        // One entry per recipe: `plugin` is the release it was built with (the
+        // newest in the group), `plugins` every release found to emit the same
+        // bytes, `recipe` the number the manifest declares (null before 2.1.0).
+        recipes: recipes.map(({ recipe, plugin, plugins, rolldown, vite, nuxtCos, chunkCount }) => ({
+          recipe,
           plugin,
+          plugins,
           rolldown,
           vite,
           nuxtCos,
@@ -569,28 +685,33 @@ function readExistingHashes() {
 // --- recipe drift check (`--check-recipes`) ----------------------------------
 
 // Cheap "is a rebuild warranted?" probe for the notification workflow: compares
-// the recipes the registry offers today against the ones the committed
-// provenance file was built from. A new plugin release changes every chunk it
-// emits, so this is the signal that new hashes exist — and it costs two
-// registry requests instead of a full matrix rebuild.
+// the plugin releases the registry offers today against the ones the committed
+// provenance file was built from. A release newer than everything covered may
+// carry a new recipe, so this is the signal that new hashes may exist, and it
+// costs two registry requests instead of a full matrix rebuild. Whether the
+// release actually changed any bytes is only known after the rebuild, which
+// groups it with an existing recipe if not.
 async function checkRecipes() {
-  const recipes = await getRecipes();
-  const discovered = recipes.map((r) => r.plugin);
+  const discovered = (await getReleases()).map((r) => r.plugin);
 
   let covered = [];
   try {
-    covered = (JSON.parse(fs.readFileSync(OUTPUT_RELEASES, 'utf8')).recipes ?? []).map(
-      (r) => r.plugin
+    covered = (JSON.parse(fs.readFileSync(OUTPUT_RELEASES, 'utf8')).recipes ?? []).flatMap(
+      (r) => r.plugins ?? [r.plugin]
     );
   } catch {
-    console.log(`[nuxt-cos] No '${OUTPUT_RELEASES}' yet — treating every recipe as new.`);
+    console.log(`[nuxt-cos] No '${OUTPUT_RELEASES}' yet — treating every release as new.`);
   }
 
-  const added = discovered.filter((v) => !covered.includes(v));
+  // Only releases newer than the newest covered one count as new. Older ones
+  // that fall outside the covered recipes are dropped on purpose, and would
+  // otherwise be reported on every run.
+  const newest = covered.slice().sort(compareVersions).at(-1);
+  const added = discovered.filter((v) => !newest || compareVersions(v, newest) > 0);
   const changed = added.length > 0;
 
-  console.log(`[nuxt-cos] Published recipes: ${discovered.join(', ') || '(none)'}`);
-  console.log(`[nuxt-cos] Covered recipes:   ${covered.join(', ') || '(none)'}`);
+  console.log(`[nuxt-cos] Published releases: ${discovered.join(', ') || '(none)'}`);
+  console.log(`[nuxt-cos] Covered releases:   ${covered.join(', ') || '(none)'}`);
   console.log(
     changed
       ? `[nuxt-cos] New ${PLUGIN_PKG} ${added.length === 1 ? 'release' : 'releases'}: ${added.join(', ')}`
