@@ -135,8 +135,9 @@ export async function run() {
       params: { key: apiKey, sort: 'popularity' },
       // This single request gates the whole source, and it runs alongside every
       // other source in one `Promise.all`, so it needs more headroom than its
-      // ~2s idle latency suggests. 30s matches the rest of the pipeline.
-      timeout: 30000,
+      // ~2s idle latency suggests. On the CI runner it has taken 24-27s, so
+      // the 30s used elsewhere in the pipeline cuts it off.
+      timeout: 180000,
     });
     families = data.items;
     console.log(`[google-fonts] ${families.length} font families in catalog.`);
