@@ -81,11 +81,11 @@ jobs:
           {
             echo "### nuxt-cos: new \`vite-plugin-cross-origin-storage\` release(s): \`$ADDED\`"
             echo
-            echo "A new release pins a new exact rolldown version, which changes every"
-            echo "chunk hash it emits, so \`data/nuxt-cos-hashes.csv\` has been rebuilt"
-            echo "against the new recipe. Recipes covered after this run:"
+            echo "\`data/nuxt-cos-hashes.csv\` has been rebuilt. Releases that emit"
+            echo "byte-identical chunks share one recipe, so a release that changed no"
+            echo "bytes adds no hashes. Recipes covered after this run:"
             echo
             echo '```'
-            node -e "for (const r of JSON.parse(require('fs').readFileSync('nuxt-cos-releases.json','utf8')).recipes) console.log(\`vite-plugin-cross-origin-storage@\${r.plugin}  rolldown \${r.rolldown}  \${r.chunkCount} chunks  (nuxt-cos@\${r.nuxtCos.join(', ') || '—'})\`)"
+            node -e "for (const r of JSON.parse(require('fs').readFileSync('nuxt-cos-releases.json','utf8')).recipes) console.log(\`recipe \${r.recipe ?? '—'}  vite-plugin-cross-origin-storage@\${(r.plugins ?? [r.plugin]).join(', ')}  rolldown \${r.rolldown}  \${r.chunkCount} chunks  (nuxt-cos@\${r.nuxtCos.join(', ') || '—'})\`)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

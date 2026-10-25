@@ -458,12 +458,18 @@ directory. That is precisely what makes the chunk shareable across origins, and
 it is also what lets this pipeline regenerate it. Two unrelated sites building
 `vue@3.5.39` under the same recipe emit byte-identical chunks; so do we.
 
-**What pins the recipe.** The plugin embeds a `RECIPE` constant (`cos1`) in every
-specifier, but that constant alone is not the whole story: the emitted bytes also
-depend on the exact rolldown/oxc minifier build. Empirically, `vue@3.5.39` under
-rolldown 1.1.0, 1.1.4 and 1.2.0 yields three *different* chunks, differing only in
-minifier whitespace. This is tractable only because every published plugin version
-pins rolldown to an exact version (`"rolldown": "1.2.0"`, no range), which makes
+**What pins the recipe.** Two versions are involved. `cos1` in every specifier
+is the *specifier format* version, and changes only if the meaning of a
+specifier does. The *build recipe* has its own number: from 2.1.0 the plugin
+exports `RECIPE` (starting at `1`) and records it as `recipe` in every COS
+manifest. It covers the rolldown version and options that decide a chunk's
+bytes, increases whenever the chunks emitted for the same source change, and
+only in a minor release; the plugin's CI fails if the bytes change without a
+bump. The bytes depend on the exact rolldown/oxc minifier build, down to patch
+releases: `vue@3.5.39` under rolldown 1.1.0, 1.1.4 and 1.2.0 yields three
+*different* chunks, differing only in minifier whitespace. This is tractable
+because every published plugin version pins rolldown to an exact version (no
+range), and rolldown bumps in the plugin require manual approval, which makes
 
     (plugin version, package version) → chunk hash
 
@@ -472,6 +478,17 @@ releases from the npm registry, so a new release is picked up on the next run,
 and it skips any release whose rolldown dependency is a *range*, since such a
 release produces bytes that depend on when a site happened to install and cannot
 be enumerated at all.
+
+**Grouping releases into recipes.** Many releases change no emitted bytes, so
+coverage is counted in recipes, not releases. Each release is built once
+against a probe `vue` version (the newest), and releases with byte-identical
+output are grouped into one recipe, which is then built in full once, with its
+newest release. Grouping goes by identical output rather than by the
+manifest's `recipe` number, so it does not depend on the number being bumped
+correctly and also covers releases from before the field existed; the number
+is recorded and cross-checked, and the run warns if two different outputs
+declare the same one. A release that changes no bytes therefore never pushes
+an older recipe, still shipped by sites that have not upgraded, off the list.
 
 **Which releases are in scope.** Releases from 2.0.3 onwards. That is the first
 one whose COS manifest records which npm package emitted each chunk; attributing
@@ -487,7 +504,7 @@ what every `nuxt-cos` site emits unless it opts into more. Widening it here
 would produce hashes almost no site ships. Because Vue releases the whole
 `@vue/*` family in lockstep with exact interdependency pins, installing `vue@X`
 pins the entire managed subgraph to `X`, so the matrix grows linearly with the
-number of versions. Defaults cover the 4 most recent plugin releases × 15 most
+number of versions. Defaults cover the 4 most recent recipes × 15 most
 recent `vue` releases; see [Environment variables](#environment-variables).
 
 **Verification.** The Nuxt module contributes nothing to chunk *content* (it is
@@ -508,8 +525,9 @@ identifies the *source package version* the chunk was built from
 (`https://www.npmjs.com/package/@vue/shared/v/3.5.39`). That is enough to
 reproduce an entry: install the named package version alongside one of the
 recipes in [`nuxt-cos-releases.json`](nuxt-cos-releases.json) and run a one-file
-Vite build. That file records the *inputs* a run used (the recipes and the
-source versions); a per-hash table would add nothing, since the CSV already
+Vite build. That file records the *inputs* a run used (the source versions, and
+for each recipe its number, the release it was built with, and every release
+found to emit the same bytes); a per-hash table would add nothing, since the CSV already
 names each chunk's package and version and there are few enough recipes to just
 try them. It is kept out of `data/` deliberately: that directory is the
 generated hash payload and is stored with Git LFS, whereas this is a small build
@@ -524,7 +542,9 @@ the previous one produced, so the pipeline runs `node nuxt-cos.js
 --check-recipes` first (two registry requests, before the rebuild overwrites the
 file it compares against) and names any new release in the run summary. The
 commit is the notification; `nuxt-cos-releases.json` is committed next to the
-CSV so that change is legible, which an LFS-stored CSV would not be.
+CSV so that change is legible, which an LFS-stored CSV would not be. A
+release reported as new may turn out to share an existing recipe; the rebuild
+then simply adds it to that recipe's releases, and no hashes change.
 
 **Caveat: ubiquity.** These entries are objectively derived, but they carry no
 evidence of *deployment*, which sets them apart from the popularity-ranked
@@ -665,7 +685,7 @@ the real plugin.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `NUXT_COS_MAX_RECIPES` | `4` | Plugin releases to cover, newest first |
+| `NUXT_COS_MAX_RECIPES` | `4` | Recipes (groups of plugin releases with byte-identical output) to cover, newest first |
 | `NUXT_COS_VUE_VERSIONS` | `15` | `vue` releases to cover, newest first |
 | `NUXT_COS_NUXT_CHECK` | unset | `1` additionally builds a real Nuxt app with `nuxt-cos` and reports whether every chunk it emits is already covered |
 
