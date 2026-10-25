@@ -2,9 +2,26 @@
   "source": "https://github.com/danielroe/cross-origin-storage",
   "recipes": [
     {
+      "recipe": 1,
+      "plugin": "2.1.0",
+      "plugins": [
+        "2.1.0"
+      ],
+      "rolldown": "1.2.14",
+      "vite": "8.3.5",
+      "nuxtCos": [
+        "2.1.0"
+      ],
+      "chunkCount": 75
+    },
+    {
+      "recipe": null,
       "plugin": "2.0.3",
+      "plugins": [
+        "2.0.3"
+      ],
       "rolldown": "1.2.0",
-      "vite": "8.3.4",
+      "vite": "8.3.5",
       "nuxtCos": [
         "2.0.3"
       ],
