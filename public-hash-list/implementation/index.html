@@ -1,0 +1,1218 @@
+<!doctype html>
+<!--
+  Copyright 2026 Google LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Public Hash List sources</title>
+    <meta
+      name="description"
+      content="How the data sources behind the Public Hash List for Cross-Origin Storage overlap."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <style>
+      :root {
+        color-scheme: light;
+        --surface-0: #f4f4f2;
+        --surface-1: #fcfcfb;
+        --border: #dedcd6;
+        --text-primary: #0b0b0b;
+        --text-secondary: #52514e;
+        --text-muted: #77756f;
+        --accent: #2a78d6;
+        --circle-fill: rgb(11 11 11 / 0.06);
+        --circle-stroke: rgb(11 11 11 / 0.45);
+        --region-fill: rgb(42 120 214 / 0.35);
+        --seq-100: #cde2fb;
+        --seq-200: #9ec5f4;
+        --seq-300: #6da7ec;
+        --seq-400: #3987e5;
+        --seq-500: #256abf;
+        --seq-600: #184f95;
+        --seq-700: #0d366b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          color-scheme: dark;
+          --surface-0: #121211;
+          --surface-1: #1a1a19;
+          --border: #34332f;
+          --text-primary: #f0efec;
+          --text-secondary: #c3c2b7;
+          --text-muted: #96958c;
+          --accent: #3987e5;
+          --circle-fill: rgb(240 239 236 / 0.06);
+          --circle-stroke: rgb(240 239 236 / 0.45);
+          --region-fill: rgb(57 135 229 / 0.4);
+        }
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --surface-0: #121211;
+        --surface-1: #1a1a19;
+        --border: #34332f;
+        --text-primary: #f0efec;
+        --text-secondary: #c3c2b7;
+        --text-muted: #96958c;
+        --accent: #3987e5;
+        --circle-fill: rgb(240 239 236 / 0.06);
+        --circle-stroke: rgb(240 239 236 / 0.45);
+        --region-fill: rgb(57 135 229 / 0.4);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--surface-0);
+        color: var(--text-primary);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 16px 64px;
+      }
+      h1 {
+        font-size: 1.75rem;
+        line-height: 1.2;
+        margin: 0 0 8px;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 0 0 12px;
+        max-width: 72ch;
+        color: var(--text-secondary);
+      }
+      a {
+        color: var(--accent);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.9em;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 32px;
+        margin: 16px 0 24px;
+      }
+      .stat strong {
+        display: block;
+        font-size: 1.5rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat span {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+      }
+      .card {
+        background: var(--surface-1);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 24px;
+      }
+      .card > p {
+        font-size: 0.9rem;
+      }
+
+      .explorer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+      }
+      @media (max-width: 860px) {
+        .explorer {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .venn {
+        position: relative;
+        height: min(70vh, 640px);
+        min-height: 360px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--surface-1);
+      }
+      .venn svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        cursor: grab;
+        outline: none;
+      }
+      .venn svg:focus-visible {
+        box-shadow: inset 0 0 0 2px var(--accent);
+      }
+      .venn svg.dragging {
+        cursor: grabbing;
+      }
+      .venn circle {
+        fill: var(--circle-fill);
+        stroke: var(--circle-stroke);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+      .venn circle.active {
+        stroke: var(--accent);
+        stroke-width: 2.5;
+      }
+      .venn .region {
+        fill: var(--region-fill);
+        stroke: var(--accent);
+        stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
+      .venn text {
+        fill: var(--text-primary);
+        font-size: 13px;
+        text-anchor: middle;
+        pointer-events: none;
+        paint-order: stroke;
+        stroke: var(--surface-1);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      .venn text .count {
+        fill: var(--text-secondary);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      .zoom-controls {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .zoom-controls button,
+      .source-actions button {
+        font: inherit;
+        color: var(--text-primary);
+        background: var(--surface-1);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .zoom-controls button {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .zoom-controls button:hover,
+      .source-actions button:hover {
+        border-color: var(--text-muted);
+      }
+      .zoom-level {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+      .tooltip {
+        position: absolute;
+        z-index: 2;
+        max-width: 320px;
+        padding: 8px 10px;
+        background: var(--surface-1);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+        font-size: 0.85rem;
+        pointer-events: none;
+      }
+      .tooltip[hidden] {
+        display: none;
+      }
+      .tooltip .sets {
+        font-weight: 600;
+      }
+      .tooltip .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        color: var(--text-secondary);
+      }
+      .tooltip .example {
+        margin-top: 4px;
+        color: var(--text-muted);
+        overflow-wrap: anywhere;
+      }
+      .hint {
+        margin: 8px 0 0;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .sources h2 {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .source-actions {
+        display: flex;
+        gap: 4px;
+      }
+      .source-actions button {
+        font-size: 0.8rem;
+        padding: 2px 8px;
+      }
+      .sources ul {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+      }
+      .sources li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+      .sources li.active {
+        background: var(--region-fill);
+      }
+      .sources label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .sources .size {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+      }
+      .sources .locate {
+        border: 0;
+        background: none;
+        color: var(--accent);
+        cursor: pointer;
+        padding: 2px 4px;
+        font: inherit;
+        font-size: 0.8rem;
+      }
+      .sources .locate:disabled {
+        visibility: hidden;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.85rem;
+      }
+      th,
+      td {
+        padding: 6px 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--text-secondary);
+        font-weight: 600;
+      }
+      td.num,
+      th.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .chip {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0 8px;
+        white-space: nowrap;
+      }
+      .bar {
+        width: 120px;
+      }
+      .bar span {
+        display: block;
+        height: 8px;
+        margin-top: 6px;
+        min-width: 2px;
+        border-radius: 0 4px 4px 0;
+        background: var(--accent);
+      }
+      td.example {
+        color: var(--text-muted);
+        overflow-wrap: anywhere;
+        min-width: 240px;
+      }
+      tbody tr:hover {
+        background: var(--surface-0);
+      }
+
+      .matrix {
+        border-collapse: separate;
+        border-spacing: 2px;
+        width: auto;
+      }
+      .matrix th,
+      .matrix td {
+        border: 0;
+        padding: 0;
+      }
+      .matrix thead th {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        padding: 4px 0;
+        font-weight: 400;
+        white-space: nowrap;
+        vertical-align: bottom;
+        text-align: left;
+      }
+      .matrix tbody th {
+        padding-right: 8px;
+        font-weight: 400;
+        white-space: nowrap;
+        text-align: right;
+      }
+      .matrix td {
+        width: 44px;
+        height: 32px;
+        text-align: center;
+        vertical-align: middle;
+        border-radius: 4px;
+        font-variant-numeric: tabular-nums;
+        font-size: 0.75rem;
+      }
+      .matrix td.self {
+        background: none;
+        color: var(--text-muted);
+      }
+      .matrix td.zero {
+        color: var(--text-muted);
+      }
+      .error {
+        color: #e34948;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Public Hash List sources</h1>
+      <p>
+        The <a href="README.md">Public Hash List</a> (PHL) merges SHA-256
+        digests from several independent sources into the availability-gating
+        allowlist for
+        <a href="https://wicg.github.io/cross-origin-storage/"
+          >Cross-Origin Storage</a
+        >. A digest that several sources vouch for is corroborated; a digest
+        only one source knows about rests on that source alone. The diagram
+        shows how the sources overlap, with circle and overlap areas
+        approximately proportional to the number of digests.
+      </p>
+      <div class="stats" id="stats"></div>
+
+      <section class="card">
+        <div class="explorer">
+          <div>
+            <div class="venn" id="venn">
+              <svg
+                id="venn-svg"
+                tabindex="0"
+                role="img"
+                aria-label="Area-proportional Venn diagram of the PHL sources"
+              >
+                <g id="world"></g>
+                <g id="labels"></g>
+              </svg>
+              <div class="zoom-controls">
+                <button type="button" id="zoom-in" aria-label="Zoom in">
+                  +
+                </button>
+                <button type="button" id="zoom-out" aria-label="Zoom out">
+                  −
+                </button>
+                <button
+                  type="button"
+                  id="zoom-reset"
+                  aria-label="Fit all sources"
+                >
+                  ⤢
+                </button>
+              </div>
+              <div class="zoom-level num" id="zoom-level"></div>
+              <div class="tooltip" id="tooltip" hidden></div>
+            </div>
+            <p class="hint">
+              Scroll or pinch to zoom, drag to pan, and click a circle to zoom
+              to it. Small sources sit inside the large ones, so zoom in or use
+              <em>Locate</em> to find them. Areas come from a numerical layout,
+              so a few overlaps are drawn where the data has none; the tooltip
+              always gives the exact count.
+            </p>
+          </div>
+          <div class="sources">
+            <h2>
+              Sources
+              <span class="source-actions">
+                <button type="button" id="select-all">All</button>
+                <button type="button" id="select-none">None</button>
+              </span>
+            </h2>
+            <ul id="source-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Pairwise overlap</h2>
+        <p>
+          Each cell gives the share of the row source's digests that the column
+          source also vouches for. The diagonal gives the size of the source.
+        </p>
+        <div class="table-wrap">
+          <table class="matrix" id="matrix"></table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Intersections</h2>
+        <p>
+          Every combination of the selected sources that shares at least one
+          digest, counting each digest once, under the exact set of selected
+          sources that vouch for it.
+        </p>
+        <div class="table-wrap">
+          <table id="regions"></table>
+        </div>
+      </section>
+
+      <p id="footer"></p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@upsetjs/venn.js@1.4.2/build/venn.min.js"></script>
+    <script type="module">
+      const fmt = new Intl.NumberFormat('en-US');
+      const pct = new Intl.NumberFormat('en-US', {
+        style: 'percent',
+        maximumFractionDigits: 1,
+      });
+      const wholePct = new Intl.NumberFormat('en-US', { style: 'percent' });
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      // The layout runs in a fixed coordinate space; the view maps it onto the
+      // element, whatever its size.
+      const WIDTH = 1000;
+      const HEIGHT = 700;
+      // Hide a circle's label until the circle is at least this many pixels
+      // across, so the small sources do not pile their labels on top of each
+      // other at the overview zoom.
+      const MIN_LABEL_RADIUS = 18;
+      const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+      const $ = (id) => document.getElementById(id);
+      const svg = $('venn-svg');
+      const world = $('world');
+      const labelLayer = $('labels');
+      const tooltip = $('tooltip');
+
+      let data;
+      let selected; // Set of source indices
+      let circles = []; // { index, x, y, radius, el, label }
+      let regionEl;
+      let view = { k: 1, x: 0, y: 0 };
+      let animation;
+
+      function el(name, attrs = {}, ns) {
+        const node = ns
+          ? document.createElementNS(ns, name)
+          : document.createElement(name);
+        for (const [key, value] of Object.entries(attrs)) {
+          if (key === 'text') node.textContent = value;
+          else node.setAttribute(key, value);
+        }
+        return node;
+      }
+
+      // --- Region arithmetic ------------------------------------------------
+
+      // Project the stored regions onto the selected sources: a digest that
+      // only unselected sources vouch for drops out, and the rest merge by the
+      // selected part of their source set.
+      function projectRegions() {
+        const merged = new Map();
+        for (const { sets, size, example } of data.regions) {
+          const projected = sets.filter((i) => selected.has(i));
+          if (!projected.length) continue;
+          const id = projected.join(',');
+          const region = merged.get(id);
+          if (!region) merged.set(id, { sets: projected, size, example });
+          else {
+            region.size += size;
+            if (example.length < region.example.length) {
+              region.example = example;
+            }
+          }
+        }
+        return [...merged.values()].sort((a, b) => b.size - a.size);
+      }
+
+      // The number of digests that all of `sets` vouch for, other sources
+      // notwithstanding.
+      function intersectionSize(regions, sets) {
+        let size = 0;
+        for (const region of regions) {
+          if (sets.every((i) => region.sets.includes(i))) size += region.size;
+        }
+        return size;
+      }
+
+      function subsets(sets, maxSize) {
+        const out = [];
+        const walk = (start, current) => {
+          if (current.length) out.push(current);
+          if (current.length === maxSize) return;
+          for (let i = start; i < sets.length; i++) {
+            walk(i + 1, [...current, sets[i]]);
+          }
+        };
+        walk(0, []);
+        return out;
+      }
+
+      // --- Layout -----------------------------------------------------------
+
+      function computeLayout(regions) {
+        // venn.js fits circles to the pairwise overlaps and scores the fit on
+        // every area it is given, so triples help; higher orders add little
+        // and grow combinatorially.
+        const areas = new Map();
+        for (const i of selected) {
+          areas.set(String(i), { sets: [String(i)], size: data.sources[i].size });
+        }
+        for (const region of regions) {
+          for (const sets of subsets(region.sets, 3)) {
+            if (sets.length < 2) continue;
+            const id = sets.join(',');
+            if (!areas.has(id)) {
+              areas.set(id, {
+                sets: sets.map(String),
+                size: intersectionSize(regions, sets),
+              });
+            }
+          }
+        }
+        const list = [...areas.values()];
+        if (list.length === 1) {
+          const [only] = list;
+          return {
+            [only.sets[0]]: {
+              x: WIDTH / 2,
+              y: HEIGHT / 2,
+              radius: HEIGHT / 2 - 20,
+            },
+          };
+        }
+        let solution = venn.venn(list);
+        solution = venn.normalizeSolution(solution, Math.PI / 2);
+        const scaled = venn.scaleSolution(solution, WIDTH, HEIGHT, 20);
+        const centres = venn.computeTextCentres(
+          scaled,
+          list.filter((a) => a.sets.length === 1),
+        );
+        for (const [key, circle] of Object.entries(scaled)) {
+          circle.text = centres[key];
+        }
+        return scaled;
+      }
+
+      function renderVenn(regions) {
+        world.replaceChildren();
+        labelLayer.replaceChildren();
+        circles = [];
+        if (!selected.size) return;
+
+        const layout = computeLayout(regions);
+        // Draw large circles first so a small one is never hidden under a
+        // larger one's fill.
+        const order = [...selected].sort(
+          (a, b) => data.sources[b].size - data.sources[a].size,
+        );
+        for (const index of order) {
+          const { x, y, radius, text } = layout[String(index)];
+          const source = data.sources[index];
+          const circleEl = el('circle', { cx: x, cy: y, r: radius }, SVG_NS);
+          circleEl.dataset.index = index;
+          world.append(circleEl);
+          const label = el('text', {}, SVG_NS);
+          label.append(
+            el('tspan', { x: 0, dy: 0, text: source.label }, SVG_NS),
+            el(
+              'tspan',
+              { x: 0, dy: '1.2em', class: 'count', text: fmt.format(source.size) },
+              SVG_NS,
+            ),
+          );
+          labelLayer.append(label);
+          circles.push({
+            index,
+            x,
+            y,
+            radius,
+            text: text ?? { x, y },
+            el: circleEl,
+            label,
+          });
+        }
+        regionEl = el('path', { class: 'region' }, SVG_NS);
+        regionEl.style.display = 'none';
+        world.append(regionEl);
+        updateLocateButtons();
+      }
+
+      // --- View transform ---------------------------------------------------
+
+      function fitView() {
+        const { width, height } = svg.getBoundingClientRect();
+        const k = Math.min(width / WIDTH, height / HEIGHT);
+        return {
+          k,
+          x: (width - WIDTH * k) / 2,
+          y: (height - HEIGHT * k) / 2,
+        };
+      }
+
+      function zoomLimits() {
+        const base = fitView().k;
+        return [base * 0.5, base * 20000];
+      }
+
+      function applyView() {
+        world.setAttribute(
+          'transform',
+          `translate(${view.x} ${view.y}) scale(${view.k})`,
+        );
+        for (const circle of circles) {
+          const visible = circle.radius * view.k >= MIN_LABEL_RADIUS;
+          circle.label.style.display = visible ? '' : 'none';
+          if (!visible) continue;
+          const sx = circle.text.x * view.k + view.x;
+          const sy = circle.text.y * view.k + view.y;
+          circle.label.setAttribute(
+            'transform',
+            `translate(${sx} ${sy - 8})`,
+          );
+        }
+        $('zoom-level').textContent = `${fmt.format(
+          Math.round((view.k / fitView().k) * 10) / 10,
+        )}×`;
+      }
+
+      function setView(next, animate = false) {
+        const [min, max] = zoomLimits();
+        const target = { ...next, k: Math.min(max, Math.max(min, next.k)) };
+        if (target.k !== next.k) {
+          // Keep the requested centre when clamping.
+          const cx = (svg.clientWidth / 2 - next.x) / next.k;
+          const cy = (svg.clientHeight / 2 - next.y) / next.k;
+          target.x = svg.clientWidth / 2 - cx * target.k;
+          target.y = svg.clientHeight / 2 - cy * target.k;
+        }
+        cancelAnimationFrame(animation);
+        if (!animate || reducedMotion.matches) {
+          view = target;
+          applyView();
+          return;
+        }
+        // Interpolate in log scale with the screen-centre point moving
+        // linearly, which reads as a smooth fly-in across deep zoom ranges.
+        const from = { ...view };
+        const { clientWidth: w, clientHeight: h } = svg;
+        const centre = (v) => [(w / 2 - v.x) / v.k, (h / 2 - v.y) / v.k];
+        const [fx, fy] = centre(from);
+        const [tx, ty] = centre(target);
+        const start = performance.now();
+        const duration = 500;
+        const step = (now) => {
+          const t = Math.min(1, (now - start) / duration);
+          const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+          const k = Math.exp(
+            Math.log(from.k) + (Math.log(target.k) - Math.log(from.k)) * e,
+          );
+          const cx = fx + (tx - fx) * e;
+          const cy = fy + (ty - fy) * e;
+          view = { k, x: w / 2 - cx * k, y: h / 2 - cy * k };
+          applyView();
+          if (t < 1) animation = requestAnimationFrame(step);
+        };
+        animation = requestAnimationFrame(step);
+      }
+
+      function zoomAt(factor, sx, sy, animate = false) {
+        const k = view.k * factor;
+        setView(
+          {
+            k,
+            x: sx - ((sx - view.x) / view.k) * k,
+            y: sy - ((sy - view.y) / view.k) * k,
+          },
+          animate,
+        );
+      }
+
+      function zoomToCircle(circle) {
+        const { clientWidth: w, clientHeight: h } = svg;
+        const k = (Math.min(w, h) * 0.42) / circle.radius;
+        setView({ k, x: w / 2 - circle.x * k, y: h / 2 - circle.y * k }, true);
+      }
+
+      function toWorld(sx, sy) {
+        return [(sx - view.x) / view.k, (sy - view.y) / view.k];
+      }
+
+      function circlesAt(sx, sy) {
+        const [x, y] = toWorld(sx, sy);
+        return circles.filter(
+          (c) => (c.x - x) ** 2 + (c.y - y) ** 2 <= c.radius ** 2,
+        );
+      }
+
+      // --- Hover ------------------------------------------------------------
+
+      function setActive(indices) {
+        const active = new Set(indices);
+        for (const circle of circles) {
+          circle.el.classList.toggle('active', active.has(circle.index));
+        }
+        for (const li of $('source-list').children) {
+          li.classList.toggle('active', active.has(Number(li.dataset.index)));
+        }
+      }
+
+      function hover(event) {
+        const rect = svg.getBoundingClientRect();
+        const sx = event.clientX - rect.left;
+        const sy = event.clientY - rect.top;
+        const hits = circlesAt(sx, sy);
+        if (!hits.length) return hideHover();
+
+        const sets = hits.map((c) => c.index).sort((a, b) => a - b);
+        const regions = currentRegions;
+        const exact = regions.find((r) => r.sets.join(',') === sets.join(','));
+        const all = intersectionSize(regions, sets);
+        setActive(sets);
+        regionEl.setAttribute('d', venn.intersectionAreaPath(hits));
+        regionEl.style.display = '';
+
+        const names = sets.map((i) => data.sources[i].label);
+        tooltip.replaceChildren(
+          el('div', {
+            class: 'sets',
+            text:
+              names.length === 1 ? `${names[0]} only` : names.join(' ∩ '),
+          }),
+          row(
+            names.length === 1 ? 'Only here' : 'Exactly these',
+            exact ? fmt.format(exact.size) : '0',
+          ),
+        );
+        if (names.length > 1) tooltip.append(row('All of these', fmt.format(all)));
+        if (exact) {
+          tooltip.append(el('div', { class: 'example', text: `e.g. ${exact.example}` }));
+        } else {
+          tooltip.append(
+            el('div', {
+              class: 'example',
+              text: 'No digest has exactly this combination; the layout draws an overlap the data lacks.',
+            }),
+          );
+        }
+        tooltip.hidden = false;
+        const box = $('venn').getBoundingClientRect();
+        const tw = tooltip.offsetWidth;
+        const th = tooltip.offsetHeight;
+        let left = sx + 14;
+        let top = sy + 14;
+        if (left + tw > box.width - 8) left = sx - tw - 14;
+        if (top + th > box.height - 8) top = sy - th - 14;
+        tooltip.style.left = `${Math.max(8, left)}px`;
+        tooltip.style.top = `${Math.max(8, top)}px`;
+      }
+
+      function row(name, value) {
+        const div = el('div', { class: 'row' });
+        div.append(el('span', { text: name }), el('span', { class: 'num', text: value }));
+        return div;
+      }
+
+      function hideHover() {
+        tooltip.hidden = true;
+        if (regionEl) regionEl.style.display = 'none';
+        setActive([]);
+      }
+
+      // --- Pointer and keyboard input ---------------------------------------
+
+      const pointers = new Map();
+      let gesture;
+
+      svg.addEventListener('pointerdown', (event) => {
+        svg.setPointerCapture(event.pointerId);
+        pointers.set(event.pointerId, [event.clientX, event.clientY]);
+        gesture = {
+          moved: false,
+          view: { ...view },
+          points: new Map(pointers),
+        };
+        cancelAnimationFrame(animation);
+      });
+
+      svg.addEventListener('pointermove', (event) => {
+        if (!pointers.has(event.pointerId)) {
+          if (event.pointerType === 'mouse') hover(event);
+          return;
+        }
+        pointers.set(event.pointerId, [event.clientX, event.clientY]);
+        const rect = svg.getBoundingClientRect();
+        if (pointers.size === 1 && gesture.points.size === 1) {
+          const [[x0, y0]] = gesture.points.values();
+          const dx = event.clientX - x0;
+          const dy = event.clientY - y0;
+          if (!gesture.moved && Math.hypot(dx, dy) < 4) return;
+          gesture.moved = true;
+          svg.classList.add('dragging');
+          hideHover();
+          view = { ...gesture.view, x: gesture.view.x + dx, y: gesture.view.y + dy };
+          applyView();
+        } else if (pointers.size === 2) {
+          // Pinch: scale by the change in finger distance around the
+          // midpoint, and pan with the midpoint.
+          gesture.moved = true;
+          hideHover();
+          if (gesture.points.size !== 2) {
+            gesture = { moved: true, view: { ...view }, points: new Map(pointers) };
+            return;
+          }
+          const [a0, b0] = gesture.points.values();
+          const [a1, b1] = pointers.values();
+          const d0 = Math.hypot(a0[0] - b0[0], a0[1] - b0[1]);
+          const d1 = Math.hypot(a1[0] - b1[0], a1[1] - b1[1]);
+          const m0 = [(a0[0] + b0[0]) / 2 - rect.left, (a0[1] + b0[1]) / 2 - rect.top];
+          const m1 = [(a1[0] + b1[0]) / 2 - rect.left, (a1[1] + b1[1]) / 2 - rect.top];
+          const v = gesture.view;
+          const k = v.k * (d1 / d0);
+          const [wx, wy] = [(m0[0] - v.x) / v.k, (m0[1] - v.y) / v.k];
+          setView({ k, x: m1[0] - wx * k, y: m1[1] - wy * k });
+        }
+      });
+
+      function endPointer(event) {
+        if (!pointers.has(event.pointerId)) return;
+        pointers.delete(event.pointerId);
+        svg.classList.remove('dragging');
+        if (event.type === 'pointerup' && gesture && !gesture.moved && !pointers.size) {
+          const rect = svg.getBoundingClientRect();
+          const hits = circlesAt(event.clientX - rect.left, event.clientY - rect.top);
+          // Zoom to the smallest circle under the pointer that is not already
+          // filling the view.
+          const target = hits
+            .sort((a, b) => a.radius - b.radius)
+            .find((c) => c.radius * view.k < Math.min(svg.clientWidth, svg.clientHeight) * 0.35);
+          if (target) zoomToCircle(target);
+          if (event.pointerType !== 'mouse') {
+            hover(event);
+          }
+        }
+        if (pointers.size) {
+          gesture = { moved: true, view: { ...view }, points: new Map(pointers) };
+        }
+      }
+      svg.addEventListener('pointerup', endPointer);
+      svg.addEventListener('pointercancel', endPointer);
+      svg.addEventListener('pointerleave', (event) => {
+        if (event.pointerType === 'mouse' && !pointers.size) hideHover();
+      });
+
+      svg.addEventListener(
+        'wheel',
+        (event) => {
+          event.preventDefault();
+          const rect = svg.getBoundingClientRect();
+          const delta = event.deltaY * (event.deltaMode === 1 ? 16 : 1);
+          // Trackpad pinches arrive as wheel events with `ctrlKey` set and
+          // small deltas, so they zoom faster per unit.
+          const speed = event.ctrlKey ? 0.01 : 0.002;
+          zoomAt(Math.exp(-delta * speed), event.clientX - rect.left, event.clientY - rect.top);
+          hideHover();
+        },
+        { passive: false },
+      );
+
+      svg.addEventListener('keydown', (event) => {
+        const w = svg.clientWidth;
+        const h = svg.clientHeight;
+        const pan = 60;
+        const actions = {
+          '+': () => zoomAt(1.5, w / 2, h / 2, true),
+          '=': () => zoomAt(1.5, w / 2, h / 2, true),
+          '-': () => zoomAt(1 / 1.5, w / 2, h / 2, true),
+          0: () => setView(fitView(), true),
+          ArrowLeft: () => setView({ ...view, x: view.x + pan }),
+          ArrowRight: () => setView({ ...view, x: view.x - pan }),
+          ArrowUp: () => setView({ ...view, y: view.y + pan }),
+          ArrowDown: () => setView({ ...view, y: view.y - pan }),
+        };
+        if (actions[event.key]) {
+          event.preventDefault();
+          actions[event.key]();
+        }
+      });
+
+      $('zoom-in').addEventListener('click', () =>
+        zoomAt(2, svg.clientWidth / 2, svg.clientHeight / 2, true),
+      );
+      $('zoom-out').addEventListener('click', () =>
+        zoomAt(0.5, svg.clientWidth / 2, svg.clientHeight / 2, true),
+      );
+      $('zoom-reset').addEventListener('click', () => setView(fitView(), true));
+      new ResizeObserver(() => setView(fitView())).observe(svg);
+
+      // --- Source list ------------------------------------------------------
+
+      function renderSourceList() {
+        const list = $('source-list');
+        const order = data.sources
+          .map((source, index) => ({ ...source, index }))
+          .sort((a, b) => b.size - a.size);
+        list.replaceChildren(
+          ...order.map(({ index, label, key, size }) => {
+            const li = el('li');
+            li.dataset.index = index;
+            const id = `source-${key}`;
+            const checkbox = el('input', { type: 'checkbox', id });
+            checkbox.checked = selected.has(index);
+            checkbox.addEventListener('change', () => {
+              if (checkbox.checked) selected.add(index);
+              else selected.delete(index);
+              update();
+            });
+            const locate = el('button', {
+              type: 'button',
+              class: 'locate',
+              text: 'Locate',
+              'aria-label': `Zoom to ${label}`,
+            });
+            locate.addEventListener('click', () => {
+              const circle = circles.find((c) => c.index === index);
+              if (circle) zoomToCircle(circle);
+            });
+            li.addEventListener('pointerenter', () => setActive([index]));
+            li.addEventListener('pointerleave', () => setActive([]));
+            li.append(
+              checkbox,
+              el('label', { for: id, title: label, text: label }),
+              el('span', { class: 'size num', text: fmt.format(size) }),
+              locate,
+            );
+            return li;
+          }),
+        );
+      }
+
+      function updateLocateButtons() {
+        for (const li of $('source-list').children) {
+          li.querySelector('.locate').disabled = !selected.has(Number(li.dataset.index));
+        }
+      }
+
+      function setAll(on) {
+        selected = new Set(on ? data.sources.map((_, i) => i) : []);
+        for (const input of $('source-list').querySelectorAll('input')) {
+          input.checked = on;
+        }
+        update();
+      }
+      $('select-all').addEventListener('click', () => setAll(true));
+      $('select-none').addEventListener('click', () => setAll(false));
+
+      // --- Tables -----------------------------------------------------------
+
+      function seqStep(share) {
+        if (share >= 0.75) return 700;
+        if (share >= 0.5) return 600;
+        if (share >= 0.25) return 500;
+        if (share >= 0.1) return 400;
+        if (share >= 0.05) return 300;
+        if (share >= 0.01) return 200;
+        return 100;
+      }
+
+      function renderMatrix(regions) {
+        const table = $('matrix');
+        const order = [...selected].sort(
+          (a, b) => data.sources[b].size - data.sources[a].size,
+        );
+        if (!order.length) return table.replaceChildren();
+        const head = el('tr');
+        head.append(el('th'));
+        for (const j of order) head.append(el('th', { scope: 'col', text: data.sources[j].label }));
+        const body = el('tbody');
+        for (const i of order) {
+          const tr = el('tr');
+          tr.append(el('th', { scope: 'row', text: data.sources[i].label }));
+          const own = data.sources[i].size;
+          for (const j of order) {
+            if (i === j) {
+              tr.append(el('td', { class: 'self', text: compact(own), title: `${fmt.format(own)} digests` }));
+              continue;
+            }
+            const both = intersectionSize(regions, [i, j]);
+            const share = both / own;
+            const title = `${fmt.format(both)} of ${fmt.format(own)} ${data.sources[i].label} digests are also in ${data.sources[j].label}`;
+            if (!both) {
+              tr.append(el('td', { class: 'zero', text: '·', title }));
+              continue;
+            }
+            const step = seqStep(share);
+            const td = el('td', { text: share < 0.01 ? '<1%' : wholePct.format(share), title });
+            td.style.background = `var(--seq-${step})`;
+            td.style.color = step >= 400 ? '#fff' : '#0b0b0b';
+            tr.append(td);
+          }
+          body.append(tr);
+        }
+        const thead = el('thead');
+        thead.append(head);
+        table.replaceChildren(thead, body);
+      }
+
+      function compact(n) {
+        return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(n);
+      }
+
+      function renderRegions(regions) {
+        const table = $('regions');
+        const total = regions.reduce((sum, r) => sum + r.size, 0);
+        const head = el('tr');
+        head.append(
+          el('th', { text: 'Sources' }),
+          el('th', { class: 'num', text: 'Digests' }),
+          el('th', { class: 'num', text: 'Share' }),
+          el('th', { text: '' }),
+          el('th', { text: 'Example' }),
+        );
+        const body = el('tbody');
+        for (const region of regions) {
+          const tr = el('tr');
+          const chips = el('div', { class: 'chips' });
+          for (const i of region.sets) {
+            chips.append(el('span', { class: 'chip', text: data.sources[i].label }));
+          }
+          const sources = el('td');
+          sources.append(chips);
+          const bar = el('td', { class: 'bar' });
+          const fill = el('span');
+          fill.style.width = `${(region.size / regions[0].size) * 100}%`;
+          bar.append(fill);
+          tr.append(
+            sources,
+            el('td', { class: 'num', text: fmt.format(region.size) }),
+            el('td', {
+              class: 'num',
+              text: region.size / total < 0.001 ? '<0.1%' : pct.format(region.size / total),
+            }),
+            bar,
+            el('td', { class: 'example', text: region.example }),
+          );
+          tr.addEventListener('pointerenter', () => setActive(region.sets));
+          tr.addEventListener('pointerleave', () => setActive([]));
+          body.append(tr);
+        }
+        const thead = el('thead');
+        thead.append(head);
+        table.replaceChildren(thead, body);
+      }
+
+      function renderStats(regions) {
+        const total = regions.reduce((sum, r) => sum + r.size, 0);
+        const shared = regions
+          .filter((r) => r.sets.length > 1)
+          .reduce((sum, r) => sum + r.size, 0);
+        const stats = [
+          [fmt.format(selected.size), `of ${data.sources.length} sources selected`],
+          [fmt.format(total), 'distinct digests'],
+          [fmt.format(shared), 'vouched for by two or more sources'],
+          [total ? pct.format(shared / total) : '–', 'corroborated'],
+        ];
+        $('stats').replaceChildren(
+          ...stats.map(([value, name]) => {
+            const div = el('div', { class: 'stat' });
+            div.append(el('strong', { text: value }), el('span', { text: name }));
+            return div;
+          }),
+        );
+      }
+
+      // --- Wiring -----------------------------------------------------------
+
+      let currentRegions = [];
+
+      function update() {
+        currentRegions = projectRegions();
+        hideHover();
+        renderStats(currentRegions);
+        renderVenn(currentRegions);
+        renderMatrix(currentRegions);
+        renderRegions(currentRegions);
+        setView(fitView());
+      }
+
+      try {
+        const response = await fetch('overlap.json', { cache: 'no-cache' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        data = await response.json();
+      } catch (err) {
+        $('stats').append(
+          el('p', {
+            class: 'error',
+            text: `Could not load overlap.json (${err.message}). Run \`node overlap.js\` to generate it.`,
+          }),
+        );
+        throw err;
+      }
+      selected = new Set(data.sources.map((_, i) => i));
+      renderSourceList();
+      update();
+      $('footer').textContent = `Generated ${new Date(data.generated).toLocaleString('en-US', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: 'UTC',
+      })} UTC from ${data.sources.length} CSV files in data/.`;
+    </script>
+  </body>
+</html>

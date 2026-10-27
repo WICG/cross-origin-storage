@@ -17,7 +17,8 @@
     "huggingface": "node huggingface.js",
     "http-archive": "node http-archive.js",
     "nuxt-cos": "node nuxt-cos.js",
-    "manual": "node manual.js"
+    "manual": "node manual.js",
+    "overlap": "node overlap.js"
   },
   "keywords": [],
   "author": "Thomas Steiner <tomac@google.com>",
