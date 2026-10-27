@@ -1432,8 +1432,6 @@ https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.js,,c3b
 https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.min.js,,9a971684019952062f6924df8daaa1dc29d20e83048bb24ce9736f21ba60a40f,0
 https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.js,,01c5b468ffa0427e535e3019165d2efd2489650ec9cf1379d6ab79fdbf75736b,0
 https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js,,e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb,0
-https://cdnjs.cloudflare.com/ajax/libs/i18next/26.4.7/i18next.js,,7ace28bd98c239c22ec3544e407a0fe2a51abbafb0a96fff2285f7a56319e4b7,4
-https://cdnjs.cloudflare.com/ajax/libs/i18next/26.4.7/i18next.min.js,,8ad1d1a5ccb0cf5d4084c09fa872841bfc3f6135ab69ecb3c46779e519b7a0a3,4
 https://cdnjs.cloudflare.com/ajax/libs/i18next/26.5.0/i18next.js,,7ace28bd98c239c22ec3544e407a0fe2a51abbafb0a96fff2285f7a56319e4b7,0
 https://cdnjs.cloudflare.com/ajax/libs/i18next/26.5.0/i18next.min.js,,8ad1d1a5ccb0cf5d4084c09fa872841bfc3f6135ab69ecb3c46779e519b7a0a3,0
 https://cdnjs.cloudflare.com/ajax/libs/immer/11.1.19/cjs/immer.cjs.development.js,,7d3a2c9eb501ea1ba2b36e7136a8b0182cc00d0123e67d069d786f1ac3624887,0
@@ -2784,12 +2782,12 @@ https://cdnjs.cloudflare.com/ajax/libs/three.js/0.186.1/three.webgpu.nodes.js,,5
 https://cdnjs.cloudflare.com/ajax/libs/three.js/0.186.1/three.webgpu.nodes.min.js,,58c02e6398af620f8c9edb9022c3555180ded9b904f73995e285529c708d2166,0
 https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.6.0/tinycolor.js,,b48f0496c07714f229d9281ada329381242e895ab3316556d372c9a6568b1a88,0
 https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.6.0/tinycolor.min.js,,a732be1215af43c449744697ca3bdcd3b90700d3a27ab0f22edde7383ff7a731,0
-https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.amd.js,,5fa5b4d931dbe6195544656c08b3cebb66b4bd37505e7ee01d6590a9022729f0,3
-https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.amd.min.js,,c80c2ace15908bc2092063c2c6848d80bc167eb3ff9681d96682ced45d4ededb,3
-https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.esm.js,,095e3b8c30a67342dbabf27887cedd50558e0c491adcf31655d6ee58b91e5b74,3
-https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.esm.min.js,,aa4e5d9b7edfa5ce94a6f46006c171b89ba8b8b351a4f6c7087b214c7c691ff7,3
-https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.umd.js,,a6baa0d92fcb06bc40cb691976c4c3ee3d9360b8a2d1505446c63c4743ce1f1d,3
-https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.umd.min.js,,d7b0fc5f5f97a71e32fd2a50983b513b68e15a0618c96cfb2dc4a989343ebe06,3
+https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.amd.js,,5fa5b4d931dbe6195544656c08b3cebb66b4bd37505e7ee01d6590a9022729f0,4
+https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.amd.min.js,,c80c2ace15908bc2092063c2c6848d80bc167eb3ff9681d96682ced45d4ededb,4
+https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.esm.js,,095e3b8c30a67342dbabf27887cedd50558e0c491adcf31655d6ee58b91e5b74,4
+https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.esm.min.js,,aa4e5d9b7edfa5ce94a6f46006c171b89ba8b8b351a4f6c7087b214c7c691ff7,4
+https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.umd.js,,a6baa0d92fcb06bc40cb691976c4c3ee3d9360b8a2d1505446c63c4743ce1f1d,4
+https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.umd.min.js,,d7b0fc5f5f97a71e32fd2a50983b513b68e15a0618c96cfb2dc4a989343ebe06,4
 https://cdnjs.cloudflare.com/ajax/libs/typescript/5.9.3/typescript.js,,3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675,0
 https://cdnjs.cloudflare.com/ajax/libs/typescript/5.9.3/typescript.min.js,,3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675,0
 https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.41/ua-parser.js,,9563363c1ea20cd7f5d751441b114278f9937e212dc84d29d5dd7a77c82cdbdb,0

@@ -403,6 +403,13 @@ and a {{CrossOriginStorageGetFileHandleOptions}} |options|, return null or a {{T
    1. [=set/For each=] |candidate| of |candidates|:
       1. Let |url| be the result of running the [=basic URL parser=] on |candidate|.
       1. If |url| is failure, return a new {{TypeError}}.
+
+         Note: Only omitting {{CrossOriginStorageGetFileHandleOptions/origins}}, or passing an
+         empty [=list=], requests the same-site default. The empty string is a [=list=] of one
+         candidate that does not parse, so it is rejected like any other invalid origin. The
+         empty value that means same-site in the declarative integrations (see
+         [[#integration-with-other-specifications]]) is a property of their text syntax, defined
+         by their host specifications.
       1. If |url|'s [=url/scheme=] is neither "`http`" nor "`https`", or if |url|'s
          [=/origin=] is not a [=potentially trustworthy origin=], return a new {{TypeError}}.
 
@@ -980,6 +987,11 @@ Note: <a class=allow-2119 data-link-type=dfn data-link-for=FileSystemFileHandle>
 and a read-request handle stays readable without being re-gated. Re-gating on arrival would let a
 caller probe availability repeatedly by transferring the same
 handle.
+
+Note: A handle cloned before its original is written through stays unreadable. Its holder can
+call {{CrossOriginStorageManager/getFileHandle()}} without
+{{CrossOriginStorageGetFileHandleOptions/create}} to get a readable handle through the
+[[#original-storer-access|original storer's grant]].
 
 # Storage management # {#storage-management}
 
