@@ -988,6 +988,11 @@ and a read-request handle stays readable without being re-gated. Re-gating on ar
 caller probe availability repeatedly by transferring the same
 handle.
 
+Note: A handle cloned before its original is written through stays unreadable. Its holder can
+call {{CrossOriginStorageManager/getFileHandle()}} without
+{{CrossOriginStorageGetFileHandleOptions/create}} to get a readable handle through the
+[[#original-storer-access|original storer's grant]].
+
 # Storage management # {#storage-management}
 
 ## Storage limits ## {#storage-limits}
