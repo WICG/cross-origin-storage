@@ -23,6 +23,7 @@ import { run as runHuggingFace, OUTPUT_CSV as csvHuggingFace } from './huggingfa
 import { run as runHttpArchive, OUTPUT_CSV as csvHttpArchive } from './http-archive.js';
 import { run as runNuxtCos, OUTPUT_CSV as csvNuxtCos } from './nuxt-cos.js';
 import { run as runManual, OUTPUT_CSV as csvManual } from './manual.js';
+import { writeOverlap } from './overlap.js';
 
 const OUTPUT_DAT = 'data/public-hash-list.dat'; // canonical PHL output
 const OUTPUT_SHA256 = 'data/public-hash-list.dat.sha256'; // integrity file for the above
@@ -105,6 +106,9 @@ async function main() {
       `${huggingface.length} model-hub entries, ${manual.length} manual entries.`
   );
   console.log(`SHA-256 integrity file written to '${OUTPUT_SHA256}'.`);
+
+  // Overlap summary for the landing page, read back from the CSVs just written.
+  writeOverlap();
 }
 
 main().catch((err) => {
