@@ -191,7 +191,6 @@
         fill-opacity: 0.2;
         stroke: var(--color);
         stroke-width: 1.5;
-        stroke-linecap: round;
         vector-effect: non-scaling-stroke;
       }
       .venn circle.active {
@@ -571,9 +570,14 @@
       // The eight categorical hues in their validated order. Past eight, a
       // source reuses a hue with a short-dashed outline, and past sixteen with
       // a long-dashed one, so every source stays distinct without a ninth,
-      // untested hue.
+      // untested hue. `period` is the screen length of one dash and its gap,
+      // `min` the fewest dashes around a circle, and `fill` the dashed share.
       const HUES = 8;
-      const DASHES = ['', '6 3', '14 4'];
+      const DASHES = [
+        null,
+        { period: 16, min: 3, fill: 0.7 },
+        { period: 36, min: 2, fill: 0.85 },
+      ];
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
       const $ = (id) => document.getElementById(id);
@@ -604,9 +608,25 @@
       // keeps its color when others are deselected.
       function paint(node, index) {
         node.style.setProperty('--color', `var(--series-${(index % HUES) + 1})`);
-        const dash = DASHES[Math.floor(index / HUES) % DASHES.length];
-        if (dash) node.setAttribute('stroke-dasharray', dash);
         return node;
+      }
+
+      // Fits a whole number of dashes around a circle of `radius` screen
+      // pixels, so a small circle shows a few dashes in place of a ring of
+      // fragments that reads as dots. Circles too small for that stay solid.
+      function dashCircle(node, index, radius) {
+        const dash = DASHES[Math.floor(index / HUES) % DASHES.length];
+        const circumference = 2 * Math.PI * radius;
+        if (!dash || circumference < 16) {
+          node.removeAttribute('stroke-dasharray');
+          return;
+        }
+        const count = Math.max(dash.min, Math.round(circumference / dash.period));
+        const period = circumference / count;
+        node.setAttribute(
+          'stroke-dasharray',
+          `${period * dash.fill} ${period * (1 - dash.fill)}`,
+        );
       }
 
       function swatch(index) {
@@ -615,7 +635,9 @@
           { class: 'swatch', viewBox: '0 0 14 14', 'aria-hidden': 'true' },
           SVG_NS,
         );
-        svgEl.append(paint(el('circle', { cx: 7, cy: 7, r: 6 }, SVG_NS), index));
+        const circle = paint(el('circle', { cx: 7, cy: 7, r: 6 }, SVG_NS), index);
+        dashCircle(circle, index, 6);
+        svgEl.append(circle);
         return svgEl;
       }
 
@@ -781,6 +803,7 @@
           `translate(${view.x} ${view.y}) scale(${view.k})`,
         );
         for (const circle of circles) {
+          dashCircle(circle.el, circle.index, circle.radius * view.k);
           const visible = circle.radius * view.k >= MIN_LABEL_RADIUS;
           circle.label.style.display = visible ? '' : 'none';
           if (!visible) continue;
