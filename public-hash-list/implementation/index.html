@@ -24,14 +24,8 @@
         --text-muted: #77756f;
         --accent: #2a78d6;
         --region-fill: rgb(11 11 11 / 0.16);
-        --series-1: #2a78d6;
-        --series-2: #eb6834;
-        --series-3: #1baf7a;
-        --series-4: #eda100;
-        --series-5: #e87ba4;
-        --series-6: #008300;
-        --series-7: #6250d6;
-        --series-8: #e34948;
+        --shade-0: 0.58;
+        --shade-1: 0.74;
         --seq-100: #cde2fb;
         --seq-200: #9ec5f4;
         --seq-300: #6da7ec;
@@ -51,14 +45,8 @@
           --text-muted: #96958c;
           --accent: #3987e5;
           --region-fill: rgb(240 239 236 / 0.2);
-          --series-1: #3987e5;
-          --series-2: #d95926;
-          --series-3: #199e70;
-          --series-4: #c98500;
-          --series-5: #d55181;
-          --series-6: #008300;
-          --series-7: #9085e9;
-          --series-8: #e66767;
+          --shade-0: 0.66;
+          --shade-1: 0.8;
         }
       }
       :root[data-theme='dark'] {
@@ -71,14 +59,8 @@
         --text-muted: #96958c;
         --accent: #3987e5;
         --region-fill: rgb(240 239 236 / 0.2);
-        --series-1: #3987e5;
-        --series-2: #d95926;
-        --series-3: #199e70;
-        --series-4: #c98500;
-        --series-5: #d55181;
-        --series-6: #008300;
-        --series-7: #9085e9;
-        --series-8: #e66767;
+        --shade-0: 0.66;
+        --shade-1: 0.8;
       }
 
       * {
@@ -184,7 +166,7 @@
       .venn svg.dragging {
         cursor: grabbing;
       }
-      /* Each source sets `--color` and, past the eighth, a dash pattern. */
+      /* Each source sets its own `--color`. */
       .venn circle,
       .swatch circle {
         fill: var(--color);
@@ -567,17 +549,6 @@
       // across, so the small sources do not pile their labels on top of each
       // other at the overview zoom.
       const MIN_LABEL_RADIUS = 18;
-      // The eight categorical hues in their validated order. Past eight, a
-      // source reuses a hue with a short-dashed outline, and past sixteen with
-      // a long-dashed one, so every source stays distinct without a ninth,
-      // untested hue. `period` is the screen length of one dash and its gap,
-      // `min` the fewest dashes around a circle, and `fill` the dashed share.
-      const HUES = 8;
-      const DASHES = [
-        null,
-        { period: 16, min: 3, fill: 0.7 },
-        { period: 36, min: 2, fill: 0.85 },
-      ];
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
       const $ = (id) => document.getElementById(id);
@@ -604,29 +575,19 @@
         return node;
       }
 
-      // Colors follow the source's position in `overlap.json`, so a source
-      // keeps its color when others are deselected.
-      function paint(node, index) {
-        node.style.setProperty('--color', `var(--series-${(index % HUES) + 1})`);
-        return node;
+      // One color per source, however many there are: the hues are spread
+      // evenly around the OKLCH wheel, and every other source takes the
+      // lighter shade, so sources with neighboring hues still differ in
+      // lightness. Colors follow the source's position in `overlap.json`, so
+      // a source keeps its color when others are deselected.
+      function sourceColor(index) {
+        const hue = 25 + (index * 360) / data.sources.length;
+        return `oklch(var(--shade-${index % 2}) 0.15 ${hue.toFixed(1)})`;
       }
 
-      // Fits a whole number of dashes around a circle of `radius` screen
-      // pixels, so a small circle shows a few dashes in place of a ring of
-      // fragments that reads as dots. Circles too small for that stay solid.
-      function dashCircle(node, index, radius) {
-        const dash = DASHES[Math.floor(index / HUES) % DASHES.length];
-        const circumference = 2 * Math.PI * radius;
-        if (!dash || circumference < 16) {
-          node.removeAttribute('stroke-dasharray');
-          return;
-        }
-        const count = Math.max(dash.min, Math.round(circumference / dash.period));
-        const period = circumference / count;
-        node.setAttribute(
-          'stroke-dasharray',
-          `${period * dash.fill} ${period * (1 - dash.fill)}`,
-        );
+      function paint(node, index) {
+        node.style.setProperty('--color', sourceColor(index));
+        return node;
       }
 
       function swatch(index) {
@@ -636,7 +597,6 @@
           SVG_NS,
         );
         const circle = paint(el('circle', { cx: 7, cy: 7, r: 6 }, SVG_NS), index);
-        dashCircle(circle, index, 6);
         svgEl.append(circle);
         return svgEl;
       }
@@ -803,7 +763,6 @@
           `translate(${view.x} ${view.y}) scale(${view.k})`,
         );
         for (const circle of circles) {
-          dashCircle(circle.el, circle.index, circle.radius * view.k);
           const visible = circle.radius * view.k >= MIN_LABEL_RADIUS;
           circle.label.style.display = visible ? '' : 'none';
           if (!visible) continue;
@@ -1101,7 +1060,7 @@
             li.dataset.index = index;
             const id = `source-${key}`;
             const checkbox = el('input', { type: 'checkbox', id });
-            checkbox.style.accentColor = `var(--series-${(index % HUES) + 1})`;
+            checkbox.style.accentColor = sourceColor(index);
             checkbox.checked = selected.has(index);
             checkbox.addEventListener('change', () => {
               if (checkbox.checked) selected.add(index);
