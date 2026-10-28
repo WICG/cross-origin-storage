@@ -97,11 +97,11 @@ COS sharing regardless of how they are currently loaded.
 | [Hugging Face Hub](https://huggingface.co) _(hand-curated, optional)_ | Lists the most-downloaded **web-runnable** models (those tagged for an in-browser runtime: Transformers.js, ONNX Runtime Web, WebLLM, LiteRT.js/MediaPipe, wllama) and hashes only the file formats those runtimes load (`.onnx`, `.gguf`, `.tflite`, `.task`, `.litertlm`, MLC `params_shard_*.bin`) plus the `tokenizer.json` those runtimes fetch alongside them; see [Model-hub source](#model-hub-source-hugging-face) | [`data/huggingface-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/huggingface-hashes.csv) |
 | Manual additions | Hand-curated entries proposed via pull request and reviewed against the ubiquity criteria; see [`manual-additions.json`](manual-additions.json) and [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | [`data/manual-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/manual-hashes.csv) |
 
-The first ten sources are **objective**: a resource qualifies mechanically, with
-no per-entry judgment. Nine qualify through a real-world popularity signal (CDN
-request volume, npm downloads, cross-CDN byte-identity, or browser-vendor
-vetting), and the tenth (`nuxt-cos`) through byte-for-byte reproducibility from
-a public, pinned build recipe. The Hugging Face and manual sources are
+Every source above the Hugging Face Hub is **objective**: a resource qualifies
+mechanically, with no per-entry judgment. Most qualify through a real-world
+popularity signal (CDN request volume, npm downloads, cross-CDN byte-identity,
+or browser-vendor vetting), and `nuxt-cos` through byte-for-byte
+reproducibility from a public, pinned build recipe. The Hugging Face and manual sources are
 **hand-curated**, and each lands in its own section of the output; see
 [Model-hub source](#model-hub-source-hugging-face) and [Manual
 additions](#manual-additions). This source set is not fixed: unpkg and
@@ -624,7 +624,7 @@ how short-lived each token is.
 
 ## Download cache
 
-Ten of the sources hash a file by downloading it in full, and week after week
+Most sources hash a file by downloading it in full, and week after week
 the same bytes come back from URLs that never changed. Measured across one run,
 that is roughly **43,000 requests and 3 GiB** for the CDN-backed sources
 (`youtube-player` alone accounts for about 2.3 GiB of player bundles and
