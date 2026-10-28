@@ -23,6 +23,21 @@ const DATA_DIR = 'data';
 export const OUTPUT_JSON = 'overlap.json';
 const SHA256 = /^[0-9a-f]{64}$/;
 
+// The README section that explains how each source's data is made. Sources
+// without a section of their own point at the table of supported sources.
+const README_SECTIONS = {
+  jsdelivr: 'jsdelivr-cdn-hit-count',
+  'npm-popular': 'npm-popularity-forward-looking',
+  'google-fonts': 'google-fonts',
+  'http-archive': 'http-archive',
+  'nuxt-cos': 'build-tool-source-nuxt-cos--vite-plugin-cross-origin-storage',
+  'chromium-pervasive': 'chromium-extended-pipelines',
+  'youtube-player': 'chromium-extended-pipelines',
+  'google-maps': 'chromium-extended-pipelines',
+  huggingface: 'model-hub-source-hugging-face',
+  manual: 'manual-additions',
+};
+
 // The digest never needs CSV unquoting, but the URL can (see `csvField()`).
 function parseUrl(field) {
   return field.startsWith('"') ? field.slice(1, -1).replaceAll('""', '"') : field;
@@ -65,7 +80,13 @@ export function writeOverlap() {
       }
       entry.set.push(index);
     }
-    sources.push({ key, file, label: sourceLabel(key), size: seen.size });
+    sources.push({
+      key,
+      file,
+      readme: README_SECTIONS[key] || 'supported-sources',
+      label: sourceLabel(key),
+      size: seen.size,
+    });
   }
 
   // Keep the shortest URL of each region as an example, the same rule the PHL

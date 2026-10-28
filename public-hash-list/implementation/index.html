@@ -301,9 +301,9 @@
       }
       .sources li {
         display: grid;
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 8px;
+        gap: 0 8px;
         padding: 4px 6px;
         border-radius: 6px;
         font-size: 0.9rem;
@@ -321,8 +321,14 @@
         color: var(--text-muted);
         font-size: 0.8rem;
       }
+      .sources .actions {
+        grid-column: 3 / -1;
+        display: flex;
+        gap: 8px;
+        margin-inline-start: -4px;
+      }
       .sources .locate,
-      .sources .csv {
+      .sources .link {
         border: 0;
         background: none;
         color: var(--accent);
@@ -332,7 +338,7 @@
         font-size: 0.8rem;
         text-decoration: none;
       }
-      .sources .csv:hover {
+      .sources .link:hover {
         text-decoration: underline;
       }
       .sources .locate:disabled {
@@ -556,8 +562,8 @@
       const MIN_LABEL_RADIUS = 18;
       // The CSVs are stored with Git LFS, which GitHub Pages serves as pointer
       // files, so link to GitHub, which offers the real file for download.
-      const DATA_URL =
-        'https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/';
+      const REPO_URL =
+        'https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/';
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
       const $ = (id) => document.getElementById(id);
@@ -1064,7 +1070,7 @@
           .map((source, index) => ({ ...source, index }))
           .sort((a, b) => b.size - a.size);
         list.replaceChildren(
-          ...order.map(({ index, label, key, file, size }) => {
+          ...order.map(({ index, label, key, file, readme, size }) => {
             const li = el('li');
             li.dataset.index = index;
             const id = `source-${key}`;
@@ -1086,6 +1092,22 @@
               const circle = circles.find((c) => c.index === index);
               if (circle) zoomToCircle(circle);
             });
+            const actions = el('span', { class: 'actions' });
+            actions.append(
+              locate,
+              el('a', {
+                class: 'link',
+                href: `${REPO_URL}data/${file}`,
+                text: 'Data',
+                'aria-label': `${label} hashes as CSV`,
+              }),
+              el('a', {
+                class: 'link',
+                href: `${REPO_URL}README.md#${readme}`,
+                text: 'Method',
+                'aria-label': `How the ${label} hashes are made`,
+              }),
+            );
             li.addEventListener('pointerenter', () => setActive([index]));
             li.addEventListener('pointerleave', () => setActive([]));
             li.append(
@@ -1093,13 +1115,7 @@
               swatch(index),
               el('label', { for: id, title: label, text: label }),
               el('span', { class: 'size num', text: fmt.format(size) }),
-              locate,
-              el('a', {
-                class: 'csv',
-                href: `${DATA_URL}${file}`,
-                text: 'CSV',
-                'aria-label': `${label} hashes as CSV`,
-              }),
+              actions,
             );
             return li;
           }),
