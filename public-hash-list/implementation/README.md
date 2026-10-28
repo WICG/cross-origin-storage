@@ -108,6 +108,11 @@ additions](#manual-additions). This source set is not fixed: unpkg and
 additional web-font providers are obvious future additions, and adding one is a
 governance action that needs no format change.
 
+The [source overlap page](https://wicg.github.io/cross-origin-storage/public-hash-list/implementation/)
+shows how the sources overlap: a zoomable Venn diagram, the share of each
+source's hashes that every other source also lists, and every combination of
+sources that vouches for the same hash.
+
 ## Output format
 
 The canonical, continuously updated output is the Public Hash List at
@@ -127,6 +132,15 @@ PSL uses, it diffs cleanly line-by-line, and it deliberately drops the
 `sources`, `mirror_count`, and `first_seen` columns an earlier CSV used: the
 first two are build-time inputs, and `first_seen` is effectively unknowable from
 a snapshot scrape.
+
+Alongside the list, the pipeline writes [`overlap.json`](overlap.json), a small
+summary that counts the hashes for each combination of sources that vouches for
+them. [`index.html`](index.html) reads it to draw the [source overlap
+page](https://wicg.github.io/cross-origin-storage/public-hash-list/implementation/).
+[`overlap.js`](overlap.js) finds sources by scanning every `data/*.csv` with a
+`sha256` column, so a new source appears on the page without changes to either
+file. The summary lives outside `data/` because GitHub Pages serves LFS files as
+pointers.
 
 ```
 // Public Hash List (PHL)
@@ -725,6 +739,7 @@ npm run http-archive  # reads the BigQuery results published directly by the HTT
 npm run nuxt-cos      # rebuilds the COS chunk matrix (installs and runs the real plugin)
 npm run huggingface   # optional model-hub section; set HF_TOKEN in .env for a full-speed run
 npm run manual        # process manual-additions.json → data/manual-hashes.csv
+npm run overlap       # rebuild overlap.json from data/*.csv for the overlap page
 
 # Cheap probe: has a new plugin release appeared since the committed hashes?
 # Exits 0 either way and prints the answer; the weekly workflow runs this first
