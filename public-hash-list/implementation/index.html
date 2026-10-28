@@ -23,9 +23,15 @@
         --text-secondary: #52514e;
         --text-muted: #77756f;
         --accent: #2a78d6;
-        --circle-fill: rgb(11 11 11 / 0.06);
-        --circle-stroke: rgb(11 11 11 / 0.45);
-        --region-fill: rgb(42 120 214 / 0.35);
+        --region-fill: rgb(11 11 11 / 0.16);
+        --series-1: #2a78d6;
+        --series-2: #eb6834;
+        --series-3: #1baf7a;
+        --series-4: #eda100;
+        --series-5: #e87ba4;
+        --series-6: #008300;
+        --series-7: #6250d6;
+        --series-8: #e34948;
         --seq-100: #cde2fb;
         --seq-200: #9ec5f4;
         --seq-300: #6da7ec;
@@ -44,9 +50,15 @@
           --text-secondary: #c3c2b7;
           --text-muted: #96958c;
           --accent: #3987e5;
-          --circle-fill: rgb(240 239 236 / 0.06);
-          --circle-stroke: rgb(240 239 236 / 0.45);
-          --region-fill: rgb(57 135 229 / 0.4);
+          --region-fill: rgb(240 239 236 / 0.2);
+          --series-1: #3987e5;
+          --series-2: #d95926;
+          --series-3: #199e70;
+          --series-4: #c98500;
+          --series-5: #d55181;
+          --series-6: #008300;
+          --series-7: #9085e9;
+          --series-8: #e66767;
         }
       }
       :root[data-theme='dark'] {
@@ -58,9 +70,15 @@
         --text-secondary: #c3c2b7;
         --text-muted: #96958c;
         --accent: #3987e5;
-        --circle-fill: rgb(240 239 236 / 0.06);
-        --circle-stroke: rgb(240 239 236 / 0.45);
-        --region-fill: rgb(57 135 229 / 0.4);
+        --region-fill: rgb(240 239 236 / 0.2);
+        --series-1: #3987e5;
+        --series-2: #d95926;
+        --series-3: #199e70;
+        --series-4: #c98500;
+        --series-5: #d55181;
+        --series-6: #008300;
+        --series-7: #9085e9;
+        --series-8: #e66767;
       }
 
       * {
@@ -166,19 +184,33 @@
       .venn svg.dragging {
         cursor: grabbing;
       }
-      .venn circle {
-        fill: var(--circle-fill);
-        stroke: var(--circle-stroke);
-        stroke-width: 1;
+      /* Each source sets `--color` and, past the eighth, a dash pattern. */
+      .venn circle,
+      .swatch circle {
+        fill: var(--color);
+        fill-opacity: 0.2;
+        stroke: var(--color);
+        stroke-width: 1.5;
+        stroke-linecap: round;
         vector-effect: non-scaling-stroke;
       }
       .venn circle.active {
-        stroke: var(--accent);
-        stroke-width: 2.5;
+        fill-opacity: 0.35;
+        stroke-width: 3;
+      }
+      .swatch {
+        display: block;
+        flex: none;
+        width: 14px;
+        height: 14px;
+        overflow: visible;
+      }
+      .swatch circle {
+        fill-opacity: 0.35;
       }
       .venn .region {
         fill: var(--region-fill);
-        stroke: var(--accent);
+        stroke: var(--text-primary);
         stroke-width: 1.5;
         vector-effect: non-scaling-stroke;
         pointer-events: none;
@@ -288,7 +320,7 @@
       }
       .sources li {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
         align-items: center;
         gap: 8px;
         padding: 4px 6px;
@@ -351,6 +383,9 @@
         gap: 4px;
       }
       .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         border: 1px solid var(--border);
         border-radius: 999px;
         padding: 0 8px;
@@ -533,6 +568,12 @@
       // across, so the small sources do not pile their labels on top of each
       // other at the overview zoom.
       const MIN_LABEL_RADIUS = 18;
+      // The eight categorical hues in their validated order. Past eight, a
+      // source reuses a hue with a short-dashed outline, and past sixteen with
+      // a long-dashed one, so every source stays distinct without a ninth,
+      // untested hue.
+      const HUES = 8;
+      const DASHES = ['', '6 3', '14 4'];
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
       const $ = (id) => document.getElementById(id);
@@ -557,6 +598,25 @@
           else node.setAttribute(key, value);
         }
         return node;
+      }
+
+      // Colors follow the source's position in `overlap.json`, so a source
+      // keeps its color when others are deselected.
+      function paint(node, index) {
+        node.style.setProperty('--color', `var(--series-${(index % HUES) + 1})`);
+        const dash = DASHES[Math.floor(index / HUES) % DASHES.length];
+        if (dash) node.setAttribute('stroke-dasharray', dash);
+        return node;
+      }
+
+      function swatch(index) {
+        const svgEl = el(
+          'svg',
+          { class: 'swatch', viewBox: '0 0 14 14', 'aria-hidden': 'true' },
+          SVG_NS,
+        );
+        svgEl.append(paint(el('circle', { cx: 7, cy: 7, r: 6 }, SVG_NS), index));
+        return svgEl;
       }
 
       // --- Region arithmetic ------------------------------------------------
@@ -666,7 +726,10 @@
         for (const index of order) {
           const { x, y, radius, text } = layout[String(index)];
           const source = data.sources[index];
-          const circleEl = el('circle', { cx: x, cy: y, r: radius }, SVG_NS);
+          const circleEl = paint(
+            el('circle', { cx: x, cy: y, r: radius }, SVG_NS),
+            index,
+          );
           circleEl.dataset.index = index;
           world.append(circleEl);
           const label = el('text', {}, SVG_NS);
@@ -1015,6 +1078,7 @@
             li.dataset.index = index;
             const id = `source-${key}`;
             const checkbox = el('input', { type: 'checkbox', id });
+            checkbox.style.accentColor = `var(--series-${(index % HUES) + 1})`;
             checkbox.checked = selected.has(index);
             checkbox.addEventListener('change', () => {
               if (checkbox.checked) selected.add(index);
@@ -1035,6 +1099,7 @@
             li.addEventListener('pointerleave', () => setActive([]));
             li.append(
               checkbox,
+              swatch(index),
               el('label', { for: id, title: label, text: label }),
               el('span', { class: 'size num', text: fmt.format(size) }),
               locate,
@@ -1131,7 +1196,9 @@
           const tr = el('tr');
           const chips = el('div', { class: 'chips' });
           for (const i of region.sets) {
-            chips.append(el('span', { class: 'chip', text: data.sources[i].label }));
+            const chip = el('span', { class: 'chip' });
+            chip.append(swatch(i), data.sources[i].label);
+            chips.append(chip);
           }
           const sources = el('td');
           sources.append(chips);
