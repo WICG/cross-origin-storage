@@ -65,7 +65,7 @@ export function writeOverlap() {
       }
       entry.set.push(index);
     }
-    sources.push({ key, label: sourceLabel(key), size: seen.size });
+    sources.push({ key, file, label: sourceLabel(key), size: seen.size });
   }
 
   // Keep the shortest URL of each region as an example, the same rule the PHL

@@ -301,7 +301,7 @@
       }
       .sources li {
         display: grid;
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
         align-items: center;
         gap: 8px;
         padding: 4px 6px;
@@ -321,7 +321,8 @@
         color: var(--text-muted);
         font-size: 0.8rem;
       }
-      .sources .locate {
+      .sources .locate,
+      .sources .csv {
         border: 0;
         background: none;
         color: var(--accent);
@@ -329,6 +330,10 @@
         padding: 2px 4px;
         font: inherit;
         font-size: 0.8rem;
+        text-decoration: none;
+      }
+      .sources .csv:hover {
+        text-decoration: underline;
       }
       .sources .locate:disabled {
         visibility: hidden;
@@ -549,6 +554,10 @@
       // across, so the small sources do not pile their labels on top of each
       // other at the overview zoom.
       const MIN_LABEL_RADIUS = 18;
+      // The CSVs are stored with Git LFS, which GitHub Pages serves as pointer
+      // files, so link to GitHub, which offers the real file for download.
+      const DATA_URL =
+        'https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/';
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
       const $ = (id) => document.getElementById(id);
@@ -1055,7 +1064,7 @@
           .map((source, index) => ({ ...source, index }))
           .sort((a, b) => b.size - a.size);
         list.replaceChildren(
-          ...order.map(({ index, label, key, size }) => {
+          ...order.map(({ index, label, key, file, size }) => {
             const li = el('li');
             li.dataset.index = index;
             const id = `source-${key}`;
@@ -1085,6 +1094,12 @@
               el('label', { for: id, title: label, text: label }),
               el('span', { class: 'size num', text: fmt.format(size) }),
               locate,
+              el('a', {
+                class: 'csv',
+                href: `${DATA_URL}${file}`,
+                text: 'CSV',
+                'aria-label': `${label} hashes as CSV`,
+              }),
             );
             return li;
           }),
