@@ -215,7 +215,10 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    lookup limit, which would amount to a third-party cookie. Top-level writes are keyed too, so a
    tracker cannot write once in a top-level visit and read back from its frames everywhere. A
    [=COS entry/origins=] grant from a [=first-party COS context=] also applies first-party under
-   any top-level site, so restricted sharing between top-level sites keeps working. [=COS entry/Globally disclosable=] is not keyed,
+   any top-level site, so restricted sharing between top-level sites keeps working. A lookup that
+   such a grant answers under another top-level site discloses what was stored under the
+   writer's, so a cross-site lookup budget counts it (see [[#availability-gating]]).
+   [=COS entry/Globally disclosable=] is not keyed,
    since the [=Public Hash List=] and GREASE'ing already govern it.
 
 A user agent has an associated <dfn>Cross-Origin Storage queue</dfn>, which is the result of
@@ -1485,11 +1488,22 @@ cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for 
 small budget of cross-site lookups keyed on the top-level site and shared by every frame on
 the page, a count that persists across reloads for a time window, and making a written entry
 available through the "`*`" grant only after a user gesture. The README's
-[privacy considerations](README.md#privacy-considerations) describe these mitigations. Like
-[[#greaseing|GREASE'ing]], they apply only to an origin that qualifies through the
-[=COS entry/globally disclosable=] grant alone. [=COS entry/Storing origins=], origins on the
-explicit [=COS entry/origins=] [=list=], and origins [=same site=] with either read an entry
-as soon as [=determine COS disclosure=] returns it, with no user gesture and no lookup budget.
+[privacy considerations](README.md#privacy-considerations) describe these mitigations.
+
+Note: A lookup budget leaves a lookup uncharged only when [=determine COS disclosure=] answers it
+through a grant written under the reader's own top-level site: a [=COS entry/storing origins=]
+grant, or a [=COS entry/origins=] grant whose [=COS grant/partition=] is [=same site=] with the
+reader's [=COS partition=]. Every other lookup counts, whether or not it finds an entry. That
+includes a lookup answered by a [=COS grant/first-party=] [=COS entry/origins=] grant written under
+another top-level site. The `Cross-Origin-Storage-Allow-Origin` header keeps injected content
+from naming such a reader. The writing site's operator can still name any origin, so without the
+charge two cooperating sites could mint marker files on one with a [=list=] naming the other and
+read back an identifier of any width there, across separate visits and with no limit. A lookup
+refused for being over budget rejects with a "{{NotFoundError}}" {{DOMException}}, exactly as a
+miss does. The user-gesture gate, like [[#greaseing|GREASE'ing]], applies only to an origin that
+qualifies through the [=COS entry/globally disclosable=] grant alone: [=COS entry/storing
+origins=], origins on the explicit [=COS entry/origins=] [=list=], and origins [=same site=] with
+either read an entry as soon as [=determine COS disclosure=] returns it.
 
 ## GREASE'ing ## {#greaseing}
 
