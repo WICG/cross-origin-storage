@@ -34,6 +34,17 @@ urlPrefix: https://html.spec.whatwg.org/multipage/browsers.html#; spec: HTML
   type: dfn; text: serialization; for: origin; url: ascii-serialisation-of-an-origin
 </pre>
 
+<pre class="biblio">
+{
+  "WORKERS-PERMISSIONS-POLICY": {
+    "title": "Explainer for Permissions Policy for workers",
+    "href": "https://github.com/explainers-by-googlers/workers-permissions-policy",
+    "status": "Explainer",
+    "publisher": "Google"
+  }
+}
+</pre>
+
 <style>
 .domintro dt {
   font-family: Menlo, Consolas, "DejaVu Sans Mono", Monaco, monospace;
@@ -264,7 +275,7 @@ list's retrieval mechanism, governance model, or the rest of that design evolves
 # The {{CrossOriginStorageManager}} interface # {#the-crossoriginstoragemanager-interface}
 
 <xmp class="idl">
-[Exposed=(Window,DedicatedWorker,SharedWorker), SecureContext]
+[Exposed=(Window,Worker), SecureContext]
 interface CrossOriginStorageManager {
   Promise<FileSystemFileHandle> getFileHandle(
       CrossOriginStorageGetFileHandleHash hash,
@@ -282,7 +293,7 @@ dictionary CrossOriginStorageGetFileHandleOptions {
 };
 
 interface mixin NavigatorCrossOriginStorage {
-  [Exposed=(Window,DedicatedWorker,SharedWorker), SameObject, SecureContext]
+  [Exposed=(Window,Worker), SameObject, SecureContext]
   readonly attribute CrossOriginStorageManager crossOriginStorage;
 };
 Navigator includes NavigatorCrossOriginStorage;
@@ -1138,13 +1149,23 @@ presence or absence is not detectable by a site.
 
 This specification defines a [=policy-controlled feature=] [[permissions-policy]] identified by
 the string "<dfn for="PermissionsPolicy" export>cross-origin-storage</dfn>". Its default allowlist
-is `self`.
+is `self`. In the terms of Permissions Policy for workers [[WORKERS-PERMISSIONS-POLICY]], it
+cannot be enabled in service workers.
+
+Issue: This section relies on Permissions Policy for workers [[WORKERS-PERMISSIONS-POLICY]] as if
+it were already part of [[permissions-policy]] and [[HTML]]. That proposal is an explainer, and
+no specification defines the worker policies, the {{SharedWorker}} `allow` option, or the "can be
+enabled in service workers" boolean that this section refers to.
+At the time of writing, Chromium implements the shared worker part behind a flag
+(`PermissionsPolicyForSharedWorkers`) and no engine ships it. Once that work is specified, this
+section should call its hooks in place of describing them.
 
 [[permissions-policy]] defines [=allowed to use=] over {{Document}}s, but
 {{CrossOriginStorageManager}} is also exposed on {{WorkerGlobalScope}}, which has no
-{{Document}} of its own. The check is therefore stated over the calling [=global object=]: a
-worker global resolves to the {{Document}}s that own it, transitively, and every one of them
-must permit the feature.
+{{Document}} of its own. The check is therefore stated over the calling [=global object=],
+following [[WORKERS-PERMISSIONS-POLICY]]: a dedicated worker inherits the policy of the
+{{Document}}s that own it, transitively, a shared worker has a policy of its own, and a service
+worker can never enable the feature.
 
 <div algorithm>
 To <dfn>check Cross-Origin Storage permission</dfn> given a [=global object=] |global|, return a
@@ -1157,7 +1178,7 @@ To <dfn>check Cross-Origin Storage permission</dfn> given a [=global object=] |g
       "<code>[=PermissionsPolicy/cross-origin-storage=]</code>" [=policy-controlled feature=],
       return false.
    1. Return true.
-1. If |global| is a {{WorkerGlobalScope}} object, then:
+1. If |global| is a {{DedicatedWorkerGlobalScope}} object, then:
    1. Let |owners| be |global|'s [=WorkerGlobalScope/owner set=].
    1. If |owners| [=list/is empty=], return false.
    1. [=set/For each=] |owner| of |owners|:
@@ -1167,7 +1188,20 @@ To <dfn>check Cross-Origin Storage permission</dfn> given a [=global object=] |g
       1. If |owner| is a {{WorkerGlobalScope}} object and the result of running
          [=check Cross-Origin Storage permission=] given |owner| is false, return false.
    1. Return true.
+1. If |global| is a {{SharedWorkerGlobalScope}} object, then return true if
+   "<code>[=PermissionsPolicy/cross-origin-storage=]</code>" is enabled in |global|'s permissions
+   policy [[WORKERS-PERMISSIONS-POLICY]], and false otherwise.
+
+   Note: That policy holds only the features its creator delegated through the `allow` member
+   of the {{SharedWorker}} constructor's options, less any that the worker script's own
+   `Permissions-Policy` response header disables. A context that could not delegate those
+   features, for example because its own policy disables Cross-Origin Storage, fails to connect,
+   so the policy cannot change while the worker runs.
 1. Return false.
+
+   Note: This covers {{ServiceWorkerGlobalScope}}, where
+   "<code>[=PermissionsPolicy/cross-origin-storage=]</code>" cannot be enabled
+   [[WORKERS-PERMISSIONS-POLICY]].
 
 </div>
 
@@ -1184,34 +1218,22 @@ opt-out in name only. A worker created from a `blob:` URL runs in its creating p
 `new Worker(URL.createObjectURL(&hellip;))` would escape a `cross-origin-storage=()` policy
 without changing anything else about it.
 
-Note: {{CrossOriginStorageManager}} is not exposed on {{ServiceWorkerGlobalScope}}. Were it
-exposed, this algorithm would return false there anyway, since a {{ServiceWorkerGlobalScope}}'s
-[=WorkerGlobalScope/owner set=] is empty. That follows from what an [=WorkerGlobalScope/owner set=] is: a
-liveness relation, populated when a worker is created and consulted to decide whether that worker
-is still actively needed. A service worker deliberately has no such relation to any {{Document}}:
-its registration is persisted, the user agent starts the global in response to events, and it can
-run with no [=/service worker client=] at all. The client that called
-{{ServiceWorkerContainer/register()}} is therefore knowable at registration time but is
-routinely gone by the time the global runs, and one running service worker serves many clients
-whose policies need not agree.
-
-Note: Covering service workers needs a captured policy, and that work belongs to
-[[permissions-policy]] and [[service-workers]]. The shape
-this specification would favor is to derive a service worker's policy from the
-<code>Permissions-Policy</code> header on its own script response, the way its policy container
-already carries that response's CSP: it stays under the origin's control, and it is
-re-evaluated on every update check. Snapshotting the registering client's policy would make the opt-out stale, since removing the feature
-from a header would not take effect until the registration happened to update. Until such a
-model exists, leaving the API unexposed in service workers is the one answer that cannot be used to escape an opt-out. Also see
+Note: A service worker cannot use Cross-Origin Storage, because
+"<code>[=PermissionsPolicy/cross-origin-storage=]</code>" is not a feature that can be enabled in
+service workers [[WORKERS-PERMISSIONS-POLICY]]. That is the default for every policy-controlled
+feature, and Cross-Origin Storage keeps it. A service worker's registration is persisted, the user
+agent starts it in response to events, and one running service worker serves many clients whose
+policies need not agree, so there is no single {{Document}} whose policy could be consulted. The
+API is still exposed there, so a call rejects with "{{NotAllowedError}}" like any other call this
+algorithm refuses. Also see
 <a href="https://github.com/explainers-by-googlers/workers-permissions-policy/issues/4">explainers-by-googlers/workers-permissions-policy#4</a>.
 
 Note: A {{SharedWorkerGlobalScope}}'s [=WorkerGlobalScope/owner set=] can hold several
 {{Document}}s with different policies, and it gains and loses owners over the worker's lifetime.
-Requiring every owner to permit the feature means one owner that disallows it disables
-Cross-Origin Storage for the whole shared worker, and that the answer can change between two
-{{CrossOriginStorageManager/getFileHandle()}} calls. The alternative, requiring only one
-permissive owner, would let any document that allows the feature re-enable it on behalf of
-documents that disallow it.
+Consulting the worker's own policy, which is fixed when the worker is created, keeps the answer
+stable between two {{CrossOriginStorageManager/getFileHandle()}} calls. It cannot be used to
+escape an opt-out either: a document whose policy disables Cross-Origin Storage cannot delegate
+it, so it can neither create a shared worker that has the feature nor connect to one.
 
 # The `Cross-Origin-Storage-Allow-Origin` header # {#allow-origin-header}
 
@@ -1337,9 +1359,8 @@ Every {{Document}} has a <dfn for="Document">COS scope ceiling</dfn>, a [=set=] 
 set when the document is created to the result of running [=parse a COS scope ceiling=] given the
 [=/header list=] of the [=/response=] used to create it.
 
-Note: Taking the intersection across a worker's [=WorkerGlobalScope/owner set=] mirrors
-[=check Cross-Origin Storage permission=]: an origin is in a worker's ceiling only if every owning
-{{Document}}, transitively, authorized it. Because a `blob:` worker shares its creating page's
+Note: Taking the intersection across a worker's [=WorkerGlobalScope/owner set=] means an origin
+is in a worker's ceiling only if every owning {{Document}}, transitively, authorized it. Because a `blob:` worker shares its creating page's
 [=/origin=] and Cross-Origin Storage view exactly (see
 [[#the-crossoriginstoragemanager-interface]]), a ceiling that consulted only the worker itself
 would be empty for every worker, and moving a list-scoped write into

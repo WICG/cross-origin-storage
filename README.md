@@ -782,9 +782,22 @@ A `CrossOriginStorageManager` uses the origin of its context. For a worker, that
 
 - **Workers created from a `blob:` URL** have the origin of the context that created them and share that page's COS view: each reads what the other stored, and the worker's writes count as the page's own. Revoking the `blob:` URL does not change this.
 - **Workers created from a `data:` URL** have an opaque origin, which has no stable identity to key storing origins or same-site checks on. This proposal does not yet define what `getFileHandle()` does for an opaque calling origin; the origin rule in "validate a COS request" covers only the origins a caller names in `origins`. Implementations should at minimum reject such calls promptly, so the returned promise never stays pending.
-- **Service workers** do not expose `navigator.crossOriginStorage` for now; see below.
+- **Service workers** expose `navigator.crossOriginStorage`, but every call rejects with `NotAllowedError`; see below.
 
-The Permissions Policy check applies to the calling global. A dedicated or shared worker may use COS only if every document in its owner set may, resolved transitively through any intervening workers, so `Permissions-Policy: cross-origin-storage=()` also covers calls moved into `new Worker(URL.createObjectURL(blob))`. A service worker has no owner set: its registration persists, and the browser starts it in response to events, often with no client open. Supporting service workers needs a policy captured from their own script response, most plausibly a `Permissions-Policy` header, which is work for the Permissions Policy and Service Workers specifications. Also see [explainers-by-googlers/workers-permissions-policy#4](https://github.com/explainers-by-googlers/workers-permissions-policy/issues/4).
+The Permissions Policy check applies to the calling global, following [Permissions Policy for workers](https://github.com/explainers-by-googlers/workers-permissions-policy):
+
+- **A dedicated worker** inherits the policy of the documents that own it, resolved transitively through any intervening workers, so `Permissions-Policy: cross-origin-storage=()` also covers calls moved into `new Worker(URL.createObjectURL(blob))`.
+- **A shared worker** has a policy of its own, holding only what its creator delegates when it creates the worker. A page that wants its shared worker to use COS has to say so:
+
+  ```js
+  const worker = new SharedWorker('worker.js', {allow: 'cross-origin-storage'});
+  ```
+
+  A document whose policy disables COS cannot delegate it, so it can neither create such a worker nor connect to one.
+- **A service worker** can never use COS. `cross-origin-storage` is not a feature that can be enabled in service workers, which is the default for every policy-controlled feature in that proposal. A service worker's registration persists, the browser starts it in response to events, often with no client open, and one running service worker serves many clients whose policies need not agree. Also see [explainers-by-googlers/workers-permissions-policy#4](https://github.com/explainers-by-googlers/workers-permissions-policy/issues/4).
+
+> [!NOTE]
+> This relies on Permissions Policy for workers as if it existed already. That proposal is an explainer, and no specification defines worker policies, the `SharedWorker` `allow` option, or the "can be enabled in service workers" boolean yet. At the time of writing, Chromium implements the shared worker part behind a flag (`PermissionsPolicyForSharedWorkers`), and no browser ships it. A browser that does not implement it ignores the `allow` option and checks the policies of a shared worker's owning documents in its place.
 
 ### Eviction
 
@@ -1059,7 +1072,7 @@ Copied from the [formal spec](https://wicg.github.io/cross-origin-storage/) on e
 <!-- IDL -->
 
 ```webidl
-[Exposed=(Window,DedicatedWorker,SharedWorker), SecureContext]
+[Exposed=(Window,Worker), SecureContext]
 interface CrossOriginStorageManager {
   Promise<FileSystemFileHandle> getFileHandle(
       CrossOriginStorageGetFileHandleHash hash,
@@ -1077,7 +1090,7 @@ dictionary CrossOriginStorageGetFileHandleOptions {
 };
 
 interface mixin NavigatorCrossOriginStorage {
-  [Exposed=(Window,DedicatedWorker,SharedWorker), SameObject, SecureContext]
+  [Exposed=(Window,Worker), SameObject, SecureContext]
   readonly attribute CrossOriginStorageManager crossOriginStorage;
 };
 Navigator includes NavigatorCrossOriginStorage;
