@@ -1251,8 +1251,9 @@ the [=/response=] behind the bytes being disclosed:
 
 * For a {{CrossOriginStorageManager/getFileHandle()}} write, whose bytes may be generated in
   script and have no originating [=/response=] of their own, it is the [=/response=] used to
-  create the calling [=global object=]'s {{Document}}, or, for a worker, those of the
-  {{Document}}s that own it (see [=obtain the COS scope ceiling=]).
+  create the calling [=global object=]'s {{Document}}, or, for a worker, the one behind the
+  {{Document}} that created it, directly or through other workers (see
+  [=obtain the COS scope ceiling=]).
 * For a host integration, it is the [=/response=] of the fetched resource whose bytes are stored
   (see [=store a fetched resource in Cross-Origin Storage=]). This is the resource's server, which
   need not be the server of the {{Document}} that loads it.
@@ -1318,19 +1319,8 @@ To <dfn>obtain the COS scope ceiling</dfn> given a [=global object=] |global|, r
    1. Let |document| be |global|'s [=associated Document=].
    1. If |document| is null, return an empty [=set=].
    1. Return |document|'s [=Document/COS scope ceiling=].
-1. If |global| is a {{WorkerGlobalScope}} object, then:
-   1. Let |owners| be |global|'s [=WorkerGlobalScope/owner set=].
-   1. If |owners| [=list/is empty=], return an empty [=set=].
-   1. Let |ceiling| be null.
-   1. [=set/For each=] |owner| of |owners|:
-      1. Let |ownerCeiling| be an empty [=set=].
-      1. If |owner| is a {{Document}}, set |ownerCeiling| to |owner|'s
-         [=Document/COS scope ceiling=].
-      1. Otherwise, if |owner| is a {{WorkerGlobalScope}} object, set |ownerCeiling| to the result
-         of running [=obtain the COS scope ceiling=] given |owner|.
-      1. If |ceiling| is null, set |ceiling| to |ownerCeiling|; otherwise set |ceiling| to the
-         [=set/intersection=] of |ceiling| and |ownerCeiling|.
-   1. Return |ceiling|.
+1. If |global| is a {{WorkerGlobalScope}} object, return |global|'s
+   [=WorkerGlobalScope/COS scope ceiling=].
 1. Return an empty [=set=].
 
 </div>
@@ -1359,20 +1349,32 @@ Every {{Document}} has a <dfn for="Document">COS scope ceiling</dfn>, a [=set=] 
 set when the document is created to the result of running [=parse a COS scope ceiling=] given the
 [=/header list=] of the [=/response=] used to create it.
 
-Note: Taking the intersection across a worker's [=WorkerGlobalScope/owner set=] means an origin
-is in a worker's ceiling only if every owning {{Document}}, transitively, authorized it. Because a `blob:` worker shares its creating page's
-[=/origin=] and Cross-Origin Storage view exactly (see
-[[#the-crossoriginstoragemanager-interface]]), a ceiling that consulted only the worker itself
-would be empty for every worker, and moving a list-scoped write into
-`new Worker(URL.createObjectURL(&hellip;))` would strip the recipients the page authorized;
-intersecting the owners' ceilings preserves that authorization without letting any single
-owner widen it.
+Every {{WorkerGlobalScope}} has a <dfn for="WorkerGlobalScope">COS scope ceiling</dfn>, a
+[=set=] of [=/origins=], set when the worker is created by [=run a worker=] to the result of
+running [=obtain the COS scope ceiling=] given the [=environment settings object/global object=]
+of the <var ignore>outside settings</var> that [=run a worker=] is given. For a dedicated worker,
+that is the global that constructed it. For a shared worker, it is the global whose
+{{SharedWorker}} constructor call created the worker; a context that later connects to the
+running worker leaves its ceiling unchanged.
+
+Note: A worker takes its creator's ceiling, and never one from its own script's [=/response=].
+A `blob:` worker shares its creating page's [=/origin=] and Cross-Origin Storage view exactly
+(see [[#the-crossoriginstoragemanager-interface]]), and its [=/response=] carries no headers, so
+a ceiling read from the worker itself would be empty for every `blob:` worker, and moving a
+list-scoped write into `new Worker(URL.createObjectURL(&hellip;))` would strip the recipients the
+page authorized. Fixing the ceiling at creation mirrors [=check Cross-Origin Storage
+permission=], where a shared worker's policy holds only what its creator delegated: the answer
+stays the same between two {{CrossOriginStorageManager/getFileHandle()}} calls however contexts
+connect and disconnect. Every context that can connect to a shared worker has the worker's
+[=/origin=], so a later one with a narrower ceiling is run by the same operator that authorized
+the creator's ceiling.
 
 Issue: Populating a {{Document}}'s [=Document/COS scope ceiling=] from its [=/response=] requires
 a hook in [[HTML]]'s document creation steps, the same way [[permissions-policy]] and [[CSP]] are
 populated at response processing time. Until that hook exists, this section describes the
 required behavior directly; a future revision is expected to integrate it formally, alongside the
-[[FS]] hook noted in [[#creating-and-writing-files]]. Host integrations need no such hook: they
+[[FS]] hook noted in [[#creating-and-writing-files]]. A {{WorkerGlobalScope}}'s
+[=WorkerGlobalScope/COS scope ceiling=] needs the same kind of hook in [=run a worker=]. Host integrations need no such hook: they
 pass the fetched [=/response=] to [=store a fetched resource in Cross-Origin Storage=], which reads
 the ceiling from it.
 

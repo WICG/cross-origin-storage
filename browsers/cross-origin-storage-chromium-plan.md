@@ -133,10 +133,11 @@ checkout.
 9. **The `Cross-Origin-Storage-Allow-Origin` ceiling is read in the browser process, from its own
    record of the response.** An `origins` list is declared by script, which injected content can
    set; the header is the operator's authorization for it, which injected content cannot forge.
-   The renderer never supplies it: the browser reads it from the last committed response of every
-   document that owns the calling global (the document itself for a window, the ancestor frame for
-   a dedicated worker, the current clients for a shared worker), intersects those sets, and drops
-   every requested origin the result does not name. A list whose every member is dropped leaves
+   The renderer never supplies it: the browser reads it from the last committed response of the
+   document behind the calling global (the document itself for a window, and for a worker the
+   document that created it, recorded when the worker is created and kept for its lifetime, so
+   clients that connect to a shared worker later do not change it), and drops every requested
+   origin it does not name. A list whose every member is dropped leaves
    the write succeeding with the same-site baseline alone, and the dropped origins are named in
    the writing document's console, since otherwise a developer sees a silently narrower entry and
    no reason for it.

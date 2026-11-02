@@ -900,7 +900,7 @@ The header applies only to the list form. Same-site writes (`origins` omitted, o
 | Scenario | Example declaration | Who sends the header | Header value |
 | -- | -- | -- | -- |
 | Imperative API in a document | A page on `https://write.example` calls `getFileHandle(hash, { create: true, origins: ['https://calculate.example'] })` | `https://write.example`, on the response for that document (for an iframe, the iframe's own document) | `https://calculate.example` |
-| Imperative API in a worker | The same call, made from a dedicated or shared worker of that page | Every document that owns the worker; only origins all of them name survive | `https://calculate.example` |
+| Imperative API in a worker | The same call, made from a dedicated or shared worker of that page | The document that created the worker, directly or through other workers. The worker keeps that ceiling for its lifetime, and documents that connect to a shared worker later do not change it | `https://calculate.example` |
 | Host integration (HTML, import attribute, CSS, Fetch) | A page on `https://acme-inc.example` loads `https://acme-cdn.example/corp.js` with `crossoriginstorage="https://acme-inc.example https://acme-marketing.example"` | `https://acme-cdn.example`, on the response for `corp.js`; the header on the `https://acme-inc.example` document plays no part | `https://acme-inc.example, https://acme-marketing.example` |
 
 The listed origins never send anything. They take part only later, by calling `getFileHandle(hash)` like any other reader.
