@@ -882,6 +882,25 @@ A list therefore needs authorization from a response header that injected conten
 - **Imperative API:** the bytes may be generated in script, so the header comes from the **writing document's** response.
 - **Host integrations:** the bytes come from a fetched resource, so the header comes from that **resource's** response. This also keeps a site from declaring another site's asset shareable with origins of its choosing.
 
+The header applies only to the list form. Same-site writes (`origins` omitted, or a valueless `crossoriginstorage`) and global writes (`'*'`) need no header on any surface. The following examples show who sends the header for a list. The HTML attribute, the import attribute, the CSS modifier, and the Fetch option all follow the same rule, so the table groups them.
+
+| Scenario | Example declaration | Who sends the header | Header value |
+| -- | -- | -- | -- |
+| Imperative API in a document | A page on `https://write.example` calls `getFileHandle(hash, { create: true, origins: ['https://calculate.example'] })` | `https://write.example`, on the response for that document (for an iframe, the iframe's own document) | `https://calculate.example` |
+| Imperative API in a worker | The same call, made from a dedicated or shared worker of that page | Every document that owns the worker; only origins all of them name survive | `https://calculate.example` |
+| Host integration (HTML, import attribute, CSS, Fetch) | A page on `https://acme-inc.example` loads `https://acme-cdn.example/corp.js` with `crossoriginstorage="https://acme-inc.example https://acme-marketing.example"` | `https://acme-cdn.example`, on the response for `corp.js`; the header on the `https://acme-inc.example` document plays no part | `https://acme-inc.example, https://acme-marketing.example` |
+
+The listed origins never send anything. They take part only later, by calling `getFileHandle(hash)` like any other reader.
+
+The browser stores only the declared origins the header also names. Suppose script injected into `https://write.example` changes the declaration to `origins: ['https://calculate.example', 'https://evil.example']`:
+
+| Declared `origins` | `Cross-Origin-Storage-Allow-Origin` | Stored list |
+| -- | -- | -- |
+| `https://calculate.example`, `https://evil.example` | `https://calculate.example` | `https://calculate.example` |
+| `https://evil.example` | `https://calculate.example` | Empty, so the write falls back to same-site |
+| `https://calculate.example` | `*`, absent, or malformed | Empty, so the write falls back to same-site |
+| `https://www.calculate.example` | `https://calculate.example` | Empty, because the header must name the exact origin |
+
 The header lists origins separated by commas, each of which must be an `https:` origin or a loopback `http:` origin. A header with any other value, including `*`, authorizes nothing, exactly as an absent one does. The declared list is intersected with the origins the header names. Unnamed origins are dropped, and if no cross-origin recipient remains, the write still succeeds with the same-site default. The check applies per writer, so a later writer can add only origins its own response authorizes and cannot change an earlier writer's scope.
 
 Only the list form needs the header. A `'*'`-scoped resource reaches a non-storing origin only if its hash is on the [Public Hash List](#availability-gating), which a per-user secret never is, and the same-site default names no cross-origin recipient.
