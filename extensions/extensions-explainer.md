@@ -80,7 +80,7 @@ Timing remains open. See [`RuleCondition.crossOriginStorageHashes`](#ruleconditi
 
 This section documents the extension-facing surface of the Chromium prototype, following the conventions of the [Chrome extensions API reference](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest). It describes a prototype, so every part of it may change.
 
-Hashes appear in two forms. `chrome.crossOriginStorage` and `chrome.publicHash` identify a file with the dictionary `getFileHandle()` takes, `{value, algorithm}`: its lowercase hexadecimal digest and its Web Crypto algorithm name. The DevTools protocol takes the same two strings as `hash` and `algorithm`. `declarativeNetRequest` takes SRI-style strings, as in an `integrity` attribute. [`chrome.publicHash.parseIntegrity()`](#parseintegrity) converts SRI strings to the first form, and this converts back:
+Hashes appear in two forms. `chrome.crossOriginStorage`, `chrome.publicHash`, and the DevTools protocol identify a file with the dictionary `getFileHandle()` takes, `{value, algorithm}`: its lowercase hexadecimal digest and its Web Crypto algorithm name. `declarativeNetRequest` takes SRI-style strings, as in an `integrity` attribute. [`chrome.publicHash.parseIntegrity()`](#parseintegrity) converts SRI strings to the first form, and this converts back:
 
 ```js
 // {value: '<hex>', algorithm: 'SHA-256'} to 'sha256-<base64>'.
@@ -669,7 +669,7 @@ await chrome.browsingData.remove(
 
 #### Concepts and usage
 
-An extension attached to a tab with `chrome.debugger` can send the experimental Cross-Origin Storage commands of the [`Storage` domain](https://chromedevtools.github.io/devtools-protocol/tot/Storage/). The protocol has its own entry type, `Storage.CrossOriginStorageEntry`, which also carries the Public Hash List provenance of a listed file. Hashes are hexadecimal, as in [`Entry`](#entry).
+An extension attached to a tab with `chrome.debugger` can send the experimental Cross-Origin Storage commands of the [`Storage` domain](https://chromedevtools.github.io/devtools-protocol/tot/Storage/). The protocol has its own entry type, `Storage.CrossOriginStorageEntry`, which also carries the Public Hash List provenance of a listed file. It identifies an entry by `value` and `algorithm`, as [`Entry`](#entry) does, and a `Network.Response` served from Cross-Origin Storage names its entry in `crossOriginStorageHash`, as `{value, algorithm}`.
 
 | Command or event | Purpose |
 | --- | --- |
@@ -677,7 +677,7 @@ An extension attached to a tab with `chrome.debugger` can send the experimental 
 | `Storage.getCrossOriginStorageEntriesForOrigin` | The entries an origin has stored or been served. |
 | `Storage.getCrossOriginStorageEntryContent` | An entry's bytes, base64-encoded, with the sniffed `mimeType`. |
 | `Storage.getCrossOriginStorageUsage` | Profile-wide figures: bytes used, unique resources and origins, and bytes saved by deduplication. |
-| `Storage.deleteCrossOriginStorageEntry` | Deletes an entry by `algorithm` and `hash`. Also works on the browser target. |
+| `Storage.deleteCrossOriginStorageEntry` | Deletes an entry by `value` and `algorithm`. Also works on the browser target. |
 | `Storage.clearDataForOrigin` | Takes the `cross_origin_storage` storage type, which removes the origin's share of COS as `chrome.browsingData` does. |
 | `Storage.setCrossOriginStorageTracking` | Turns on the `crossOriginStorageEntryStored`, `crossOriginStorageEntryRead`, and `crossOriginStorageEntryRemoved` events. |
 
@@ -694,7 +694,7 @@ try {
       'Storage.getCrossOriginStorageEntries',
       { pageSize: 100, pageToken },
     );
-    for (const entry of page.entries) console.log(entry.algorithm, entry.hash);
+    for (const entry of page.entries) console.log(entry.algorithm, entry.value);
     pageToken = page.nextPageToken;
   } while (pageToken);
 } finally {
