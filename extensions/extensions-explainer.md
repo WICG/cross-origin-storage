@@ -9,13 +9,14 @@
 
 The [Cross-Origin Storage (COS) API](https://github.com/WICG/cross-origin-storage) ([formal spec](https://wicg.github.io/cross-origin-storage/)) is a proposed browser mechanism that lets large resources (AI models, WebAssembly modules, popular JavaScript libraries, and web fonts) be stored once and retrieved across origins, identified by their cryptographic hash.
 
-Three independent points where the Chrome extensions platform could integrate with COS are sketched below:
+Four independent points where the Chrome extensions platform could integrate with COS are sketched below:
 
 1. Extensions could use COS in place of [Shared Modules](https://developer.chrome.com/docs/extensions/reference/manifest/shared-modules) to share resources between extensions.
 2. Because a COS hit skips the network entirely, [`declarativeNetRequest`](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest) (DNR), which today only ever sees requests that reach the network stack, needs a way to still apply blocking policy to COS-served resources.
 3. Extensions that manage a user's data, such as privacy tools, content blockers, and cleanup utilities, need to see what COS holds, remove entries, and clear COS along with other site data.
+4. Extensions that explain or audit what COS shares, such as developer tools, content blockers, and privacy tools, need to know which files are on the [Public Hash List](https://wicg.github.io/cross-origin-storage/#public-hash-list) (PHL), the only files COS may disclose to every origin, and where the list says they came from.
 
-A Chromium prototype implements points 2 and 3. [Section 3](#3-api-reference-chromium-prototype) documents its API surface. It is available in the [unofficial Chromium builds](https://github.com/tomayac/Chromium/releases) with Cross-Origin Storage, started with `--enable-features=CrossOriginStorage`. [tomayac/cos-ad-blocking-demo](https://github.com/tomayac/cos-ad-blocking-demo) shows it in use: a content blocker that catches a script served from COS, and a companion page that lists, deletes, and blocks entries, clears site data, and uses the DevTools protocol.
+A Chromium prototype implements points 2, 3, and 4. [Section 3](#3-api-reference-chromium-prototype) documents its API surface. It is available in the [unofficial Chromium builds](https://github.com/tomayac/Chromium/releases) with Cross-Origin Storage, started with `--enable-features=CrossOriginStorage`. [tomayac/cos-ad-blocking-demo](https://github.com/tomayac/cos-ad-blocking-demo) shows it in use: a content blocker that catches a script served from COS, and a companion page that lists, deletes, and blocks entries, clears site data, and uses the DevTools protocol.
 
 ## 1. Replacing Shared Modules
 
@@ -79,7 +80,7 @@ Timing remains open. See [`RuleCondition.crossOriginStorageHashes`](#ruleconditi
 
 This section documents the extension-facing surface of the Chromium prototype, following the conventions of the [Chrome extensions API reference](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest). It describes a prototype, so every part of it may change.
 
-Hashes appear in two forms. `chrome.crossOriginStorage` and the DevTools protocol identify an entry by its Web Crypto algorithm name and its lowercase hexadecimal digest, as `getFileHandle()` does. `declarativeNetRequest` takes SRI-style strings, as in an `integrity` attribute. They convert into each other:
+Hashes appear in two forms. `chrome.crossOriginStorage`, `chrome.publicHash`, and the DevTools protocol identify a file by its Web Crypto algorithm name and its lowercase hexadecimal digest, as `getFileHandle()` does. `declarativeNetRequest` takes SRI-style strings, as in an `integrity` attribute. [`chrome.publicHash.parseIntegrity()`](#parseintegrity) converts SRI strings to the first form, and this converts back:
 
 ```js
 // {algorithm: 'SHA-256', hash: '<hex>'} to 'sha256-<base64>'.
@@ -296,6 +297,281 @@ Fired after entries are stored, read, or removed. Bursts of changes are coalesce
   `function`
   The `callback` parameter looks like:
   `() => void`
+
+### `chrome.publicHash`
+
+#### Description
+
+Use the `chrome.publicHash` API to query the browser's [Public Hash List](https://wicg.github.io/cross-origin-storage/#public-hash-list) (PHL), the list of widely used files that Cross-Origin Storage may make available to any origin. It is modeled on [`chrome.publicSuffix`](https://developer.chrome.com/docs/extensions/reference/api/publicSuffix), which answers the same kind of question for the Public Suffix List.
+
+#### Permissions
+
+`publicHash`
+
+The list is public data, and a lookup reveals nothing about the user, so the permission shows no warning at install time, as for `publicSuffix`.
+
+#### Availability
+
+Chromium prototype, behind the `CrossOriginStorage` feature. Manifest V3 and later. Privileged extension contexts only: the service worker and extension pages, which content scripts cannot reach.
+
+#### Concepts and usage
+
+**The list ships with the browser.** The browser carries a copy of the PHL and updates it with the browser, so the answers describe that copy. [`getListInfo()`](#getlistinfo) reports its version. Every profile, including Incognito, sees the same list, so a lookup does not depend on what any site has stored. To see whether a file is actually in Cross-Origin Storage, use [`chrome.crossOriginStorage`](#chromecrossoriginstorage).
+
+**SHA-256 only.** The PHL lists SHA-256 digests. `integrity` attributes often use SHA-384 or SHA-512, which cannot be looked up: to check such a file, fetch it and hash it with `crypto.subtle.digest('SHA-256', …)`. [`parseIntegrity()`](#parseintegrity) picks the SHA-256 hashes out of an `integrity` value.
+
+**Sections.** The PHL is split into sections. The core `SHA-256` section and the `SHA-256 MANUAL` section of hand-reviewed additions are mandatory: every browser that implements Cross-Origin Storage must honor them. The `SHA-256 HUGGING-FACE` model-hub section is recommended, so a browser may omit it. [`Entry.mandatory`](#entry-1) and [`Section.mandatory`](#section) say which kind a section is.
+
+**Provenance.** For each digest, the PHL records what corroborated it, such as the HTTP Archive, a CDN, or the Hugging Face Hub, and a URL its maintainers saw the bytes at. The list pins bytes and not addresses, so that URL may serve different bytes today. Provenance ships in a separate data file. If the browser cannot load it, lookups still answer whether a hash is listed, and [`ListInfo.provenanceAvailable`](#listinfo) is `false`.
+
+**Promises.** Every method returns a promise. `chrome.publicSuffix` answers synchronously because the Public Suffix List is compiled into the browser. The PHL is a data file of about 19 MB, which the browser process maps and searches, so each lookup is a call into the browser.
+
+#### Examples
+
+Check whether a script's bytes are on the list:
+
+```js
+const response = await fetch('https://cdn.example/lib.min.js');
+const digest = await crypto.subtle.digest('SHA-256', await response.arrayBuffer());
+const hash = [...new Uint8Array(digest)]
+  .map((byte) => byte.toString(16).padStart(2, '0'))
+  .join('');
+if (await chrome.publicHash.isListed({ algorithm: 'SHA-256', hash })) {
+  console.log('Any site may be served this file from Cross-Origin Storage.');
+}
+```
+
+Explain where a listed file came from:
+
+```js
+const entry = await chrome.publicHash.getEntry({ algorithm: 'SHA-256', hash });
+if (entry) {
+  console.log(`${entry.section} (${entry.mandatory ? 'mandatory' : 'recommended'})`);
+  console.log(`Corroborated by ${entry.source}, seen at ${entry.url}`);
+}
+```
+
+Check every `integrity` attribute on a page at once. Content scripts cannot call the API, so a content script collects the values and the service worker looks them up:
+
+```js
+// content.js
+chrome.runtime.sendMessage({
+  integrity: [...document.querySelectorAll('[integrity]')].map((el) => el.integrity),
+});
+
+// service-worker.js
+chrome.runtime.onMessage.addListener(async ({ integrity }) => {
+  const hashes = (
+    await Promise.all(integrity.map((value) => chrome.publicHash.parseIntegrity(value)))
+  ).flat();
+  for (const { hash, entry } of await chrome.publicHash.getEntries(hashes)) {
+    console.log(hash, entry ? entry.source : 'not listed');
+  }
+});
+```
+
+Describe the list:
+
+```js
+const info = await chrome.publicHash.getListInfo();
+console.log(`Public Hash List ${info.version}: ${info.hashCount} files`);
+for (const section of info.sections) {
+  console.log(`  ${section.name}: ${section.hashCount}`);
+}
+```
+
+#### Types
+
+##### `Entry`
+
+A digest on the Public Hash List, and where it came from.
+
+**Properties**
+
+- `algorithm`
+  `string`
+  The hash algorithm, for example `"SHA-256"`.
+- `hash`
+  `string`
+  The lowercase hexadecimal digest.
+- `mandatory`
+  `boolean` optional
+  Whether every browser that implements Cross-Origin Storage must honor the section. The core and manual sections are mandatory, and the Hugging Face model-hub section is recommended. Absent with `section`.
+- `section`
+  `string` optional
+  The list section the digest is in, for example `"SHA-256"`, `"SHA-256 MANUAL"`, or `"SHA-256 HUGGING-FACE"`. Absent when the browser could not load the list's provenance data.
+- `source`
+  `string` optional
+  What corroborated the digest, for example `"HTTP Archive"` or `"Hugging Face Hub"`. Absent with `section`.
+- `url`
+  `string` optional
+  A URL the list's maintainers saw these bytes at when they added them. The list pins bytes and not addresses, so the URL may serve different bytes today. Absent when no URL was recorded.
+
+##### `Hash`
+
+Identifies a file by the hash of its bytes.
+
+**Properties**
+
+- `algorithm`
+  `string`
+  The hash algorithm, for example `"SHA-256"`. The Public Hash List only lists SHA-256 digests.
+- `hash`
+  `string`
+  The hexadecimal digest of the bytes. Either case is accepted, and results are lowercase.
+
+##### `ListInfo`
+
+What the browser's copy of the Public Hash List holds.
+
+**Properties**
+
+- `algorithms`
+  `string[]`
+  The hash algorithms the list uses: `["SHA-256"]`.
+- `hashCount`
+  `number`
+  How many digests are listed.
+- `provenanceAvailable`
+  `boolean`
+  Whether the provenance data loaded. Without it, the sections are not known, `sections` is empty, and entries carry no `section`, `source`, or `url`.
+- `sections`
+  [`Section`](#section)`[]`
+  The list's sections, in upstream order.
+- `version`
+  `string`
+  The upstream version, for example `"2026-11-02T11:04:56Z"`. The list ships with the browser, so it changes when the browser updates.
+
+##### `LookupResult`
+
+The result of looking up one hash.
+
+**Properties**
+
+- `algorithm`
+  `string`
+  The hash algorithm, as passed in.
+- `entry`
+  [`Entry`](#entry-1) optional
+  The entry, when the hash is on the list.
+- `hash`
+  `string`
+  The digest, lowercased.
+
+##### `Section`
+
+A section of the Public Hash List.
+
+**Properties**
+
+- `hashCount`
+  `number`
+  How many digests the section lists.
+- `mandatory`
+  `boolean`
+  Whether every browser that implements Cross-Origin Storage must honor it.
+- `name`
+  `string`
+  The section name, for example `"SHA-256"`.
+
+#### Methods
+
+##### `getEntries()`
+
+```ts
+chrome.publicHash.getEntries(
+  hashes: Hash[],
+): Promise<LookupResult[]>
+```
+
+Looks up several hashes at once, for example every subresource of a page.
+
+**Parameters**
+
+- `hashes`
+  [`Hash`](#hash)`[]`
+  Up to 1000 hashes.
+
+**Returns**
+
+- `Promise<`[`LookupResult`](#lookupresult)`[]>`
+  Resolves with one result per hash, in the same order. Rejects with `"Invalid algorithm or hash."` if any hash is malformed or uses an algorithm Cross-Origin Storage does not support, and with `"At most 1000 hashes per call."` if there are more.
+
+##### `getEntry()`
+
+```ts
+chrome.publicHash.getEntry(
+  hash: Hash,
+): Promise<Entry | undefined>
+```
+
+Gets the Public Hash List entry for a hash, if any.
+
+**Parameters**
+
+- `hash`
+  [`Hash`](#hash)
+  The hash to look up.
+
+**Returns**
+
+- `Promise<`[`Entry`](#entry-1)` | undefined>`
+  Resolves with the entry, or with `undefined` if the hash is not listed. Rejects with `"Invalid algorithm or hash."` if the hash is malformed or uses an algorithm Cross-Origin Storage does not support.
+
+##### `getListInfo()`
+
+```ts
+chrome.publicHash.getListInfo(): Promise<ListInfo>
+```
+
+Describes the browser's copy of the Public Hash List.
+
+**Returns**
+
+- `Promise<`[`ListInfo`](#listinfo)`>`
+  Resolves with the version, size, and sections of the list.
+
+##### `isListed()`
+
+```ts
+chrome.publicHash.isListed(
+  hash: Hash,
+): Promise<boolean>
+```
+
+Determines whether a hash is on the Public Hash List.
+
+**Parameters**
+
+- `hash`
+  [`Hash`](#hash)
+  The hash to look up.
+
+**Returns**
+
+- `Promise<boolean>`
+  Resolves with whether the hash is listed. Rejects with `"Invalid algorithm or hash."` if the hash is malformed or uses an algorithm Cross-Origin Storage does not support.
+
+##### `parseIntegrity()`
+
+```ts
+chrome.publicHash.parseIntegrity(
+  integrity: string,
+): Promise<Hash[]>
+```
+
+Extracts the SHA-256 hashes from the value of an `integrity` attribute or a `RequestInit.integrity` member, which use the [Subresource Integrity](https://www.w3.org/TR/SRI/) format, for example `"sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="`. Both base64 and base64url digests are accepted, and options after `?` are ignored. Other algorithms are skipped, since the list only lists SHA-256 digests, and so are malformed tokens.
+
+**Parameters**
+
+- `integrity`
+  `string`
+  The integrity metadata.
+
+**Returns**
+
+- `Promise<`[`Hash`](#hash)`[]>`
+  Resolves with the SHA-256 hashes, in the order they appear.
 
 ### `chrome.declarativeNetRequest` additions
 
