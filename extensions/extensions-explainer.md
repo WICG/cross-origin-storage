@@ -80,12 +80,12 @@ Timing remains open. See [`RuleCondition.crossOriginStorageHashes`](#ruleconditi
 
 This section documents the extension-facing surface of the Chromium prototype, following the conventions of the [Chrome extensions API reference](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest). It describes a prototype, so every part of it may change.
 
-Hashes appear in two forms. `chrome.crossOriginStorage`, `chrome.publicHash`, and the DevTools protocol identify a file by its Web Crypto algorithm name and its lowercase hexadecimal digest, as `getFileHandle()` does. `declarativeNetRequest` takes SRI-style strings, as in an `integrity` attribute. [`chrome.publicHash.parseIntegrity()`](#parseintegrity) converts SRI strings to the first form, and this converts back:
+Hashes appear in two forms. `chrome.crossOriginStorage` and `chrome.publicHash` identify a file with the dictionary `getFileHandle()` takes, `{value, algorithm}`: its lowercase hexadecimal digest and its Web Crypto algorithm name. The DevTools protocol takes the same two strings as `hash` and `algorithm`. `declarativeNetRequest` takes SRI-style strings, as in an `integrity` attribute. [`chrome.publicHash.parseIntegrity()`](#parseintegrity) converts SRI strings to the first form, and this converts back:
 
 ```js
-// {algorithm: 'SHA-256', hash: '<hex>'} to 'sha256-<base64>'.
-function toSri({ algorithm, hash }) {
-  const bytes = hash.match(/../g).map((pair) => parseInt(pair, 16));
+// {value: '<hex>', algorithm: 'SHA-256'} to 'sha256-<base64>'.
+function toSri({ value, algorithm }) {
+  const bytes = value.match(/../g).map((pair) => parseInt(pair, 16));
   return `${algorithm.replace('-', '').toLowerCase()}-${btoa(String.fromCharCode(...bytes))}`;
 }
 ```
@@ -133,8 +133,8 @@ Remove an entry, and keep a view current:
 
 ```js
 await chrome.crossOriginStorage.removeEntry({
+  value: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
   algorithm: 'SHA-256',
-  hash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
 });
 
 chrome.crossOriginStorage.onChanged.addListener(async () => {
@@ -159,9 +159,6 @@ A file in Cross-Origin Storage, identified by the hash of its bytes.
 - `globallyDisclosable`
   `boolean`
   Whether a write asked for global (`"*"`) availability. Only this grant is gated on the Public Hash List.
-- `hash`
-  `string`
-  The lowercase hexadecimal digest of the bytes.
 - `lastReadTime`
   `number`
   When the entry was last read by any origin, in milliseconds since the epoch, or `0` if it has never been read.
@@ -183,6 +180,9 @@ A file in Cross-Origin Storage, identified by the hash of its bytes.
 - `storingOrigins`
   `string[]`
   Origins that stored the bytes.
+- `value`
+  `string`
+  The lowercase hexadecimal digest of the bytes.
 
 ##### `EntryKey`
 
@@ -193,7 +193,7 @@ Identifies an entry.
 - `algorithm`
   `string`
   The hash algorithm, for example `"SHA-256"`.
-- `hash`
+- `value`
   `string`
   The lowercase hexadecimal digest of the bytes.
 
@@ -336,7 +336,7 @@ const digest = await crypto.subtle.digest('SHA-256', await response.arrayBuffer(
 const hash = [...new Uint8Array(digest)]
   .map((byte) => byte.toString(16).padStart(2, '0'))
   .join('');
-if (await chrome.publicHash.isListed({ algorithm: 'SHA-256', hash })) {
+if (await chrome.publicHash.isListed({ value: hash, algorithm: 'SHA-256' })) {
   console.log('Any site may be served this file from Cross-Origin Storage.');
 }
 ```
@@ -344,7 +344,7 @@ if (await chrome.publicHash.isListed({ algorithm: 'SHA-256', hash })) {
 Explain where a listed file came from:
 
 ```js
-const entry = await chrome.publicHash.getEntry({ algorithm: 'SHA-256', hash });
+const entry = await chrome.publicHash.getEntry({ value: hash, algorithm: 'SHA-256' });
 if (entry) {
   console.log(`${entry.section} (${entry.mandatory ? 'mandatory' : 'recommended'})`);
   console.log(`Corroborated by ${entry.source}, seen at ${entry.url}`);
@@ -364,8 +364,8 @@ chrome.runtime.onMessage.addListener(async ({ integrity }) => {
   const hashes = (
     await Promise.all(integrity.map((value) => chrome.publicHash.parseIntegrity(value)))
   ).flat();
-  for (const { hash, entry } of await chrome.publicHash.getEntries(hashes)) {
-    console.log(hash, entry ? entry.source : 'not listed');
+  for (const { value, entry } of await chrome.publicHash.getEntries(hashes)) {
+    console.log(value, entry ? entry.source : 'not listed');
   }
 });
 ```
@@ -391,9 +391,6 @@ A digest on the Public Hash List, and where it came from.
 - `algorithm`
   `string`
   The hash algorithm, for example `"SHA-256"`.
-- `hash`
-  `string`
-  The lowercase hexadecimal digest.
 - `mandatory`
   `boolean` optional
   Whether every browser that implements Cross-Origin Storage must honor the section. The core and manual sections are mandatory, and the Hugging Face model-hub section is recommended. Absent with `section`.
@@ -406,6 +403,9 @@ A digest on the Public Hash List, and where it came from.
 - `url`
   `string` optional
   A URL the list's maintainers saw these bytes at when they added them. The list pins bytes and not addresses, so the URL may serve different bytes today. Absent when no URL was recorded.
+- `value`
+  `string`
+  The lowercase hexadecimal digest.
 
 ##### `Hash`
 
@@ -416,7 +416,7 @@ Identifies a file by the hash of its bytes.
 - `algorithm`
   `string`
   The hash algorithm, for example `"SHA-256"`. The Public Hash List only lists SHA-256 digests.
-- `hash`
+- `value`
   `string`
   The hexadecimal digest of the bytes. Either case is accepted, and results are lowercase.
 
@@ -454,7 +454,7 @@ The result of looking up one hash.
 - `entry`
   [`Entry`](#entry-1) optional
   The entry, when the hash is on the list.
-- `hash`
+- `value`
   `string`
   The digest, lowercased.
 
