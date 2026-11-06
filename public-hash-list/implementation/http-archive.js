@@ -6,11 +6,13 @@
 // The HTTP Archive monthly crawl records SHA-256 hashes of every response body
 // via WebPageTest's payload._body_hash field. A BigQuery query
 // (queries/http-archive.sql) identifies resources whose hash appears across ≥100
-// independent origins — the k-anonymity privacy threshold — and ranks them by a
-// traffic-weighted score (see query for the scoring formula).
+// independent sites — the k-anonymity privacy threshold — and ranks them by a
+// traffic-weighted score (see query for the scoring formula). A site is the
+// registrable domain of the embedding page under the full Public Suffix List,
+// so many subdomains of one site count once.
 //
 // Unlike the other sources, hashes here are NOT computed by this pipeline:
-// they come directly from the HTTP Archive. The ≥100-origins filter already
+// they come directly from the HTTP Archive. The ≥100-sites filter already
 // applied in the query ensures every entry represents a resource so widespread
 // that its presence in a shared cache reveals nothing specific about a user's
 // browsing history.
@@ -25,7 +27,7 @@ import { writeHashCsv } from './shared.js';
 
 export const OUTPUT_CSV = 'data/http-archive-hashes.csv';
 // Published HTTP Archive report. CSV with columns:
-// body_hash, type, num_origins, traffic_weighted_score, sample_url.
+// body_hash, type, num_sites, traffic_weighted_score, sample_url.
 const REPORT_URL =
   'https://cdn.httparchive.org/v1/static/reports/public_hash_list.csv';
 

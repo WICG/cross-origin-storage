@@ -50,7 +50,7 @@ deployed that their presence in the cache tells an attacker nothing specific
 about a user's browsing history. This project generates that allowlist by
 gathering SHA-256 hashes from hand-curated CDNs and ranking candidates by
 real-world popularity. Revealing a file's presence only once it has been
-encountered across a sufficiently large number of independent origins is a form
+encountered across a sufficiently large number of independent sites is a form
 of **k-anonymity**: no resource in the list is associated with a small enough
 set of sites to act as a cross-site identifier.
 
@@ -92,7 +92,7 @@ COS sharing regardless of how they are currently loaded.
 | [YouTube Player](https://www.youtube.com/iframe_api) _(extends Chromium)_ | Discovers all historical player IDs from [nadeko.net](https://youtube-player-ids.nadeko.net/) in addition to the current one; hashes the same five file types per version that Chromium tracks (see below) | [`data/youtube-player-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/youtube-player-hashes.csv) |
 | [Google Maps JavaScript API](https://developers.google.com/maps/documentation/javascript) _(extends Chromium)_ | Probes all currently available quarterly versions (3.NN) via their versioned bootstrap URLs; hashes 34 JS files per version (23 on `maps.googleapis.com`, 11 on the `maps.google.com` mirror) including the files Chromium tracks plus additional API modules (see below) | [`data/google-maps-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/google-maps-hashes.csv) |
 | [Google Fonts](https://fonts.google.com) | Fetches all font families from the Google Fonts catalog (sorted by popularity); for each family, requests the CSS2 API with all weights and styles to discover versioned `fonts.gstatic.com` woff2 URLs; hashes every unique file. Requires `GOOGLE_FONTS_API_KEY` env var (free key from Google Cloud Console). | [`data/google-fonts-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/google-fonts-hashes.csv) |
-| [HTTP Archive](https://httparchive.org) | Reads the HTTP Archive's published query results (see [`queries/http-archive.sql`](queries/http-archive.sql)) directly from a stable HTTP Archive URL; takes hashes present on ≥100 independent origins (the k-anonymity gate is enforced in the query). No network downloads: the HTTP Archive crawl already provides the SHA-256 of every response body. | [`data/http-archive-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/http-archive-hashes.csv) |
+| [HTTP Archive](https://httparchive.org) | Reads the HTTP Archive's published query results (see [`queries/http-archive.sql`](queries/http-archive.sql)) directly from a stable HTTP Archive URL; takes hashes present on ≥100 independent sites, counted by the registrable domain of the embedding page (the k-anonymity gate is enforced in the query). No network downloads: the HTTP Archive crawl already provides the SHA-256 of every response body. | [`data/http-archive-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/http-archive-hashes.csv) |
 | [nuxt-cos / vite-plugin-cross-origin-storage](https://github.com/danielroe/cross-origin-storage) | Reproduces the content-addressed COS chunks the Nuxt/Vite integration emits, by running the real published plugin over a matrix of plugin releases × `vue` releases. No download: these bytes exist only in site builds, and are regenerated here from the pinned build recipe; see [Build-tool source](#build-tool-source-nuxt-cos--vite-plugin-cross-origin-storage) | [`data/nuxt-cos-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/nuxt-cos-hashes.csv) |
 | [Hugging Face Hub](https://huggingface.co) _(hand-curated, optional)_ | Lists the most-downloaded **web-runnable** models (those tagged for an in-browser runtime: Transformers.js, ONNX Runtime Web, WebLLM, LiteRT.js/MediaPipe, wllama) and hashes only the file formats those runtimes load (`.onnx`, `.gguf`, `.tflite`, `.task`, `.litertlm`, MLC `params_shard_*.bin`) plus the `tokenizer.json` those runtimes fetch alongside them; see [Model-hub source](#model-hub-source-hugging-face) | [`data/huggingface-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/huggingface-hashes.csv) |
 | Manual additions | Hand-curated entries proposed via pull request and reviewed against the ubiquity criteria; see [`manual-additions.json`](manual-additions.json) and [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | [`data/manual-hashes.csv`](https://github.com/WICG/cross-origin-storage/blob/main/public-hash-list/implementation/data/manual-hashes.csv) |
@@ -437,17 +437,32 @@ HTTP Archive already computes these hashes from real browser crawl data, this
 pipeline requires no network downloads of its own.
 
 The eligibility criterion mirrors the rest of the PHL: a resource qualifies if
-its hash appears across **≥100 independent origins** (`NET.HOST(url)`) in the
-crawl data. This is the k-anonymity privacy gate: a file that widespread cannot
-serve as a cross-site identifier. The query also applies a traffic-weighted
-score (`SUM(100_000 / min_rank)`) so that resources carried by high-traffic
-pages rank highest. Only `script`, `css`, `font`, and `wasm` response types are
+its hash appears across **≥100 independent sites** in the crawl data. This is
+the k-anonymity privacy gate: a file that widespread cannot serve as a
+cross-site identifier. The query also applies a traffic-weighted score
+(`SUM(100_000 / min_rank)`) so that resources carried by high-traffic pages
+rank highest. Only `script`, `css`, `font`, and `wasm` response types are
 included.
 
-The BigQuery query is stored in [`queries/http-archive.sql`](queries/http-archive.sql)
-and is run monthly against `httparchive.crawl.requests` at
+A site is the registrable domain (eTLD+1) of the page that embeds the
+resource, computed with the full [Public Suffix
+List](https://publicsuffix.org/). Subdomains of one site count once, so a font
+found only on `$city.$vulnerable-group.com` landing pages for a hundred cities
+counts as one site and stays off the list. A hostname count would let it
+through, and a cache hit would then reveal that the user visited that one
+site. The query applies the PSL's private section too, which BigQuery's
+`NET.PUBLIC_SUFFIX()` skips, so `alice.github.io` and `bob.github.io` still
+count as two sites. The HTTP Archive keeps the private rules current in its
+`httparchive.urls.public_suffix_list` table.
+
+The query the HTTP Archive runs lives in its Dataform repository as
+[`public_hash_list.js`](https://github.com/HTTPArchive/dataform/blob/main/definitions/output/performance/public_hash_list.js),
+and [`queries/http-archive.sql`](queries/http-archive.sql) is a copy for
+reference with the table names written out. It runs monthly once the crawl
+completes, against `httparchive.crawl.requests` at
 `date = DATE_TRUNC(CURRENT_DATE(), MONTH)`. Results are published directly by
-the HTTP Archive at a stable URL:
+the HTTP Archive at a stable URL, with the columns `body_hash`, `type`,
+`num_sites`, `traffic_weighted_score`, and `sample_url`:
 
 - **Report**: <https://cdn.httparchive.org/v1/static/reports/public_hash_list.csv>
 
