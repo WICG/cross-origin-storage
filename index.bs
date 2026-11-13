@@ -1639,6 +1639,26 @@ supplies the bytes (see [[#allow-origin-header]]). Discussion of
 these integrations belongs in the tracker of the host specification that would carry them,
 not in this repository's issue tracker.
 
+## Resource Timing ## {#resource-timing}
+
+A resource that one of the integrations above serves from the [=COS registry=] is reported to
+Resource Timing [[RESOURCE-TIMING]] like any other fetched resource. The [=/response=] served on
+such a hit is expected to have its [=response/cache state=] set to "`local`", since no network
+fetch took place, its [=response/timing allow passed flag=] set, since no server is involved
+whose timing information would need protecting, and its [=response/body info=]'s
+[=response body info/encoded size=] and [=response body info/decoded size=] set to the length of
+the [=COS entry/bytes=], as the Cache API does for the responses it stores [[SERVICE-WORKERS]].
+The integration is expected to pass "`cross-origin-storage`" as the delivery type to
+[=mark resource timing=]. As a result, the entry's {{PerformanceResourceTiming/deliveryType}} is
+"`cross-origin-storage`", its {{PerformanceResourceTiming/transferSize}} is 0, and its
+{{PerformanceResourceTiming/encodedBodySize}} is the size of the stored resource.
+
+Note: A hit is already observable through timing and through the absence of a request at the
+server, so this discloses nothing that [[#availability-gating]] does not already govern.
+
+Issue(w3c/resource-timing#439): Adding "`cross-origin-storage`" to the values of
+{{PerformanceResourceTiming/deliveryType}} is proposed to the Resource Timing specification.
+
 <h2 class="no-num" id="acks">Acknowledgments</h2>
 
 Many thanks for valuable feedback from Tab Atkins-Bittner, Yash Raj Bharti, and Joshua Lochner, and

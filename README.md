@@ -58,6 +58,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
     - [CSS integration](#css-integration)
     - [Fetch integration](#fetch-integration)
     - [Processing flow common to all four integrations](#processing-flow-common-to-all-four-integrations)
+    - [Resource Timing](#resource-timing)
 - [Detailed design discussion](#detailed-design-discussion)
   - [Hashing](#hashing)
   - [Concurrent writes](#concurrent-writes)
@@ -736,6 +737,22 @@ A lookup that doesn't succeed is indistinguishable from a cache miss, exactly as
 
 > [!NOTE]
 > The hash format differs between these four integrations and the imperative form. The `integrity` attribute, the `integrity` import attribute, the `integrity()` CSS modifier, and the `integrity` request option follow the [Subresource Integrity](https://w3c.github.io/webappsec-subresource-integrity/) convention and express hashes as base64-encoded strings (e.g., `sha256-abc123…`). The imperative `getFileHandle()` API uses lowercase hexadecimal strings (e.g., `8f434346…`), which matches the format AI model hubs such as [Hugging Face](https://huggingface.co/) use for model checksums. The user agent normalizes both representations internally; they identify the same bytes.
+
+#### Resource Timing
+
+A resource that one of the four integrations serves from COS shows up in [Resource Timing](https://w3c.github.io/resource-timing/) like any other fetched resource, with [`deliveryType`](https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-deliverytype) set to `"cross-origin-storage"`. As with an HTTP cache hit, `transferSize` is `0`, and `encodedBodySize` is the size of the stored resource. This lets analytics tell COS hits apart from network fetches and HTTP cache hits:
+
+```js
+new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (entry.deliveryType === 'cross-origin-storage') {
+      console.log(`${entry.name}: ${entry.encodedBodySize} bytes served from COS`);
+    }
+  }
+}).observe({ type: 'resource', buffered: true });
+```
+
+A hit is already observable through timing and through the absence of a request at the server, so this reveals nothing that [availability gating](#availability-gating) does not already govern. Adding the `"cross-origin-storage"` value is proposed to the Resource Timing specification in [w3c/resource-timing#439](https://github.com/w3c/resource-timing/issues/439).
 
 ## Detailed design discussion
 
