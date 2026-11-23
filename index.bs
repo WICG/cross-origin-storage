@@ -187,6 +187,10 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    other two being its [=COS entry/storing origins=] (always readable, together with origins
    [=same site=] with them) and [=COS entry/globally disclosable=].
 
+   Note: Naming one origin therefore trusts its whole [=site=]. A writer that names an origin
+   whose site hosts content it does not trust, such as a hosting domain missing from the public
+   suffix list, discloses the entry to all of that content.
+
    Note: A write whose {{CrossOriginStorageGetFileHandleOptions/origins}} is an explicit empty
    [=list=] (`origins: []`) grants exactly what a write that omits
    {{CrossOriginStorageGetFileHandleOptions/origins}} grants: the entry's

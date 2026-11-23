@@ -361,7 +361,7 @@ The same shape works for any consumer that accepts a `ReadableStream`, for examp
 The `origins` option decides who can read a file once it is stored:
 
 - **Omitted:** only same-site origins can read it. This fits resources shared across subdomains of one site, such as a company's proprietary AI model.
-- **A list of origins:** only the listed origins, the origins same-site with each of them, and the same-site default can read it. **This option is recommended for proprietary resources or resources for which global COS cache hits are not anticipated.** For example, if a company has two related sites, `write.example` and `calculate.example`, that both use the same AI model for proofreading, they can restrict the model to just these two origins.
+- **A list of origins:** only the listed origins, the origins same-site with each of them, and the same-site default can read it. **This option is recommended for proprietary resources or resources for which global COS cache hits are not anticipated.** For example, if a company has two related sites, `write.example` and `calculate.example`, that both use the same AI model for proofreading, they can restrict the model to just these two origins. Naming an origin trusts its whole site, so avoid naming origins on sites that host untrusted subdomains.
 - **`'*'`:** any origin can read it, subject to [availability gating](#availability-gating). **This option is appropriate for widely used resources that many sites are likely to share, such as popular AI models, Wasm modules, or JavaScript libraries.** It is an explicit opt-in, so developers cannot make a resource globally available by accident.
 
 ```js
