@@ -6,7 +6,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/cg-draft" rel="stylesheet">
   <meta content="Bikeshed version a035d7dc6, updated Fri Nov 20 03:13:55 2026 +0000" name="generator">
   <link href="https://wicg.github.io/cross-origin-storage/" rel="canonical">
-  <meta content="a11ca311c2aa032de16e416e8e1994e19e918780" name="revision">
+  <meta content="28fff85b5d9e60b6d3b521246ad99216314f8b54" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -2000,7 +2000,8 @@ Host specifications define which inputs are sources and which are page-chosen:
 entry as its source. Non-default compile options are page-chosen.</p>
      <li data-md>
       <p><strong>WebGPU</strong>: shader code read from a <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry②①">COS entry</a> is a source. Other shader code,
-pipeline-overridable constants, and pipeline layouts are page-chosen.</p>
+pipeline-overridable constants, and pipeline layouts are page-chosen. See
+<a href="https://github.com/gpuweb/gpuweb/issues/11110">gpuweb/gpuweb#11110</a>.</p>
      <li data-md>
       <p><strong>WebNN</strong>: constants read from <a data-link-type="dfn" href="#cos-entry" id="ref-for-cos-entry②②">COS entries</a> are sources. The graph structure, operator
 options, and other constants are page-chosen. See
