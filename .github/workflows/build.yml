@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 2
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.13"
       - run: pip install bikeshed && bikeshed update
       - run: bikeshed --die-on=warning spec index.bs index.html
       - name: Commit built index.html back to main
