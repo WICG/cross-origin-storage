@@ -1146,7 +1146,8 @@ Host specifications define which inputs are sources and which are page-chosen:
   `WebAssembly.instantiateStreaming()` from a {{File}} read from Cross-Origin Storage has that
   entry as its source. Non-default compile options are page-chosen.
 * **WebGPU**: shader code read from a [=COS entry=] is a source. Other shader code,
-  pipeline-overridable constants, and pipeline layouts are page-chosen.
+  pipeline-overridable constants, and pipeline layouts are page-chosen. See
+  [gpuweb/gpuweb#11110](https://github.com/gpuweb/gpuweb/issues/11110).
 * **WebNN**: constants read from [=COS entries=] are sources. The graph structure, operator
   options, and other constants are page-chosen. See
   [webmachinelearning/webnn#971](https://github.com/webmachinelearning/webnn/issues/971).

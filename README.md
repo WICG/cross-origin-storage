@@ -845,7 +845,7 @@ const module = await WebAssembly.compileStreaming(
 );
 ```
 
-WebGPU and WebNN need to accept shader code and constants that carry their COS origin ([webmachinelearning/webnn#971](https://github.com/webmachinelearning/webnn/issues/971)).
+WebGPU needs to accept shader code that carries its COS origin ([gpuweb/gpuweb#11110](https://github.com/gpuweb/gpuweb/issues/11110)), and WebNN needs the same for constants ([webmachinelearning/webnn#971](https://github.com/webmachinelearning/webnn/issues/971)).
 
 ### Web sustainability
 
