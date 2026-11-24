@@ -65,6 +65,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
   - [What a COS handle can and cannot do](#what-a-cos-handle-can-and-cannot-do)
   - [Workers and origin inheritance](#workers-and-origin-inheritance)
   - [Eviction](#eviction)
+  - [Derived artifacts](#derived-artifacts)
   - [Web sustainability](#web-sustainability)
 - [Considered alternatives](#considered-alternatives)
   - [Adding a description for each file apart from the hash](#adding-a-description-for-each-file-apart-from-the-hash)
@@ -87,6 +88,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
     - [In-progress writes](#in-progress-writes)
     - [Availability gating](#availability-gating)
     - [GREASE'ing](#greaseing)
+    - [Derived artifact timing](#derived-artifact-timing)
     - [API response reference](#api-response-reference)
     - [Fingerprinting detection](#fingerprinting-detection)
 - [Stakeholder feedback / opposition](#stakeholder-feedback--opposition)
@@ -824,6 +826,27 @@ User agents are further expected to provide settings UI through which users can 
 
 When the user clears site data, all usage information associated with the origin should be removed from files in COS. If a file in COS, after the removal of usage information, is deemed unused, the user agent may delete it from COS.
 
+### Derived artifacts
+
+A derived artifact is data the browser computes from a file and keeps for reuse, such as a compiled WebAssembly module, a GPU pipeline, or a compiled WebNN graph. Browsers cache these per top-level site, so a file shared through COS is still compiled again on every site. Sharing derived artifacts across sites saves that compile time, which can reach seconds for large shaders and models.
+
+- The browser keys an artifact on its **sources** (the COS entries the page read), its **page-chosen inputs** (such as compile options, override constants, or a WebNN graph's structure), and private browser and device properties. Pages can't read the key or the artifact.
+- An artifact made only from sources is reused across sites freely. Each cross-site reuse of one with page-chosen inputs is charged to the [cross-site lookup budget](#potential-mitigations), see [Derived artifact timing](#derived-artifact-timing).
+- The artifact can't depend on how the producing page ran, and must come from a component that site content can't alter, such as the GPU process.
+
+WebAssembly needs no new API: a module compiled from a COS `File` has that entry as its source.
+
+```js
+const handle = await navigator.crossOriginStorage.getFileHandle(hash);
+const module = await WebAssembly.compileStreaming(
+  new Response(await handle.getFile(), {
+    headers: { 'content-type': 'application/wasm' },
+  }),
+);
+```
+
+WebGPU and WebNN need to accept shader code and constants that carry their COS origin ([webmachinelearning/webnn#971](https://github.com/webmachinelearning/webnn/issues/971)).
+
 ### Web sustainability
 
 Minimizing redundant downloads and storage is inherently beneficial for sustainability. The [Ethical Web Principles](https://w3ctag.github.io/ethical-web-principles/) state that the Web [_"is an environmentally sustainable platform"_](https://w3ctag.github.io/ethical-web-principles/#sustainable) and suggest _"lowering carbon emissions by minimizing data storage and processing requirements"_, which is what COS does for large files the user may already have on their device.
@@ -1000,6 +1023,10 @@ As an additional privacy mitigation, user agents may employ **GREASE'ing** ([Gen
 GREASE'ing applies only to origins that reach an entry through `origins: '*'`, the same case the PHL gates. Storing origins, origins on an explicit `origins` list, and the same-site origins of either are never GREASEd: same-site origins are one trust unit, and a listed origin was named on purpose by the storing site and authorized by its `Cross-Origin-Storage-Allow-Origin` header, so withholding the file from them would only cost a re-download.
 
 However, user agents must exercise size-proportionate judgment when applying GREASE'ing. For small files, where a fallback to a network fetch is inexpensive, occasional false negatives are a reasonable privacy trade-off. For very large files, such as gigabyte-scale AI model weights, a false negative would force the caller to perform a full re-download, imposing a significant and observable bandwidth and latency cost on the user. User agents must NOT GREASE responses for files whose size makes a spurious re-download clearly disproportionate to the privacy benefit.
+
+#### Derived artifact timing
+
+Reusing a [derived artifact](#derived-artifacts) is observable, because it's faster than computing one. An artifact made only from sources discloses nothing beyond the reads that supplied them. Page-chosen inputs could carry an identifier: cooperating scripts compile one artifact per set bit on site A, each with an unusual `epsilon`, and site B reads the bits from which compiles are fast. Charging each such reuse to the cross-site lookup budget limits this to what lookups already disclose.
 
 #### API response reference
 

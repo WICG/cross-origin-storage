@@ -1072,6 +1072,88 @@ When a user clears an origin's site data, the user agent should remove every gra
 [=COS grant/origin=] is that origin from every [=COS entry/storing origins=] set. If, after that removal, a [=COS entry=]'s
 [=COS entry/storing origins=] is empty, the user agent may consider that entry for deletion.
 
+## Derived artifacts ## {#derived-artifacts}
+
+A user agent may keep a <dfn export>derived artifact</dfn>: data it computes from the
+[=COS entry/bytes=] of one or more [=COS entries=] and keeps for reuse, such as a compiled
+WebAssembly module, a GPU pipeline, or a compiled ML graph. A [=derived artifact=] has the
+following [=struct/items=]:
+
+: <dfn for="derived artifact">sources</dfn>
+:: A non-empty [=list=] of [=COS hash=] values, the entries whose bytes it was computed from.
+: <dfn for="derived artifact">page-chosen inputs</dfn>
+:: Every other input that affects the result and that script can set freely, such as compile
+  options, code or graph structure that is not itself a source, and constants or operator options.
+  This may be empty.
+: <dfn for="derived artifact">producers</dfn>
+:: A [=set=] of [=sites=], the [=COS partitions=] under which the user agent computed it.
+
+The user agent derives a [=derived artifact=]'s key from its [=derived artifact/sources=], its
+[=derived artifact/page-chosen inputs=], and [=implementation-defined=] properties of the user
+agent and the device. The user agent must not let script choose or read the key, and must not
+expose a [=derived artifact=]'s contents to script.
+
+A [=derived artifact=] must depend on its key alone. It must not include data derived from the
+execution of the content that caused it to be computed.
+
+Note: A compiler that optimizes hot code would otherwise record which functions the producing page
+ran, and reuse would disclose that execution profile to another site.
+
+A user agent must not reuse a [=derived artifact=] under a [=COS partition=] outside its
+[=derived artifact/producers=] if content from a site can affect it other than through its key.
+
+Note: Code compiled in a process that runs a site's content can be altered by that content if the
+process is compromised. Reusing it under another top-level site would let one site run code in
+another site's process.
+
+A user agent must remove a [=derived artifact=] when it removes any of its
+[=derived artifact/sources=] from the [=COS registry=]. When a user clears a site's data, the user
+agent should remove that site from every [=derived artifact/producers=] set, and may delete an
+artifact whose [=derived artifact/producers=] is then empty.
+
+<div algorithm>
+To <dfn>determine derived artifact reuse</dfn> given a [=derived artifact=] |artifact|, a [=site=]
+|partition|, and a [=list=] |obtained| of the [=COS hash=] values whose bytes the requesting
+context supplied from reads of the [=COS registry=], return a boolean:
+
+1. If |artifact|'s [=derived artifact/producers=] [=set/contains=] a [=site=] that is
+   [=same site=] with |partition|, return true.
+
+   Note: This is the per-site caching user agents already do.
+1. If |obtained| does not [=list/contain=] every [=list/item=] of |artifact|'s
+   [=derived artifact/sources=], return false.
+
+   Note: A read already went through [=determine COS disclosure=] and, if the user agent has one,
+   the cross-site lookup budget. Bytes from any other source would let a page learn whether an
+   entry exists, without either check, from how long the computation takes.
+1. If |artifact|'s [=derived artifact/page-chosen inputs=] [=list/is empty=], return true.
+1. If the user agent keeps a cross-site lookup budget for |partition| (see
+   [[#availability-gating]]) and the budget is not exhausted, charge one lookup against it and
+   return true.
+1. Return false.
+
+</div>
+
+When [=determine derived artifact reuse=] returns false, the user agent must compute the artifact
+anew, as if none existed, and then add the requesting [=COS partition=] to its
+[=derived artifact/producers=], so a
+refused reuse is indistinguishable from a miss. See [[#derived-artifact-timing]].
+
+<div class=note>
+Host specifications define which inputs are sources and which are page-chosen:
+
+* **WebAssembly**: a module compiled with `WebAssembly.compileStreaming()` or
+  `WebAssembly.instantiateStreaming()` from a {{File}} read from Cross-Origin Storage has that
+  entry as its source. Non-default compile options are page-chosen.
+* **WebGPU**: shader code read from a [=COS entry=] is a source. Other shader code,
+  pipeline-overridable constants, and pipeline layouts are page-chosen.
+* **WebNN**: constants read from [=COS entries=] are sources. The graph structure, operator
+  options, and other constants are page-chosen. See
+  [webmachinelearning/webnn#971](https://github.com/webmachinelearning/webnn/issues/971).
+
+WebGPU and WebNN need a host integration that carries an input's COS provenance to the compiler.
+</div>
+
 ## Manually added entries ## {#manually-added-entries}
 
 *This section is non-normative.*
@@ -1552,6 +1634,16 @@ false negative is a reasonable privacy trade-off. A user agent must not apply GR
 whose size makes a spurious re-download clearly disproportionate to the resulting privacy benefit
 (for example, gigabyte-scale AI model weights), because a false negative there forces a full,
 observable, and costly re-download.
+
+## Derived artifact timing ## {#derived-artifact-timing}
+
+Reusing a [=derived artifact=] is observable, because it is faster than computing one. An artifact
+without [=derived artifact/page-chosen inputs=] discloses nothing beyond the reads that supplied its
+[=derived artifact/sources=]. [=derived artifact/page-chosen inputs|Page-chosen inputs=] can carry
+an identifier: cooperating scripts compute one artifact per set bit on one site, each with an
+unusual operator option, and read the bits on another site from which computations are fast.
+Charging each such reuse to the cross-site lookup budget limits this to what lookups already
+disclose. Without a budget, these artifacts stay partitioned.
 
 ## Fingerprinting ## {#fingerprinting}
 
