@@ -155,11 +155,10 @@ The <dfn>COS partition</dfn> of an [=environment settings object=] |settings| is
 a <dfn>first-party COS context</dfn> if the result of [=obtain a site|obtaining a site=] from
 |settings|'s [=environment settings object/origin=] is [=same site=] with its [=COS partition=].
 
-A <dfn>COS grant</dfn> is a [=struct=] with the [=struct/items=]
-<dfn for="COS grant">origin</dfn>, an [=/origin=], <dfn for="COS grant">partition</dfn>, the
-[=COS partition=] of the write that added the grant, and <dfn for="COS grant">first-party</dfn>, a
-[=boolean=] recording whether that write ran in a [=first-party COS context=]. A grant applies to
-reads whose [=COS partition=] is [=same site=] with its [=COS grant/partition=]; see
+A <dfn>COS sharing record</dfn> is a [=struct=] with the [=struct/items=]
+<dfn for="COS sharing record">origin</dfn>, an [=/origin=], <dfn for="COS sharing record">partition</dfn>, the
+[=COS partition=] of the write that added the record, and <dfn for="COS sharing record">first-party</dfn>, a
+[=boolean=] recording whether that write ran in a [=first-party COS context=]. A record applies to reads whose [=COS partition=] is [=same site=] with its [=COS sharing record/partition=]; see
 [=determine COS disclosure=].
 
 Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=] values to
@@ -177,13 +176,12 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    not completed has no representation in the registry at all, which is what makes an in-progress
    write indistinguishable from an absent one on the read path. See [[#in-progress-writes]].
 : <dfn for="COS entry">origins</dfn>
-:: A [=list=] of [=COS grants=] giving explicit, cross-origin read access, independent of the
-   [=Public Hash List=]. Each grant extends to every origin [=same site=] with its
-   [=COS grant/origin=], so listing `https://a.example` also admits `https://www.a.example`. A
-   grant whose [=COS grant/first-party=] is true also applies to readers in a
+:: A [=list=] of [=COS sharing records=] giving explicit, cross-origin read access, independent of the
+   [=Public Hash List=]. Each record extends to every origin [=same site=] with its
+   [=COS sharing record/origin=], so listing `https://a.example` also admits `https://www.a.example`. A record whose [=COS sharing record/first-party=] is true also applies to readers in a
    [=first-party COS context=] under any top-level site. Initially empty, it only ever
    [[#resource-visibility-upgrades|grows]]. This
-   is one of three independent, additive grants that decide who may read an entry, the
+   is one of three independent, additive scopes that decide who may read an entry, the
    other two being its [=COS entry/storing origins=] (always readable, together with origins
    [=same site=] with them) and [=COS entry/globally disclosable=].
 
@@ -192,8 +190,7 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    suffix list, discloses the entry to all of that content.
 
    Note: A write whose {{CrossOriginStorageGetFileHandleOptions/origins}} is an explicit empty
-   [=list=] (`origins: []`) grants exactly what a write that omits
-   {{CrossOriginStorageGetFileHandleOptions/origins}} grants: the entry's
+   [=list=] (`origins: []`) allows exactly what a write that omits {{CrossOriginStorageGetFileHandleOptions/origins}} allows: the entry's
    [=COS entry/storing origins=] and the origins [=same site=] with them, the baseline every entry
    carries (see [=determine COS disclosure=]). [=apply a COS scope ceiling|Applying the ceiling=]
    turns the empty [=list=] into null, so both writes reach the rest of
@@ -206,32 +203,31 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    GREASE'ing does not suppress. Once [[#resource-visibility-upgrades|set]], it stays true.
 
    Note: This is a separate [=struct/item=] from [=COS entry/origins=], so that a later
-   global-availability request adds the "`*`" grant on top of an existing explicit
+   global-availability request adds the global scope on top of an existing explicit
    [=COS entry/origins=] [=list=]. Were the two conflated into one field, a writer that supplied the
    bytes could turn a list-scoped entry into a "`*`"-scoped one. Because [[#availability-gating]]
-   applies only to the "`*`" grant, an origin that could previously read the entry off the [=list=]
+   applies only to the global scope, an origin that could previously read the entry off the [=list=]
    would then start receiving a "{{NotFoundError}}" whenever the [=COS entry/hash=] is not
-   [=on the PHL=]. Keeping the grants independent makes every visibility change strictly additive,
+   [=on the PHL=]. Keeping the scopes independent makes every visibility change strictly additive,
    which is what [[#resource-visibility-upgrades|upgradeable but never downgradeable]] requires.
 : <dfn for="COS entry">storing origins</dfn>
-:: A [=set=] of [=COS grants=], one for each [=/origin=] and [=COS partition=] under which that
+:: A [=set=] of [=COS sharing records=], one for each [=/origin=] and [=COS partition=] under which that
    origin has successfully completed [=verify and store|writing=] this entry's bytes at least once.
-   Their [=COS grant/first-party=] plays no part. Persisted across page loads and
-   [=set/append|grows=] over time; never shrinks except as described in [[#eviction]]. A grant's
-   [=COS grant/origin=] may always obtain a handle for the entry via
-   {{CrossOriginStorageManager/getFileHandle()}} under the grant's [=COS grant/partition=],
+   Their [=COS sharing record/first-party=] plays no part. Persisted across page loads and
+   [=set/append|grows=] over time; never shrinks except as described in [[#eviction]]. A record's [=COS sharing record/origin=] may always obtain a handle for the entry via
+   {{CrossOriginStorageManager/getFileHandle()}} under the record's [=COS sharing record/partition=],
    independent of [=COS entry/origins=] or whether the entry's [=COS entry/hash=] is
    [[#public-hash-list|on the Public Hash List (PHL)]]. See [[#original-storer-access]].
 
-   Note: Keying grants to the top-level site gives an embedded frame the same view of
+   Note: Keying sharing records to the top-level site gives an embedded frame the same view of
    Cross-Origin Storage that storage partitioning gives it of its other storage. Without the key,
    a frame embedded on several sites could write small files on one and read them back on another
    as a storing origin, bypassing the [=Public Hash List=], [[#greaseing|GREASE'ing]], and any
    lookup limit, which would amount to a third-party cookie. Top-level writes are keyed too, so a
    tracker cannot write once in a top-level visit and read back from its frames everywhere. A
-   [=COS entry/origins=] grant from a [=first-party COS context=] also applies first-party under
+   [=COS entry/origins=] record from a [=first-party COS context=] also applies first-party under
    any top-level site, so restricted sharing between top-level sites keeps working. A lookup that
-   such a grant answers under another top-level site discloses what was stored under the
+   such a record answers under another top-level site discloses what was stored under the
    writer's, so a cross-site lookup budget counts it (see [[#availability-gating]]).
    [=COS entry/Globally disclosable=] is not keyed,
    since the [=Public Hash List=] and GREASE'ing already govern it.
@@ -244,12 +240,10 @@ A user agent has an associated <dfn>Cross-Origin Storage queue</dfn>, which is t
 ## The Public Hash List ## {#public-hash-list}
 
 Confirming that a hash is present in Cross-Origin Storage can itself leak information about a
-user's browsing history (see [[#cross-site-probing]]). This is a risk specifically for the global
-grant. An entry's explicit [=COS entry/origins=] [=list=], and the same-site baseline every entry
+user's browsing history (see [[#cross-site-probing]]). This is a risk specifically for the global scope. An entry's explicit [=COS entry/origins=] [=list=], and the same-site baseline every entry
 carries, already have their disclosure bounded by an explicit choice of the storing origin, while
 making an entry [=COS entry/globally disclosable=] potentially exposes it to any origin on the web. To bound that
-specific risk, a [=COS entry/globally disclosable=] resource is only disclosable, through that
-grant, to origins outside its [=COS entry/storing origins=] if its hash clears an additional,
+specific risk, a [=COS entry/globally disclosable=] resource is only disclosable, through that scope, to origins outside its [=COS entry/storing origins=] if its hash clears an additional,
 independent gate: membership on the <dfn export id="dfn-public-hash-list">Public Hash List</dfn>
 (<dfn export>PHL</dfn>), a vendor-neutral, [=implementation-defined=] allowlist of [=COS hash=]
 values. A hash is admitted to the Public Hash List only once it clears a k-anonymity-style
@@ -432,7 +426,7 @@ and a {{CrossOriginStorageGetFileHandleOptions}} |options|, return null or a {{T
          [=/origin=] is not a [=potentially trustworthy origin=], return a new {{TypeError}}.
 
          Note: Only an origin that could itself call {{CrossOriginStorageManager/getFileHandle()}}
-         is a meaningful grant. The API is only exposed in [=secure contexts=], so this admits
+         is worth listing. The API is only exposed in [=secure contexts=], so this admits
          `https:` origins and loopback `http:` origins such as `http://localhost`, and rejects
          `http:` origins on other hosts, `ws:`, `wss:`, `ftp:`, and every scheme whose
          origin is opaque, extension schemes such as `chrome-extension:` included.
@@ -486,24 +480,23 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
    ever written; see [[#in-progress-writes]].
 1. Let |firstParty| be true if the result of [=obtain a site|obtaining a site=] from |origin| is
    [=same site=] with |partition|, and false otherwise.
-1. If |entry|'s [=COS entry/storing origins=] [=set/contains=] a [=COS grant=] whose
-   [=COS grant/origin=] is [=same site=] with |origin| and whose [=COS grant/partition=] is
+1. If |entry|'s [=COS entry/storing origins=] [=set/contains=] a [=COS sharing record=] whose
+   [=COS sharing record/origin=] is [=same site=] with |origin| and whose [=COS sharing record/partition=] is
    [=same site=] with |partition|, return |entry|.
 
    Note: The original storer, and any origin that has itself successfully written the entry,
    can always read it back under the top-level site it wrote under. See
    [[#original-storer-access]].
 
-   Note: The same-site baseline every entry carries (the grant a write with no
+   Note: The same-site baseline every entry carries (the access a write with no
    {{CrossOriginStorageGetFileHandleOptions/origins}} option requests) always holds,
-   regardless of any [=COS entry/origins=] [=list=] or [=COS entry/globally disclosable=] grant
-   added later. Because it is checked before the [=Public Hash List=] gate below, a same-site
+   regardless of any [=COS entry/origins=] [=list=] or global scope added later. Because it is checked before the [=Public Hash List=] gate below, a same-site
    origin reads the entry whether or not its [=COS entry/hash=] is [=on the PHL=]. Same-site here
    is one trust unit, so this discloses nothing across a site boundary that
    [[#cross-site-probing]] guards.
-1. If |entry|'s [=COS entry/origins=] [=list/contains=] a [=COS grant=] whose
-   [=COS grant/origin=] is [=same site=] with |origin|, and either whose [=COS grant/partition=] is
-   [=same site=] with |partition|, or whose [=COS grant/first-party=] and |firstParty| are both
+1. If |entry|'s [=COS entry/origins=] [=list/contains=] a [=COS sharing record=] whose
+   [=COS sharing record/origin=] is [=same site=] with |origin|, and either whose [=COS sharing record/partition=] is
+   [=same site=] with |partition|, or whose [=COS sharing record/first-party=] and |firstParty| are both
    true, return |entry|.
 
    Note: An origin on the explicit [=COS entry/origins=] [=list=], or [=same site=] with one,
@@ -518,16 +511,15 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
 1. If |entry|'s [=COS entry/globally disclosable=] is true:
    1. If |entry|'s [=COS entry/hash=] is not [=on the PHL=], return null.
 
-      Note: The Public Hash List gate applies only to the global grant, the one case where
+      Note: The Public Hash List gate applies only to the global scope, the one case where
       disclosure could otherwise reach any origin on the web. An entry that is
       [=COS entry/globally disclosable=] but whose [=COS entry/hash=] is not [=on the PHL=] is not
-      disclosed to an origin that qualifies through this grant alone; an origin that also appears
+      disclosed to an origin that qualifies through this scope alone; an origin that also appears
       among [=COS entry/storing origins=], the explicit [=COS entry/origins=] [=list=], or the
       same-site set of either has already returned above.
    1. If the user agent elects to apply [[#greaseing|GREASE'ing]] to this request, return null.
 
-      Note: GREASE'ing also applies only to the global grant. The grants checked above never
-      reach this step: storing origins and their same-site origins are one trust unit, and an
+      Note: GREASE'ing also applies only to the global scope. The records checked above never reach this step: storing origins and their same-site origins are one trust unit, and an
       origin on the explicit [=COS entry/origins=] [=list=] was named on purpose by a writer whose
       `Cross-Origin-Storage-Allow-Origin` header authorized it, which covers its same-site origins
       as well.
@@ -672,7 +664,7 @@ closed, the complete written [=byte sequence=] |bytes|, and the closing operatio
    so a write that never produced verified bytes leaves the [=COS registry=] untouched, and a later
    {{CrossOriginStorageManager/getFileHandle()}} call for the same hash gets the same
    "{{NotFoundError}}" it would have got had the write never been attempted. An entry some origin
-   has already written is likewise unaffected: this algorithm only ever adds bytes and grants.
+   has already written is likewise unaffected: this algorithm only ever adds bytes and sharing records.
 1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
@@ -688,10 +680,10 @@ closed, the complete written [=byte sequence=] |bytes|, and the closing operatio
       [=COS registry=], and it runs only after |bytes| has been verified against |hash|. Two
       writers that both find the hash absent and write it concurrently each arrive here; whichever
       is enqueued second finds the entry the first created and merely adds its own origin and
-      grants below. Their bytes hash to the same value, so storing them once is sufficient.
-   1. [=set/Append=] a [=COS grant=] whose [=COS grant/origin=] is |origin|,
-      [=COS grant/partition=] is |partition|, and [=COS grant/first-party=] is |firstParty| to
-      |entry|'s [=COS entry/storing origins=], if no equal grant is already present.
+      records below. Their bytes hash to the same value, so storing them once is sufficient.
+   1. [=set/Append=] a [=COS sharing record=] whose [=COS sharing record/origin=] is |origin|,
+      [=COS sharing record/partition=] is |partition|, and [=COS sharing record/first-party=] is |firstParty| to
+      |entry|'s [=COS entry/storing origins=], if no equal record is already present.
    1. Run [=upgrade resource visibility=] given |entry|, |handle|'s
       [=FileSystemFileHandle/requested origins=], |partition|, and |firstParty|.
    1. Set |handle|'s [=FileSystemFileHandle/may read=] to true.
@@ -710,8 +702,7 @@ Note: [[FS]] otherwise defines {{FileSystemCreateWritableOptions/keepExistingDat
 stream with the existing file's contents. Honoring that here would let a caller become a storing
 origin for bytes it never possessed. A create request returns a handle whether or not the entry
 already exists, so a caller could open a writable for a hash another origin stored, close it
-having written nothing, and have the carried-over bytes hash to the requested value. That would
-grant it read access with [=COS entry/origins=], the [=Public Hash List=], and
+having written nothing, and have the carried-over bytes hash to the requested value. That would give it read access with [=COS entry/origins=], the [=Public Hash List=], and
 [[#greaseing|GREASE'ing]] never consulted: an [[#availability-gating|availability gating]] bypass
 assembled out of two individually permitted operations. It is the same reasoning that makes
 [=verify and store=] require the complete contents on every create request.
@@ -786,10 +777,10 @@ or null |origins|, and an [=environment settings object=] |settings|:
       against |hash|, which the integration's {{Request/integrity}} check has already done. A
       {{CrossOriginStorageManager/getFileHandle()}} writer for the same hash that is still in
       flight is unaffected: it holds no registry state, and its own [=verify and store=] settles
-      normally, finding this entry and adding its origin and grants to it.
-   1. [=set/Append=] a [=COS grant=] whose [=COS grant/origin=] is |origin|,
-      [=COS grant/partition=] is |partition|, and [=COS grant/first-party=] is |firstParty| to
-      |entry|'s [=COS entry/storing origins=], if no equal grant is already present.
+      normally, finding this entry and adding its origin and sharing records to it.
+   1. [=set/Append=] a [=COS sharing record=] whose [=COS sharing record/origin=] is |origin|,
+      [=COS sharing record/partition=] is |partition|, and [=COS sharing record/first-party=] is |firstParty| to
+      |entry|'s [=COS entry/storing origins=], if no equal record is already present.
    1. Run [=upgrade resource visibility=] given |entry|, |requestedOrigins|, |partition|, and
       |firstParty|.
 
@@ -817,30 +808,30 @@ To <dfn>upgrade resource visibility</dfn> given a [=COS entry=] |entry|, "`*`", 
    1. Set |entry|'s [=COS entry/globally disclosable=] to true.
    1. Return.
 
-   Note: This adds the global grant; it does not touch |entry|'s [=COS entry/origins=]. An entry
+   Note: This adds the global scope; it does not touch |entry|'s [=COS entry/origins=]. An entry
    that already carried an explicit [=COS entry/origins=] [=list=] keeps it, so every origin on
    that [=list=] keeps its [=on the PHL|PHL=]-independent access even after the entry becomes
-   [=COS entry/globally disclosable=]. This is the crux of why the two grants are stored
+   [=COS entry/globally disclosable=]. This is the crux of why the two scopes are stored
    separately; see [=COS entry/globally disclosable=].
 1. [=set/For each=] |candidateOrigin| of |requestedOrigins|:
-   1. Let |grant| be a [=COS grant=] whose [=COS grant/origin=] is |candidateOrigin|,
-      [=COS grant/partition=] is |partition|, and [=COS grant/first-party=] is |firstParty|.
-   1. If |entry|'s [=COS entry/origins=] [=list/contains=] a grant equal to |grant|, then
+   1. Let |record| be a [=COS sharing record=] whose [=COS sharing record/origin=] is |candidateOrigin|,
+      [=COS sharing record/partition=] is |partition|, and [=COS sharing record/first-party=] is |firstParty|.
+   1. If |entry|'s [=COS entry/origins=] [=list/contains=] a record equal to |record|, then
       [=iteration/continue=].
    1. If |entry|'s [=COS entry/origins=]'s [=list/size=] equals the user agent's
       [=maximum origins list length=], then break.
 
       Note: Any remaining |candidateOrigin| values are silently dropped from this upgrade, since
       the write itself already succeeded, and the user agent is expected to log a console warning that the entry's origins list is at capacity.
-   1. [=list/Append=] |grant| to |entry|'s [=COS entry/origins=].
+   1. [=list/Append=] |record| to |entry|'s [=COS entry/origins=].
 
 </div>
 
 Note: An upgrade only ever adds to [=COS entry/origins=] or sets [=COS entry/globally disclosable=]
 to true. A writer that requests a [=list=] widens an entry that is already
-[=COS entry/globally disclosable=] just as it widens one that is not, because the two grants are
+[=COS entry/globally disclosable=] just as it widens one that is not, because the two scopes are
 independent: the newly listed origins gain [=on the PHL|PHL=]-independent access even while the
-"`*`" grant remains in force.
+global scope remains in force.
 
 Note: Any site, including one other than the original storer, can widen an entry's
 [=COS entry/origins=], as long as it also supplies bytes that hash to the entry's [=COS entry/hash=]. This is intentional:
@@ -850,7 +841,7 @@ as the original storer about what that hash denotes.
 ### Original storer access ### {#original-storer-access}
 
 An [=/origin=] that has successfully completed [=verify and store|writing=] a [=COS entry=] (that
-is, the [=COS grant/origin=] of any grant in the entry's [=COS entry/storing origins=]) can always
+is, the [=COS sharing record/origin=] of any record in the entry's [=COS entry/storing origins=]) can always
 subsequently obtain a handle for it via {{CrossOriginStorageManager/getFileHandle()}} under the
 same top-level site, independent of the entry's [=COS entry/origins=] value and independent of
 whether its [=COS entry/hash=] is [=on the PHL=]. This mirrors the Cache API's model, in which an
@@ -884,7 +875,7 @@ Note: Writing is the one capability a handle can genuinely lack. Only a create r
 handle that can be written through, so reporting "`granted`" for a write mode on any other handle
 would claim a capability {{FileSystemFileHandle/createWritable()}} refuses. Reading stays
 "`granted`", since a caller holding a readable handle can read through it. Requesting cannot change
-either answer, as there is no prompt to show and no state a grant could be recorded in.
+either answer, as there is no prompt to show and no state a permission could be recorded in.
 
 Calling {{FileSystemFileHandle/getFile()}} on a {{FileSystemFileHandle}} addressing the
 [=Cross-Origin Storage file system=] whose [=FileSystemFileHandle/may read=] is false must reject
@@ -1009,7 +1000,7 @@ handle.
 Note: A handle cloned before its original is written through stays unreadable. Its holder can
 call {{CrossOriginStorageManager/getFileHandle()}} without
 {{CrossOriginStorageGetFileHandleOptions/create}} to get a readable handle through the
-[[#original-storer-access|original storer's grant]].
+[[#original-storer-access|original storer's access]].
 
 # Storage management # {#storage-management}
 
@@ -1068,8 +1059,8 @@ most recently accessed each entry. A user agent is expected to provide settings 
 user can inspect which files are stored, which origins have accessed each file, and manually
 delete entries or clear all Cross-Origin Storage data.
 
-When a user clears an origin's site data, the user agent should remove every grant whose
-[=COS grant/origin=] is that origin from every [=COS entry/storing origins=] set. If, after that removal, a [=COS entry=]'s
+When a user clears an origin's site data, the user agent should remove every sharing record whose
+[=COS sharing record/origin=] is that origin from every [=COS entry/storing origins=] set. If, after that removal, a [=COS entry=]'s
 [=COS entry/storing origins=] is empty, the user agent may consider that entry for deletion.
 
 ## Derived artifacts ## {#derived-artifacts}
@@ -1183,7 +1174,7 @@ API does not answer by itself:
 Once added this way, an entry is otherwise indistinguishable
 from one a website wrote via {{CrossOriginStorageManager/getFileHandle()}}: the same
 [[#availability-gating|availability gating]] and [[#resource-visibility-upgrades|visibility
-upgrade]] rules apply to it, exactly as they would for any other entry with the same grants.
+upgrade]] rules apply to it, exactly as they would for any other entry with the same sharing records.
 That includes the [=on the PHL=] check whenever the entry ends up
 [=COS entry/globally disclosable=], the default for a manual add.
 
@@ -1225,7 +1216,7 @@ entry:
   may be inaccurate or deliberately misleading.
 * It shares the lifetime of the entry, and of the origin it is attributed to. It is discarded when
   the entry is evicted or deleted, and the portion attributable to an origin is discarded when
-  that origin's grants are removed from [=COS entry/storing origins=], including when the user clears that
+  that origin's sharing records are removed from [=COS entry/storing origins=], including when the user clears that
   origin's site data (see [[#eviction]]).
 
 Because such a record is invisible to content, whether a user agent keeps one, and how much it
@@ -1481,8 +1472,7 @@ access a file without already knowing its hash.
 A [=COS hash=] is not a secret. It is a content identifier, trivially computable by anyone who
 already has the file, and is routinely public knowledge for the kind of widely distributed
 resources this specification targets, often published alongside a model's or a library's
-release. Knowing a hash is therefore sufficient to look an entry up, and it grants no access by
-itself: whether a lookup succeeds is governed entirely by [=COS entry/origins=] and
+release. Knowing a hash is therefore sufficient to look an entry up, and it gives no access by itself: whether a lookup succeeds is governed entirely by [=COS entry/origins=] and
 [[#availability-gating]]. Developers must not treat an unpublished hash as an access-control mechanism; an
 attacker interested in a specific file does not need to guess its hash, only to obtain the file
 itself (see [[#cross-site-probing]]).
@@ -1545,8 +1535,7 @@ The alternative, registering a placeholder when a create request is made and rej
 reads of it with a distinguishable error, would let a caller learn that *some* origin is writing a
 given hash right now. That single bit sounds minor and is not. It would be available:
 
-* to any origin, including one with no grant of any kind on the entry, since the placeholder
-  carries no grants and the read would be answered before [=determine COS disclosure=] ran;
+* to any origin, including one with no access of any kind to the entry, since the placeholder carries no sharing records and the read would be answered before [=determine COS disclosure=] ran;
 * for any hash, including one that is not [=on the PHL=] and never could be, so an attacker could
   use hashes derived from a per-user value, which is exactly the pattern [[#fingerprinting]]
   exists to catch;
@@ -1590,28 +1579,27 @@ origin is out of scope, that a "`*`"-scoped resource's hash is not (yet, or ever
 that GREASE'ing suppressed a true positive. Developers must not treat "{{NotFoundError}}" as
 anything more specific than "fall back to the network."
 
-Note: In a user agent that supports third-party cookies, the "`*`" grant lets a tracker link a
+Note: In a user agent that supports third-party cookies, the global scope lets a tracker link a
 user's visits across sites no better than a third-party cookie already can. The [=PHL=] alone
 does not bound this: an attacker can build a cross-site identifier out of individually
 PHL-eligible resources by choosing which subset to write. A user agent that blocks third-party
-cookies can still offer the "`*`" grant if it bounds cross-site disclosure, for example with a
+cookies can still offer the global scope if it bounds cross-site disclosure, for example with a
 small budget of cross-site lookups keyed on the top-level site and shared by every frame on
 the page, a count that persists across reloads for a time window, and making a written entry
-available through the "`*`" grant only after a user gesture. The README's
+available through the global scope only after a user gesture. The README's
 [privacy considerations](README.md#privacy-considerations) describe these mitigations.
 
 Note: A lookup budget leaves a lookup uncharged only when [=determine COS disclosure=] answers it
-through a grant written under the reader's own top-level site: a [=COS entry/storing origins=]
-grant, or a [=COS entry/origins=] grant whose [=COS grant/partition=] is [=same site=] with the
+through a sharing record written under the reader's own top-level site: a [=COS entry/storing origins=] record, or a [=COS entry/origins=] record whose [=COS sharing record/partition=] is [=same site=] with the
 reader's [=COS partition=]. Every other lookup counts, whether or not it finds an entry. That
-includes a lookup answered by a [=COS grant/first-party=] [=COS entry/origins=] grant written under
+includes a lookup answered by a [=COS sharing record/first-party=] [=COS entry/origins=] record written under
 another top-level site. The `Cross-Origin-Storage-Allow-Origin` header keeps injected content
 from naming such a reader. The writing site's operator can still name any origin, so without the
 charge two cooperating sites could mint marker files on one with a [=list=] naming the other and
 read back an identifier of any width there, across separate visits and with no limit. A lookup
 refused for being over budget rejects with a "{{NotFoundError}}" {{DOMException}}, exactly as a
 miss does. The user-gesture gate, like [[#greaseing|GREASE'ing]], applies only to an origin that
-qualifies through the [=COS entry/globally disclosable=] grant alone: [=COS entry/storing
+qualifies through the global scope alone: [=COS entry/storing
 origins=], origins on the explicit [=COS entry/origins=] [=list=], and origins [=same site=] with
 either read an entry as soon as [=determine COS disclosure=] returns it.
 
@@ -1624,8 +1612,7 @@ permit disclosure. This adds noise that makes it harder for a site to distinguis
 from a privacy-motivated false negative, similar to the technique applied by
 [[ua-client-hints|UA Client Hints]].
 
-GREASE'ing applies only to an origin that qualifies through the [=COS entry/globally disclosable=]
-grant alone, the same case the [=Public Hash List=] gates (see [=determine COS disclosure=]). A
+GREASE'ing applies only to an origin that qualifies through the global scope alone, the same case the [=Public Hash List=] gates (see [=determine COS disclosure=]). A
 user agent must not apply it to [=COS entry/storing origins=], to origins on the explicit
 [=COS entry/origins=] [=list=], or to origins [=same site=] with either.
 

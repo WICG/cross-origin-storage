@@ -12,7 +12,7 @@ integrity guarantee: the browser verifies the bytes against it at write time, so
 a site can use an entry some other origin stored without having to trust that
 origin. A site requests a file by hash, and the browser serves it without a
 network request when _(i)_ it already has bytes matching that hash, and _(ii)_
-the entry's grants permit the requesting origin to see them.
+the entry's sharing scope permits the requesting origin to see them.
 
 The benefit is the elimination of redundant downloads. A file fetched on one
 site is available immediately on the next, reducing bandwidth, load latency,
@@ -36,8 +36,8 @@ motivates the feature.
 The `origins` value a write declares, which decides who can later learn that the
 entry exists. A storing origin can always read back what it wrote under the
 top-level site it wrote under, mirroring the partitioned Cache API, and that
-access needs no declaration. The grants add up and are never removed, so a scope
-only ever widens. See [COS entry](README.md#cos-entry) and
+access needs no declaration. Scopes add up and are never removed, so an entry's
+sharing only ever widens. See [COS entry](README.md#cos-entry) and
 [Availability gating](README.md#availability-gating). A write declares one of
 three scopes.
 
@@ -142,20 +142,20 @@ it.
 
 #### Attacks a user agent has to bound by rule
 
-| Attack                                                                                                          | Objective                                                                                                  | Solvable with mitigation                                                                                                 |
-| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | Recognize the same device across unrelated sites, through an identifier the tracker plants and reads back. | **Partially**. The spec keys grants to the top-level site, which closes A1.1. Cap the writes and the cross-site lookups. |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | Recognize the same device across unrelated sites, through the files it already happens to hold.            | **Partially**. Cap the cross-site lookups.                                                                               |
-| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | Assign the user to a targeting cohort, with no identifier involved at any point.                           | **Partially**. Cap the cross-site lookups, and keep revealing files off the PHL.                                         |
-| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | Establish that a device visited one particular site, with no cooperation from that site.                   | **Partially**. Cap the cross-site lookups, and narrow the sharing scopes sites declare.                                  |
-| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | **No**. Only a user prompt, or lying about large files, would mitigate the attack.                                       |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | Learn the state of a user's account on another site, by making that site write and asking whether it did.  | **Partially**. Apply the declared sharing scope only after a user gesture.                                               |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | Read private data out of another site, by choosing what that site is asked.                                | **Partially**. Apply the declared sharing scope only after a gesture, and cap the cross-site lookups.                    |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | Control what the device holds, by filling the cache until the browser reclaims space.                      | **Partially**. Cap the writes by size.                                                                                   |
-| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | Spend more lookups than the budget allows, by presenting as several origins at once.                       | **Completely**. Tie the cap to the top-level site.                                                                       |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Keep the cap across reloads and site-requested clearing.                                                 |
-| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Apply the cap to every surface.                                                                          |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Make the lie depend on the origin and a time period.                                                      |
+| Attack                                                                                                          | Objective                                                                                                  | Solvable with mitigation                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | Recognize the same device across unrelated sites, through an identifier the tracker plants and reads back. | **Partially**. The spec keys sharing scopes to the top-level site, which closes A1.1. Cap the writes and the cross-site lookups. |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | Recognize the same device across unrelated sites, through the files it already happens to hold.            | **Partially**. Cap the cross-site lookups.                                                                                       |
+| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | Assign the user to a targeting cohort, with no identifier involved at any point.                           | **Partially**. Cap the cross-site lookups, and keep revealing files off the PHL.                                                 |
+| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | Establish that a device visited one particular site, with no cooperation from that site.                   | **Partially**. Cap the cross-site lookups, and narrow the sharing scopes sites declare.                                          |
+| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | Decide whether an anonymous visitor is one specific person the attacker already knows.                     | **No**. Only a user prompt, or lying about large files, would mitigate the attack.                                               |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | Learn the state of a user's account on another site, by making that site write and asking whether it did.  | **Partially**. Apply the declared sharing scope only after a user gesture.                                                       |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | Read private data out of another site, by choosing what that site is asked.                                | **Partially**. Apply the declared sharing scope only after a gesture, and cap the cross-site lookups.                            |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | Control what the device holds, by filling the cache until the browser reclaims space.                      | **Partially**. Cap the writes by size.                                                                                           |
+| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | Spend more lookups than the budget allows, by presenting as several origins at once.                       | **Completely**. Tie the cap to the top-level site.                                                                               |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | Spend more lookups than the budget allows, by resetting the counter that holds it.                         | **Completely**. Keep the cap across reloads and site-requested clearing.                                                         |
+| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | Obtain lookups the budget never counts, by taking paths that return nothing to the page.                   | **Completely**. Apply the cap to every surface.                                                                                  |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | Recover the answers GREASE'ing withholds, by making the noise cancel, repeat, or never apply.              | **Partially**. Make the lie depend on the origin and a time period.                                                              |
 
 #### Attacks the design already rules out
 
@@ -200,10 +200,10 @@ The tracker can do this in four ways.
 
 ##### Variant 1 (A1.1): Through an embedded frame
 
-Both sites embed an iframe from `tracker.example` and grant it
+Both sites embed an iframe from `tracker.example` and give it
 `allow="cross-origin-storage"`, so the tracker writes under its own origin. A
 storing origin can always read its own entries, so the recovery bypasses the
-Public Hash List, GREASE'ing, and the `origins` grants entirely. Nothing checks
+Public Hash List, GREASE'ing, and the `origins` lists entirely. Nothing checks
 the files, so the tracker mints its own marker resources: a few hundred random
 bytes each, keyed by their SHA-256. Those hashes exist nowhere else on the web,
 so no organic cache hit can fake a positive.
@@ -247,10 +247,10 @@ frames. Every major browser keys a third-party frame's cookies, IndexedDB, and
 Cache Storage to the top-level site, so the same frame on two sites sees two
 unrelated stores. Without the same key in COS, the variant would need nothing
 more than a storing origin's access to its own entries. Its reads would bypass
-the lookup budget and the gesture gate. The spec keys every grant except the
-global one to the top-level site of the write
-([Mitigation 10](#mitigation-10-m10-grants-keyed-to-the-top-level-site)), which
-closes this variant.
+the lookup budget and the gesture gate. The spec keys every sharing scope except
+the global one to the top-level site of the write
+([Mitigation 10](#mitigation-10-m10-sharing-scopes-keyed-to-the-top-level-site)),
+which closes this variant.
 
 The `allow` attribute is a weak gate in practice. An embed with a legitimate use
 for COS asks for it in the snippet publishers paste, and a publisher has no way
@@ -393,7 +393,7 @@ mitigations target. The write budget
 ([Mitigation 8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) prices the
 marker resources as in the other variants. The reads count against the lookup
 budget ([Mitigation 1](#mitigation-1-m1-cross-site-lookup-budget)). The spec
-charges every lookup answered by a first-party `origins` grant written under
+charges every lookup answered by a first-party `origins` list written under
 another top-level site (see
 [Availability gating](https://wicg.github.io/cross-origin-storage/#availability-gating)),
 so reading 32 markers back takes 32 lookups, paced like any other cross-site
@@ -1151,11 +1151,11 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Mitigations
 
-The spec includes two of these: the gesture gate on the global grant
-([Mitigation 2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies))
-and grants keyed to the top-level site
-([Mitigation 10](#mitigation-10-m10-grants-keyed-to-the-top-level-site)). The
-others are proposals, some described in the explainer and some left to user
+The spec includes two of these: the gesture gate on the global scope
+([Mitigation 2](#mitigation-2-m2-a-user-gesture-before-the-global-scope-applies))
+and sharing scopes keyed to the top-level site
+([Mitigation 10](#mitigation-10-m10-sharing-scopes-keyed-to-the-top-level-site)).
+The others are proposals, some described in the explainer and some left to user
 agents. Two were considered and discarded:
 [Mitigation 5](#mitigation-5-m5-availability-tied-to-third-party-cookies) and
 [Mitigation 6](#mitigation-6-m6-permission-prompts). Their sections stay as the
@@ -1207,13 +1207,13 @@ the page draws from the same one.
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.                                                                                                                                                                                      |
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (A12.1)                 | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                                                                                                                                                                                                   |
 
-### Mitigation 2 (M2): A user gesture before the global grant applies
+### Mitigation 2 (M2): A user gesture before the global scope applies
 
-A file written with `origins: '*'` becomes available through the global grant
+A file written with `origins: '*'` becomes available through the global scope
 only after a user gesture on the page. The writing page itself can use the file
 right away, so the performance benefit survives intact, and what waits for the
 gesture is the disclosure to unrelated origins. The spec limits the gate to the
-global grant
+global scope
 ([Availability gating](https://wicg.github.io/cross-origin-storage/#availability-gating)):
 same-site origins and origins on an explicit list, which the site authorizes
 with its `Cross-Origin-Storage-Allow-Origin` header, read the file as soon as it
@@ -1223,12 +1223,12 @@ is written.
 
 | Attack                                                                                                          | Covered             | Description                                                                                                                                                                                                                                                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (A1.2)           | Bounds Variant 2 on the write side: no gesture, no global grant, so a device cannot be marked during a silent load. A gesture is one click, and a tracker on a site the user interacts with will get one. Variants 1 and 3 don't use the global grant, which is all the gate holds back.                                                                    |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (A1.2)           | Bounds Variant 2 on the write side: no gesture, no global scope, so a device cannot be marked during a silent load. A gesture is one click, and a tracker on a site the user interacts with will get one. Variants 1 and 3 don't use the global scope, which is all the gate holds back.                                                                    |
 | [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | ⚪                  | Out of reach. It writes nothing.                                                                                                                                                                                                                                                                                                                            |
 | [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | ⚪                  | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                                      |
 | [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | ⚪                  | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                                      |
 | [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪                  | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                                      |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 (induced writes) | Bounded where the attacker induces the write, and this is the mitigation aimed at it. The induced load carries no gesture, so the victim site's `'*'` write never reaches the global grant. An entry written during a genuine, gesture-bearing visit keeps its declared sharing scope, so a passive variant survives that reads the state as of that visit. |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 (induced writes) | Bounded where the attacker induces the write, and this is the mitigation aimed at it. The induced load carries no gesture, so the victim site's `'*'` write never reaches the global scope. An entry written during a genuine, gesture-bearing visit keeps its declared sharing scope, so a passive variant survives that reads the state as of that visit. |
 | [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 (induced loads)  | Bounded the same way, and every question needs its own induced load on a URL the attacker chose, which the user has no reason to touch. A user led to interact with the victim's own page supplies the gesture anyway.                                                                                                                                      |
 | [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                  | Out of reach. Flooding needs no sharing scope to apply, since a same-site write consumes the same space and forces the same eviction.                                                                                                                                                                                                                       |
 | [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪                  | Out of reach. It concerns reads.                                                                                                                                                                                                                                                                                                                            |
@@ -1237,12 +1237,12 @@ is written.
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪                  | Out of reach. It reads, and nothing it reads was written for it.                                                                                                                                                                                                                                                                                            |
 
 The gate leaves Variants 1 and 3 of Attack 1 alone, since neither uses the
-global grant. Variant 3 rides the list grant, which the gate deliberately skips.
+global scope. Variant 3 rides the list scope, which the gate deliberately skips.
 Variant 1's frame reads entries its own origin stored, so nothing it does widens
 a sharing scope and the gate has nothing to hold back. Catching that variant
 means treating a storing origin's read of its own entry as a disclosure whenever
 it happens under a different top-level site, which the spec does with
-[Mitigation 10](#mitigation-10-m10-grants-keyed-to-the-top-level-site).
+[Mitigation 10](#mitigation-10-m10-sharing-scopes-keyed-to-the-top-level-site).
 
 ### Mitigation 3 (M3): A count that survives reloads and tabs
 
@@ -1365,34 +1365,34 @@ since a `'*'` write for a hash not on the PHL already stays same-site.
 > described after its coverage table. The section stays as the record of why.
 
 A user agent can ask the user before letting a site read what other sites
-stored. Three granularities have been considered: one grant per browser, one per
-requesting origin, and one per resource, the last plausibly attached to a
-browser-controlled page element so the prompt can name the file at stake. At
-every granularity the grant gates cross-site disclosure alone, and a site
+stored. Three granularities have been considered: one permission per browser,
+one per requesting origin, and one per resource, the last plausibly attached to
+a browser-controlled page element so the prompt can name the file at stake. At
+every granularity the permission gates cross-site disclosure alone, and a site
 reading back its own entries never prompts. A lookup never raises the prompt
-itself, so a probe loop cannot be used to summon one; the grant is requested
-from a user gesture, which keeps a page from asking on load or asking
+itself, so a probe loop cannot be used to summon one; the permission is
+requested from a user gesture, which keeps a page from asking on load or asking
 repeatedly.
 
 #### Coverage
 
-| Attack                                                                                                          | Covered               | Description                                                                                                                                                                                                                                          |
-| --------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (if users decline) | Reached in principle, since an origin without a grant learns nothing another site stored, whatever it asks and by whichever surface it asks. Contingent in practice on users declining, and a grant nobody can evaluate is a grant most people give. |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡 (if users decline) | Reached in principle, since an origin without a grant learns nothing another site stored, whatever it asks and by whichever surface it asks. Contingent in practice on users declining, and a grant nobody can evaluate is a grant most people give. |
-| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | 🟡 (if users decline) | Reached, and this is the only mitigation in this document that reaches it. The others bound how many lookups a site may make, and one lookup is all this attack needs, while a prompt bounds whether the site may ask at all.                        |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                    | Out of reach, since it writes and reads nothing.                                                                                                                                                                                                     |
-| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                               |
+| Attack                                                                                                          | Covered               | Description                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (if users decline) | Reached in principle, since an origin without the permission learns nothing another site stored, whatever it asks and by whichever surface it asks. Contingent in practice on users declining, and a permission nobody can evaluate is one most people give. |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡 (if users decline) | Reached in principle, since an origin without the permission learns nothing another site stored, whatever it asks and by whichever surface it asks. Contingent in practice on users declining, and a permission nobody can evaluate is one most people give. |
+| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | 🟡 (if users decline) | Reached, and this is the only mitigation in this document that reaches it. The others bound how many lookups a site may make, and one lookup is all this attack needs, while a prompt bounds whether the site may ask at all.                                |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                    | Out of reach, since it writes and reads nothing.                                                                                                                                                                                                             |
+| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (if users decline) | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                       |
 
-The cost falls on both sides. The disclosure is hard to put to a user: the grant
-has no visible effect either way, the user cannot check what was read
+The cost falls on both sides. The disclosure is hard to put to a user: the
+permission has no visible effect either way, the user cannot check what was read
 afterwards, and the honest phrasing, that this site wants to know which files
 other sites left on the device, describes a mechanism most people have no model
 for. Per-origin and per-resource prompts multiply that decision across the web,
@@ -1508,18 +1508,18 @@ subdomains buy sixteen limits.
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪      | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                        |
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪      | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                        |
 
-### Mitigation 10 (M10): Grants keyed to the top-level site
+### Mitigation 10 (M10): Sharing scopes keyed to the top-level site
 
 The spec adopts this
 ([COS entries](https://wicg.github.io/cross-origin-storage/#cos-entries)). Every
-write records the site of its top-level origin alongside the grants it adds: the
-storing origin, the same-site default that follows from it, and any `origins`
-list. Those grants then hold only for reads under that same top-level site. The
-global grant stays unkeyed, since the PHL, GREASE'ing, and the lookup budget
-already govern it. Top-level writes are keyed too, so a tracker can't write its
-markers during one top-level visit, through a bounce for example, and read them
-back from its frames everywhere. A top-level page reads what it stored as
-before, since it reads under its own site.
+write records the site of its top-level origin alongside the access it adds: the
+storing origin's own access, the same-site default that follows from it, and any
+`origins` list. That access then holds only for reads under that same top-level
+site. The global scope stays unkeyed, since the PHL, GREASE'ing, and the lookup
+budget already govern it. Top-level writes are keyed too, so a tracker can't
+write its markers during one top-level visit, through a bounce for example, and
+read them back from its frames everywhere. A top-level page reads what it stored
+as before, since it reads under its own site.
 
 A list written first-party, by a top-level page or a frame same-site with it,
 also admits the listed origins wherever they run first-party. That keeps
@@ -1536,10 +1536,10 @@ sibling subdomain would carry the identifier just as well.
 Under any other top-level site, the same frame is an ordinary origin for that
 entry. Its lookup is a cross-site lookup, counted by
 [Mitigation 1](#mitigation-1-m1-cross-site-lookup-budget), gated by
-Mitigations 5 and 6, and successful only through the global grant for a hash on
+Mitigations 5 and 6, and successful only through the global scope for a hash on
 the PHL. This is the key storage partitioning already puts on a third-party
-frame's cookies, IndexedDB, and Cache Storage, applied to the one COS grant that
-lacked it.
+frame's cookies, IndexedDB, and Cache Storage, applied to the one kind of COS
+access that lacked it.
 
 The cost is the cross-site hit for files an embed stores off the PHL. A video
 player frame's custom decoder is downloaded once per top-level site, as the
@@ -1552,17 +1552,17 @@ to share.
 | Attack                                                                                                          | Covered   | Description                                                                                                                                                                                                                                  |
 | --------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | ✅ (A1.1) | Closes Variant 1. The frame's marker resources stay readable on the site that planted them, and anywhere else they need the PHL, which minted hashes never reach. Variants 2 and 3 write as the top-level site, which this leaves unchanged. |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | ⚪        | Out of reach. It reads through the global grant, which this leaves unkeyed.                                                                                                                                                                  |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | ⚪        | Out of reach. It reads through the global scope, which this leaves unkeyed.                                                                                                                                                                  |
 | [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | ⚪        | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                       |
 | [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | ⚪        | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                       |
 | [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪        | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                       |
 | [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪        | Out of reach. The victim site writes as the top-level page.                                                                                                                                                                                  |
 | [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | ⚪        | Same as [A6](#attack-6-a6-induced-write-as-a-state-oracle).                                                                                                                                                                                  |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪        | Out of reach. Keying a grant frees no space.                                                                                                                                                                                                 |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪        | Out of reach. Keying a sharing scope frees no space.                                                                                                                                                                                         |
 | [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ⚪        | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                       |
 | [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪        | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                       |
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ⚪        | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                       |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪        | Out of reach. Variant 2 runs in a frame, and it reads files the frame never wrote, through the global grant.                                                                                                                                 |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | ⚪        | Out of reach. Variant 2 runs in a frame, and it reads files the frame never wrote, through the global scope.                                                                                                                                 |
 
 This closes the variant without naming anyone, which a blocklist
 ([Mitigation 4](#mitigation-4-m4-tighter-limits-for-origins-on-a-blocklist))
@@ -1573,16 +1573,16 @@ real product, is closed off the same as a known tracker.
 
 | Attack                                                                                                          | Covered by                                                                                                                                                                                                                                                                                                                                                                                                   | Degree                                                                                           |
 | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) | Partially. M10 closes A1.1, and A1.3 and A1.4 stand as residual risk, paced by the lookup budget |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-scope-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) | Partially. M10 closes A1.1, and A1.3 and A1.4 stand as residual risk, paced by the lookup budget |
 | [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                          | Partially                                                                                        |
 | [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                          | Partially, and 8 lookups already yield a cohort                                                  |
 | [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                            | Partially                                                                                        |
 | [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                                                                                                                                                                                                                                   | Not reached, since M6 is discarded                                                               |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                                                                         | Partially, and the passive variant survives                                                      |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                 | Partially, and M2 blocks the induced load                                                        |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-scope-applies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                                                                         | Partially, and the passive variant survives                                                      |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-scope-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                 | Partially, and M2 blocks the induced load                                                        |
 | [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) 🟡 ([M9](#mitigation-9-m9-a-per-origin-storage-limit))                                                                                                                                                                                                                                                                                         | Partially, and M9 alone lets extra origins multiply it                                           |
 | [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ✅ ([M1](#mitigation-1-m1-cross-site-lookup-budget))                                                                                                                                                                                                                                                                                                                                                         | Completely                                                                                       |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) ✅ ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs))                                                                                                                                                                                                                                                                | Completely                                                                                       |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-scope-applies)) ✅ ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs))                                                                                                                                                                                                                                                                | Completely                                                                                       |
 | [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ ([M1](#mitigation-1-m1-cross-site-lookup-budget))                                                                                                                                                                                                                                                                                                                                                         | Completely                                                                                       |
 | [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                                                                                                           | Partially, and A12.3 is not addressed                                                            |
 | [A13: Existence oracle through in-progress writes](#attack-13-a13-existence-oracle-through-in-progress-writes)  | None needed                                                                                                                                                                                                                                                                                                                                                                                                  | Ruled out by design                                                                              |
@@ -1601,7 +1601,7 @@ Variant 3 needs the operator's own header, and it links sites under that
 operator's control. Variant 4 makes the tracker the operator for a moment
 through a redirect, and the list cap, the write budget, and browsers'
 bounce-tracking mitigations bound it. Both read through a first-party `origins`
-grant written under another top-level site, which the lookup budget charges, so
+list written under another top-level site, which the lookup budget charges, so
 either one recovers an identifier only as fast as the budget allows (see
 [Variant 3](#variant-3-a13-through-the-list-scope) and
 [Variant 4](#variant-4-a14-through-the-trackers-own-first-party-list)).
