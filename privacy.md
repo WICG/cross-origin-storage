@@ -128,6 +128,8 @@ level and found 67.6% to 93.1% of them trackable, depending on the device split
 and feature set, with trackable fingerprints staying stable for a mean of 3.1 to
 3.4 weeks.
 
+## Attacks
+
 ### Overview
 
 The following sections present fourteen attacks, each with its objective and how
@@ -180,14 +182,14 @@ const has = async (h) => !!(await cos.requestFileHandle(h).catch(() => 0));
 const example = { algorithm: 'SHA-256', value: '8f43…' };
 ```
 
-## Attack 1 (A1): Supercookie
+### Attack 1 (A1): Supercookie
 
-### Objective
+#### Objective
 
 The objective is to recognize the same device across unrelated sites, through an
 identifier the tracker plants and later reads back.
 
-### Description
+#### Description
 
 The tracker picks a set of small files and stores a per-device subset on the
 first site, one bit per file. A query for the same set on a second site recovers
@@ -196,7 +198,7 @@ size, and the tracker refreshes it on each visit.
 
 The tracker can do this in four ways.
 
-#### Variant 1 (A1.1): Through an embedded frame
+##### Variant 1 (A1.1): Through an embedded frame
 
 Both sites embed an iframe from `tracker.example` and grant it
 `allow="cross-origin-storage"`, so the tracker writes under its own origin. A
@@ -266,7 +268,7 @@ that is set. Three days later the same frame on the newspaper reads those 32
 hashes back, exactly and free of charge, and attributes both visits to one
 device, with third-party cookies switched off throughout.
 
-#### Variant 2 (A1.2): Through the Public Hash List
+##### Variant 2 (A1.2): Through the Public Hash List
 
 A tracker running as the site's own script writes under that site's origin,
 unreadable elsewhere. Reaching it from a second site requires
@@ -308,7 +310,7 @@ if (!looksMarked(bits)) {
 **Example.** The same two visits as in Variant 1, with the tracker running as
 each site's own script and the marker resources drawn from the PHL.
 
-#### Variant 3 (A1.3): Through the list scope
+##### Variant 3 (A1.3): Through the list scope
 
 The tracker mints its marker resources as in Variant 1, so the answers stay
 noiseless. A minted hash never reaches the PHL, so the global scope is closed to
@@ -377,7 +379,7 @@ independently, without any of that.
 were the sanctioned mechanism for linking domains a company owns, and Chrome
 retired them in October 2025.
 
-#### Variant 4 (A1.4): Through the tracker's own first-party list
+##### Variant 4 (A1.4): Through the tracker's own first-party list
 
 Variant 3 with the tracker as the operator. A redirect through
 `tracker.example`, which a user never notices, makes it the top-level page for a
@@ -401,14 +403,14 @@ the news site, a shopping site, and three more that embed its script. A week
 later, its script on the shopping site reads all 32 back as the shopping site's
 own origin and links the two visits.
 
-## Attack 2 (A2): Cache-based fingerprinting
+### Attack 2 (A2): Cache-based fingerprinting
 
-### Objective
+#### Objective
 
 The objective is to recognize the same device across unrelated sites, through
 the files it already happens to hold.
 
-### Description
+#### Description
 
 The distinguishing signal is whatever the device accumulated through ordinary
 browsing. The tracker writes nothing.
@@ -438,20 +440,20 @@ Reliability is lower than Attack 1, because the tracker works with whatever the
 device holds. It needs no cooperation from the embedding sites beyond script
 inclusion, and it leaves nothing a user could find or clear.
 
-### Example
+#### Example
 
 The same analytics script on a recipe blog and a local newspaper queries the
 same 60 libraries and fonts. The patterns match across both visits, so the
 script attributes them to one device and merges the browsing records.
 
-## Attack 3 (A3): Attribute inference
+### Attack 3 (A3): Attribute inference
 
-### Objective
+#### Objective
 
 The objective is to assign the user to a targeting cohort, with no identifier
 involved at any point.
 
-### Description
+#### Description
 
 Files carry semantics: a Japanese font subset implies a reading language, a game
 engine implies browser gaming, a speech model implies dictation, and an office
@@ -480,21 +482,21 @@ addiction support application supports a strong inference about the user, and
 the browser has no basis for distinguishing that query from a query for a font.
 Keeping such a model off the global scope is the PHL's job.
 
-### Example
+#### Example
 
 An advertising script queries seven in-browser AI models and finds one,
 establishing that the device runs local inference. An eighth query, for the
 Japanese subset of a common font, is also positive, establishing a language
 attribute.
 
-## Attack 4 (A4): History sniffing
+### Attack 4 (A4): History sniffing
 
-### Objective
+#### Objective
 
 The objective is to establish that a device visited one particular site, with no
 cooperation from that site.
 
-### Description
+#### Description
 
 The attacker starts on the target site, `game67.example`. One visit shows which
 COS-eligible resources it fetches, and those are the candidate hashes. Mapping
@@ -580,20 +582,20 @@ const overlap = hits.length
   : [];
 ```
 
-### Example
+#### Example
 
 An ad network's script on an unrelated news site runs the three probes and gets
 three positives. It records the reader as having been on `game67.example`, a
 site that never loaded that script and never consented to the disclosure.
 
-## Attack 5 (A5): Targeted de-anonymization
+### Attack 5 (A5): Targeted de-anonymization
 
-### Objective
+#### Objective
 
 The objective is to decide whether an anonymous visitor is one specific person
 the attacker already knows.
 
-### Description
+#### Description
 
 What matters here is how much a single positive answer tells the attacker. A hit
 on a file that one device in ten thousand holds carries about 13 bits, and a hit
@@ -618,7 +620,7 @@ const target = { algorithm: 'SHA-256', value: '0b8e…' };
 if (await has(target)) linkToAccount(suspectedAccount);
 ```
 
-### Example
+#### Example
 
 A researcher's work involves an uncommon medical imaging model that a few
 thousand devices worldwide hold, so their browser has it stored. The attacker
@@ -627,14 +629,14 @@ one probe for the model's hash to the pages the account is reading. It comes
 back positive, which is substantial grounds for tying the account to the
 researcher.
 
-## Attack 6 (A6): Induced write as a state oracle
+### Attack 6 (A6): Induced write as a state oracle
 
-### Objective
+#### Objective
 
 The objective is to learn the state of a user's account on another site, by
 making that site write and then asking whether it did.
 
-### Description
+#### Description
 
 What a site stores depends on where the user is inside it. A signed-in dashboard
 loads a charting library that the marketing pages never touch, and a media
@@ -680,7 +682,7 @@ const signedIn = await has(dashboardOnly);
 Two lookups and one induced load, so a lookup budget of 8 never binds and the
 whole sequence fits in a single page view.
 
-### Example
+#### Example
 
 `evil.example` establishes that the dashboard library is absent, opens
 `bank.example` in a 1×1 popup, closes it three seconds later, and probes again.
@@ -689,14 +691,14 @@ which is what a phishing campaign needs to choose its possible attack targets.
 The bank served no byte to `evil.example` and has no way to observe that any of
 this happened.
 
-## Attack 7 (A7): Query oracle through result-dependent caching
+### Attack 7 (A7): Query oracle through result-dependent caching
 
-### Objective
+#### Objective
 
 The objective is to read private data out of another site, by choosing what that
 site is asked and observing what it stores.
 
-### Description
+#### Description
 
 Attack 6 reads one bit about a session. The same machinery reads the data inside
 an account wherever a site's storage depends on a query the attacker supplies. A
@@ -735,21 +737,21 @@ site whose per-account search is reachable by `GET` and whose storage varies
 with the result, and study it beforehand. What it buys is the contents of an
 account the attacker cannot sign in to.
 
-### Example
+#### Example
 
 An attacker walks 40 merchant names through `bank.example`'s transaction search,
 one induced load each. Eleven come back as matches, which is a partial statement
 for an account the attacker has no credentials for. Every query ran with the
 user's own cookies, on a `GET` the bank considers ordinary.
 
-## Attack 8 (A8): Cache flooding to force eviction
+### Attack 8 (A8): Cache flooding to force eviction
 
-### Objective
+#### Objective
 
 The objective is to control what the device holds, by filling the cache until
 the browser reclaims space.
 
-### Description
+#### Description
 
 Every other attack reads a cache the attacker did not arrange, which is what
 makes a positive answer ambiguous: the file may have arrived at any time, from
@@ -792,7 +794,7 @@ costs the user on a metered connection. Eviction is also indiscriminate: the
 attacker names no entry and drops everything colder than its own flood, so
 resetting one answer takes the user's whole cache with it.
 
-### Example
+#### Example
 
 A tracker's page embeds sixteen frames on sixteen subdomains, each writing
 filler until it gets a `QuotaExceededError`. Some gigabytes later the entries
@@ -800,14 +802,14 @@ the device had accumulated are gone, and the tracker runs Attack 6 against a
 baseline it arranged itself. The user pays twice, once for the flood and again
 in re-downloads across the sites they visit next.
 
-## Attack 9 (A9): Sybil attack on the budget
+### Attack 9 (A9): Sybil attack on the budget
 
-### Objective
+#### Objective
 
 The objective is to spend more lookups than the budget allows, by presenting as
 several origins at once.
 
-### Description
+#### Description
 
 A [Sybil attack](https://doi.org/10.1007/3-540-45748-8_24) is one party posing
 as many, which defeats any quota that assumes one allowance per participant.
@@ -844,28 +846,28 @@ const answers = [];
 addEventListener('message', (e) => answers.push(...e.data));
 ```
 
-### Example
+#### Example
 
 At eight lookups per origin per window, four frames on four attacker-controlled
 subdomains spend eight each on disjoint sets, yielding 32 answers in one page
 view. This is why the explainer keys the budget to the top-level site, shared
 across every frame.
 
-## Attack 10 (A10): Rate-limit evasion by reload
+### Attack 10 (A10): Rate-limit evasion by reload
 
-### Objective
+#### Objective
 
 The objective is to spend more lookups than the budget allows, by resetting the
 counter that holds it.
 
-### Description
+#### Description
 
 A counter bound to a context the attacker controls is a counter the attacker
 resets. The attacker can reset it in two ways:
 [reloading the page](#variant-1-a101-reloading-the-page) and
 [clearing its own site data](#variant-2-a102-clearing-its-own-site-data).
 
-#### Variant 1 (A10.1): Reloading the page
+##### Variant 1 (A10.1): Reloading the page
 
 A page reloads itself without user interaction, and a per-page-load allowance is
 fresh on each load.
@@ -886,7 +888,7 @@ if (round < 3) location.reload();
 seconds yield 32 answers. This is why the count has to persist across reloads
 and navigations.
 
-#### Variant 2 (A10.2): Clearing its own site data
+##### Variant 2 (A10.2): Clearing its own site data
 
 A count that survives reloads is still part of the site's data, and a site can
 clear its own data without involving the user, by answering any request with a
@@ -911,14 +913,14 @@ the server answers with `Clear-Site-Data` yield 32 answers, if the clearing
 resets the count. This is why only a clearing the user asks for, through the
 browser's own settings, resets it.
 
-## Attack 11 (A11): Cross-site leak by combining COS integration points
+### Attack 11 (A11): Cross-site leak by combining COS integration points
 
-### Objective
+#### Objective
 
 The objective is to obtain lookups the budget never counts, by spreading them
 across the COS integration points that return nothing to the page.
 
-### Description
+#### Description
 
 The imperative API is one of four COS integration points. The
 [HTML](README.md#html-integration),
@@ -949,21 +951,21 @@ request, and that silence is the same bit.
 const bits = probes.map((probe) => !requestLog.has(probe.path));
 ```
 
-### Example
+#### Example
 
 A tracker places 32 ordinary resource references on its page and records which
 of them reach its server. The eleven producing no request are the files the
 device already held. Thirty-two answers, no call to `requestFileHandle()`. This
 is why a budget has to count all four integration points.
 
-## Attack 12 (A12): GREASE'ing evasion
+### Attack 12 (A12): GREASE'ing evasion
 
-### Objective
+#### Objective
 
 The objective is to recover the answers GREASE'ing withholds, by arranging for
 the noise to cancel, to repeat identically, or never to apply.
 
-### Description
+#### Description
 
 GREASE'ing is the one mitigation that makes a single answer unreliable. The
 browser seemingly randomly lies about what it holds, so one negative answer
@@ -973,7 +975,7 @@ proves nothing. The attacker can recover the withheld answers in three ways:
 and
 [selection above the size threshold](#variant-3-a123-selection-above-the-size-threshold).
 
-#### Variant 1 (A12.1): Repetition against a per-call decision
+##### Variant 1 (A12.1): Repetition against a per-call decision
 
 A browser that decides anew on every call makes the noise independent per probe,
 so the same question asked multiple times is withheld only when the browser lies
@@ -1001,7 +1003,7 @@ about eight. Four files, four times each, leaves it wrong about one in sixteen.
 It trades breadth for answers it can trust, which makes the lying worth exactly
 as much as the allowance behind it.
 
-#### Variant 2 (A12.2): A fixed origin against a deterministic mask
+##### Variant 2 (A12.2): A fixed origin against a deterministic mask
 
 Making whether to lie depend on the device, the requesting origin, and the hash
 stops Variant 1, since the same call then always returns the same thing. It also
@@ -1037,7 +1039,7 @@ site, so its requesting origin is the same in both. The browser hides the same
 nine files from it on both, the two patterns match exactly, and the tracker
 links the visits without losing a bit to the lying.
 
-#### Variant 3 (A12.3): Selection above the size threshold
+##### Variant 3 (A12.3): Selection above the size threshold
 
 GREASE'ing is withheld from files whose spurious re-download would be
 disproportionate, so an attacker probes only files above that threshold. Those
@@ -1059,15 +1061,15 @@ past the size threshold. The browser lies about none of them, so all 64 answers
 are exact, and lying more often about everything else would not change one of
 them. Attack 5 is this variant with a single probe.
 
-## Attack 13 (A13): Existence oracle through in-progress writes
+### Attack 13 (A13): Existence oracle through in-progress writes
 
-### Objective
+#### Objective
 
 The objective is to learn whether the device holds a given file in exactly the
 cases where a read refuses to say: the requesting origin is out of scope, the
 hash is not on the Public Hash List, or GREASE'ing withheld the answer.
 
-### Description
+#### Description
 
 A read has to clear three checks: the sharing scope must cover the requesting
 origin, the global scope additionally requires PHL membership, and GREASE'ing
@@ -1101,7 +1103,7 @@ await handle.createWritable(); // nothing written, nothing closed
 // differently for one the device already holds, and that is the oracle.
 ```
 
-### Example
+#### Example
 
 A bank stores a WebAssembly transaction-signing module, naming its own origins
 and its payment partner's, so a read from anywhere else refuses outright and the
@@ -1111,14 +1113,14 @@ differs from the answer for a hash nobody holds, and the site learns that this
 device belongs to a customer of that bank, which is what a phishing campaign
 needs to pick its targets. COS answers identically either way.
 
-## Attack 14 (A14): Timing side channel
+### Attack 14 (A14): Timing side channel
 
-### Objective
+#### Objective
 
 The objective is to read the answer a refusal withholds, out of how long the
 refusal takes.
 
-### Description
+#### Description
 
 A refusal that resolved faster for a genuinely absent file than for a withheld
 one would disclose the answer through elapsed time and bypass everything above.
@@ -1137,7 +1139,7 @@ const time = async (hash) => {
 };
 ```
 
-### Example
+#### Example
 
 A tracker times a few hundred refusals for a hash GREASE'ing may be withholding
 and a few hundred for a hash the device certainly lacks. A difference in the two
