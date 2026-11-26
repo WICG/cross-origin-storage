@@ -247,11 +247,8 @@ frames. Every major browser keys a third-party frame's cookies, IndexedDB, and
 Cache Storage to the top-level site, so the same frame on two sites sees two
 unrelated stores. Without the same key in COS, the variant would need nothing
 more than a storing origin's access to its own entries. Its reads would bypass
-the lookup budget and the gesture gate, and they would survive third-party
-cookie blocking, since
-[Mitigation 5](#mitigation-5-m5-availability-tied-to-third-party-cookies) leaves
-a site's reads of what it stored itself alone. The spec keys every grant except
-the global one to the top-level site of the write
+the lookup budget and the gesture gate. The spec keys every grant except the
+global one to the top-level site of the write
 ([Mitigation 10](#mitigation-10-m10-grants-keyed-to-the-top-level-site)), which
 closes this variant.
 
@@ -394,14 +391,20 @@ Each write's list is capped at a handful of origins, and the tracker needs a
 top-level visit to rewrite the markers, which browsers' bounce-tracking
 mitigations target. The write budget
 ([Mitigation 8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) prices the
-marker resources as in the other variants. None of the other mitigations above
-reaches it, since its reads all qualify through a grant the tracker wrote.
+marker resources as in the other variants. The reads count against the lookup
+budget ([Mitigation 1](#mitigation-1-m1-cross-site-lookup-budget)). The spec
+charges every lookup answered by a first-party `origins` grant written under
+another top-level site (see
+[Availability gating](https://wicg.github.io/cross-origin-storage/#availability-gating)),
+so reading 32 markers back takes 32 lookups, paced like any other cross-site
+lookup.
 
 **Example.** A news site redirects a click on an ad through `tracker.example`
 and back. During that moment, `tracker.example` writes 32 marker files listing
-the news site, a shopping site, and three more that embed its script. A week
-later, its script on the shopping site reads all 32 back as the shopping site's
-own origin and links the two visits.
+the news site, a shopping site, and three more that embed its script. Over the
+following weeks, its script on the shopping site reads the 32 markers back as
+the shopping site's own origin, a budget's worth at a time, and links the two
+visits.
 
 ### Attack 2 (A2): Cache-based fingerprinting
 
@@ -1153,7 +1156,10 @@ The spec includes two of these: the gesture gate on the global grant
 and grants keyed to the top-level site
 ([Mitigation 10](#mitigation-10-m10-grants-keyed-to-the-top-level-site)). The
 others are proposals, some described in the explainer and some left to user
-agents.
+agents. Two were considered and discarded:
+[Mitigation 5](#mitigation-5-m5-availability-tied-to-third-party-cookies) and
+[Mitigation 6](#mitigation-6-m6-permission-prompts). Their sections stay as the
+record of why, and the coverage gaps table marks them with a footnote.
 
 ### More tractable than classic fingerprinting
 
@@ -1186,20 +1192,20 @@ the page draws from the same one.
 
 #### Coverage
 
-| Attack                                                                                                          | Covered                    | Description                                                                                                                                                                                                                                                    |
-| --------------------------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (A1.2, A1.3)            | Variants 2 and 3 count against the allowance. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie until Mitigation 10 makes those reads cross-site. |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡                         | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                                                                              |
-| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡                         | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                         |
-| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡                         | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                         |
-| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪                         | Untouched. One probe suffices, so an allowance of 8 never binds.                                                                                                                                                                                               |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪                         | Untouched. Two lookups bracket the induced load, so an allowance of 8 never binds.                                                                                                                                                                             |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡                         | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                                                                   |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                         | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                                                                        |
-| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ✅                         | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                                                                  |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪ (needs Mitigation 3)    | Not closed by the allowance alone. A fresh page load, or a clearing the site requests itself, starts a fresh one, so this waits on Mitigation 3.                                                                                                               |
-| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.                                                               |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (A12.1)                 | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                                                                            |
+| Attack                                                                                                          | Covered                    | Description                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 (A1.2–A1.4)             | Variants 2, 3, and 4 count against the allowance, since the spec also charges lookups answered by a first-party `origins` list written under another top-level site. Variant 1 reads entries its own origin stored, which the exemption leaves free, so the budget does not reach the variant the explainer compares to a 3P cookie until Mitigation 10 makes those reads cross-site. |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡                         | Bounded without being closed. Eight bits per window against the roughly 32 an identifier needs, so a patient attacker accumulates across windows, paced by the user's own visits.                                                                                                                                                                                                     |
+| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡                         | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                                                                |
+| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡                         | Same as [A2](#attack-2-a2-cache-based-fingerprinting).                                                                                                                                                                                                                                                                                                                                |
+| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | ⚪                         | Untouched. One probe suffices, so an allowance of 8 never binds.                                                                                                                                                                                                                                                                                                                      |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | ⚪                         | Untouched. Two lookups bracket the induced load, so an allowance of 8 never binds.                                                                                                                                                                                                                                                                                                    |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡                         | Bounded, and this is the one attack the allowance bites. Every question costs a lookup, so eight of them is how much of an account a single page view reads.                                                                                                                                                                                                                          |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | ⚪                         | Out of reach. It writes, and the allowance counts reads. What bounds it is the per-origin storage limit, keyed to the origin this budget deliberately stopped trusting.                                                                                                                                                                                                               |
+| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ✅                         | Closed. Extra origins and extra frames all draw from the one allowance the top-level site owns, so adding them mints nothing.                                                                                                                                                                                                                                                         |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | ⚪ (needs Mitigation 3)    | Not closed by the allowance alone. A fresh page load, or a clearing the site requests itself, starts a fresh one, so this waits on Mitigation 3.                                                                                                                                                                                                                                      |
+| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ (if all surfaces count) | Closed, provided implementations count the declarative integration points alongside `requestFileHandle()`, which the wording "every lookup that could reveal what another site stored" supports.                                                                                                                                                                                      |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 (A12.1)                 | Variant 1 only, and the budget is what prices it. Each repeat costs a lookup, so the probes and their repeats together have to fit one allowance. Variants 2 and 3 need no repeats.                                                                                                                                                                                                   |
 
 ### Mitigation 2 (M2): A user gesture before the global grant applies
 
@@ -1304,6 +1310,10 @@ analytics and anti-fraud vendors already ship the second way.
 
 ### Mitigation 5 (M5): Availability tied to third-party cookies
 
+> **Discarded.** This mitigation was considered and discarded, for the two
+> limits described after its coverage table. The section stays as the record of
+> why.
+
 A user agent that still supports third-party cookies can make COS's cross-site
 disclosure follow that setting. Where third-party cookies are on, COS answers as
 this document describes throughout. Where the user has turned them off, for the
@@ -1350,6 +1360,9 @@ the attacks that depend on the global scope go with it. Sites need no change,
 since a `'*'` write for a hash not on the PHL already stays same-site.
 
 ### Mitigation 6 (M6): Permission prompts
+
+> **Discarded.** This mitigation was considered and discarded, for the costs
+> described after its coverage table. The section stays as the record of why.
 
 A user agent can ask the user before letting a site read what other sites
 stored. Three granularities have been considered: one grant per browser, one per
@@ -1558,31 +1571,40 @@ real product, is closed off the same as a known tracker.
 
 ## Coverage gaps
 
-| Attack                                                                                                          | Covered by                                                                                                                                                                                                                                                                                                                                                                           | Degree                                                       |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts)) 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) | Partially, M10 closes A1.1, and A1.3 stands as residual risk |
-| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))                                                                                                                                          | Partially                                                    |
-| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))                                                                                                                                          | Partially, and 8 lookups already yield a cohort              |
-| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts)) 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                | Partially                                                    |
-| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | 🟡 ([M6](#mitigation-6-m6-permission-prompts))                                                                                                                                                                                                                                                                                                                                       | Reached by nothing the explainer lists                       |
-| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts)) 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                                                             | Partially, and the passive variant survives                  |
-| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts)) 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                     | Partially, and M2 blocks the induced load                    |
-| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) 🟡 ([M9](#mitigation-9-m9-a-per-origin-storage-limit))                                                                                                                                                                                                                                                                 | Partially, and M9 alone lets extra origins multiply it       |
-| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ✅ ([M1](#mitigation-1-m1-cross-site-lookup-budget))                                                                                                                                                                                                                                                                                                                                 | Completely                                                   |
-| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) ✅ ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs))                                                                                                                                                                                                                                        | Completely                                                   |
-| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ ([M1](#mitigation-1-m1-cross-site-lookup-budget))                                                                                                                                                                                                                                                                                                                                 | Completely                                                   |
-| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))                                                                                                                                                                                                               | Partially, and A12.3 is not addressed                        |
-| [A13: Existence oracle through in-progress writes](#attack-13-a13-existence-oracle-through-in-progress-writes)  | None needed                                                                                                                                                                                                                                                                                                                                                                          | Ruled out by design                                          |
-| [A14: Timing side channel](#attack-14-a14-timing-side-channel)                                                  | None needed                                                                                                                                                                                                                                                                                                                                                                          | Ruled out by design                                          |
+| Attack                                                                                                          | Covered by                                                                                                                                                                                                                                                                                                                                                                                                   | Degree                                                                                           |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| [A1: Supercookie](#attack-1-a1-supercookie)                                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) | Partially. M10 closes A1.1, and A1.3 and A1.4 stand as residual risk, paced by the lookup budget |
+| [A2: Cache-based fingerprinting](#attack-2-a2-cache-based-fingerprinting)                                       | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                          | Partially                                                                                        |
+| [A3: Attribute inference](#attack-3-a3-attribute-inference)                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M5](#mitigation-5-m5-availability-tied-to-third-party-cookies))[^discarded] 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                          | Partially, and 8 lookups already yield a cohort                                                  |
+| [A4: History sniffing](#attack-4-a4-history-sniffing)                                                           | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                            | Partially                                                                                        |
+| [A5: Targeted de-anonymization](#attack-5-a5-targeted-de-anonymization)                                         | 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                                                                                                                                                                                                                                   | Not reached, since M6 is discarded                                                               |
+| [A6: Induced write as a state oracle](#attack-6-a6-induced-write-as-a-state-oracle)                             | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                                                                                                                                         | Partially, and the passive variant survives                                                      |
+| [A7: Query oracle through result-dependent caching](#attack-7-a7-query-oracle-through-result-dependent-caching) | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded] 🟡 ([M7](#mitigation-7-m7-developer-guidance))                                                                                                 | Partially, and M2 blocks the induced load                                                        |
+| [A8: Cache flooding](#attack-8-a8-cache-flooding-to-force-eviction)                                             | 🟡 ([M8](#mitigation-8-m8-a-write-budget-on-count-and-bytes)) 🟡 ([M9](#mitigation-9-m9-a-per-origin-storage-limit))                                                                                                                                                                                                                                                                                         | Partially, and M9 alone lets extra origins multiply it                                           |
+| [A9: Sybil attack on the budget](#attack-9-a9-sybil-attack-on-the-budget)                                       | ✅ ([M1](#mitigation-1-m1-cross-site-lookup-budget))                                                                                                                                                                                                                                                                                                                                                         | Completely                                                                                       |
+| [A10: Rate-limit evasion by reload](#attack-10-a10-rate-limit-evasion-by-reload)                                | 🟡 ([M2](#mitigation-2-m2-a-user-gesture-before-the-global-grant-applies)) ✅ ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs))                                                                                                                                                                                                                                                                | Completely                                                                                       |
+| [A11: Combining integration points](#attack-11-a11-cross-site-leak-by-combining-cos-integration-points)         | ✅ ([M1](#mitigation-1-m1-cross-site-lookup-budget))                                                                                                                                                                                                                                                                                                                                                         | Completely                                                                                       |
+| [A12: GREASE'ing evasion](#attack-12-a12-greaseing-evasion)                                                     | 🟡 ([M1](#mitigation-1-m1-cross-site-lookup-budget)) 🟡 ([M3](#mitigation-3-m3-a-count-that-survives-reloads-and-tabs)) 🟡 ([M6](#mitigation-6-m6-permission-prompts))[^discarded]                                                                                                                                                                                                                           | Partially, and A12.3 is not addressed                                                            |
+| [A13: Existence oracle through in-progress writes](#attack-13-a13-existence-oracle-through-in-progress-writes)  | None needed                                                                                                                                                                                                                                                                                                                                                                                                  | Ruled out by design                                                                              |
+| [A14: Timing side channel](#attack-14-a14-timing-side-channel)                                                  | None needed                                                                                                                                                                                                                                                                                                                                                                                                  | Ruled out by design                                                                              |
 
-Attack 1 splits by variant. Variant 1 reads back what its own frame origin
-stored, which Mitigations 1, 2, 5, and 6 all leave alone, so without
-Mitigation 10 only the write budget and a blocklist would reach it, and only
-once a list names the frame. The spec adopts Mitigation 10, which closes it by
-keying that access to the top-level site. Variant 3 stands as residual risk of
-the list scope: it needs the operator's own header, and it links sites under
-that operator's control, bounded by the write budget (see
-[Variant 3](#variant-3-a13-through-the-list-scope)).
+[^discarded]:
+    Considered and discarded. The mitigation's own section keeps the reasons.
+    The degree in the last column does not count it.
+
+Attack 1 splits by variant. Variant 1 reads back what its own frame origin
+stored, which Mitigations 1 and 2 leave alone, so without Mitigation 10 only the
+write budget and a blocklist would reach it, and only once a list names the
+frame. The spec adopts Mitigation 10, which closes it by keying that access to
+the top-level site. Variants 3 and 4 stand as residual risk of the list scope.
+Variant 3 needs the operator's own header, and it links sites under that
+operator's control. Variant 4 makes the tracker the operator for a moment
+through a redirect, and the list cap, the write budget, and browsers'
+bounce-tracking mitigations bound it. Both read through a first-party `origins`
+grant written under another top-level site, which the lookup budget charges, so
+either one recovers an identifier only as fast as the budget allows (see
+[Variant 3](#variant-3-a13-through-the-list-scope) and
+[Variant 4](#variant-4-a14-through-the-trackers-own-first-party-list)).
 
 Attack 5 is the one no mitigation the explainer lists reaches. Each of
 Mitigations 1 through 4 bounds something the attack does not need: volume
@@ -1596,22 +1618,24 @@ negative unreliable. The size-proportionate rule withholds GREASE'ing from files
 whose spurious re-download would be disproportionate, which is exactly the class
 of large, rare files the attack is strongest on, so the answer stays noise-free
 where it identifies best, and [Attack 12](#attack-12-a12-greaseing-evasion)
-turns that same exemption against GREASE'ing wholesale. Among the mitigations
-under discussion, the permission prompt is the only one that reaches this
-attack, and it does so by bounding whether a site may ask at all. Everything
-else above bounds how many lookups a site may make, and one lookup is all this
-attack needs, so only a user prompt, or lying about large files, would mitigate
-it.
+turns that same exemption against GREASE'ing wholesale. The permission prompt
+was the only mitigation under discussion that reached this attack, by bounding
+whether a site may ask at all, and it is discarded
+([Mitigation 6](#mitigation-6-m6-permission-prompts)). Everything else above
+bounds how many lookups a site may make, and one lookup is all this attack
+needs. Only lying about large files would mitigate it, and no mitigation does so
+today.
 
-Mitigation 5 appears in the rows above where its argument holds, and it acts on
-all of them at once. Wherever third-party cookies are off it removes every
-attack that crosses a site boundary, Variant 1 of Attack 1 included, since
-Mitigation 10 makes its reads cross-site lookups, and wherever they are on it
-changes none of them. What it contributes is the comparison, that a tracker able
-to run these lookups held a third-party cookie already, and that comparison
-covers Attacks 1 through 3. Attacks 4 through 7 reach sites the tracker never
-touched, which no third-party cookie reports, so they are the ones it leaves
-standing.
+Mitigation 5 appears in the rows above where its argument would hold, marked as
+discarded. It would have acted on all of them at once: wherever third-party
+cookies are off it would remove every attack that crosses a site boundary, and
+wherever they are on it would change none of them. Its comparison, that a
+tracker able to run these lookups held a third-party cookie already, covers
+Attacks 1 through 3 only. Attacks 4 through 7 reach sites the tracker never
+touched, which no third-party cookie reports. That gap, and the mitigation's
+absence from browsers that have already removed third-party cookies, is why it
+was discarded. The degrees above rest on the other mitigations, so COS behaves
+the same whatever the user's cookie settings.
 
 Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by
 Mitigation 9 alone. That limit is keyed to the origin, and the lookup budget is
