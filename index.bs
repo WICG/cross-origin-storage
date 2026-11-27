@@ -9,7 +9,7 @@ Repository: WICG/cross-origin-storage
 Editor: Thomas Steiner, Google https://www.google.com/, tomac@google.com
 Editor: Christian Liebel, Thinktecture AG https://www.thinktecture.com/, christian@liebel.org
 Editor: François Beaufort, Google https://www.google.com/, fbeaufort@google.com
-Abstract: Cross-Origin Storage (COS) is a content-addressable cache that allows web applications to store and retrieve large files, such as AI models, WebAssembly modules, and highly popular JavaScript libraries, across different origins. Files are identified by their cryptographic hash rather than by URL, so a byte-identical resource fetched once by one origin can be reused by any other origin the user agent permits, without a second download. To keep cache presence from being usable to infer which sites a user has visited, cross-origin disclosure of a file is limited to hashes that clear a k-anonymity-style popularity bar.
+Abstract: Cross-Origin Storage (COS) is a content-addressable cache that allows web applications to store and retrieve large files, such as AI models, WebAssembly modules, and highly popular JavaScript libraries, across different origins. Files are identified by their cryptographic hash rather than by URL, so a byte-identical resource fetched once by one origin can be reused by any other origin the user agent permits, without a second download. Files are readable by same-site origins by default. A writer can name a few more origins, or share with every origin, which only takes effect for hashes that clear a k-anonymity-style popularity bar. A per-site budget on cross-site lookups and a per-site write limit bound what any site can learn about what other sites stored.
 !Participate: <a href="https://github.com/WICG/cross-origin-storage">GitHub WICG/cross-origin-storage</a> (<a href="https://github.com/WICG/cross-origin-storage/issues/new">new issue</a>, <a href="https://github.com/WICG/cross-origin-storage/issues?state=open">open issues</a>)
 !Commits: <a href="https://github.com/WICG/cross-origin-storage/commits/main/index.bs">GitHub index.bs commits</a>
 Inline Github Issues: true
@@ -200,7 +200,8 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
 :: A [=boolean=], initially false, recording whether the entry has been written with a request for
    global ("`*`") availability and that request has cleared the [=COS user activation gate=]. When
    true, the entry is readable by any origin whose request clears [[#availability-gating]], that
-   is, whose [=COS entry/hash=] is [=on the PHL=] and which GREASE'ing does not suppress. Once
+   is, whose [=COS entry/hash=] is [=on the PHL=], which the [=cross-site lookup budget=] admits,
+   and which GREASE'ing does not suppress. Once
    [[#resource-visibility-upgrades|set]], it stays true.
 
    Note: This is a separate [=struct/item=] from [=COS entry/origins=], so that a later
@@ -223,15 +224,15 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    Note: Keying sharing records to the top-level site gives an embedded frame the same view of
    Cross-Origin Storage that storage partitioning gives it of its other storage. Without the key,
    a frame embedded on several sites could write small files on one and read them back on another
-   as a storing origin, bypassing the [=Public Hash List=], [[#greaseing|GREASE'ing]], and any
-   lookup limit, which would amount to a third-party cookie. Top-level writes are keyed too, so a
+   as a storing origin, bypassing the [=Public Hash List=], [[#greaseing|GREASE'ing]], and the
+   [=cross-site lookup budget=], which would amount to a third-party cookie. Top-level writes are keyed too, so a
    tracker cannot write once in a top-level visit and read back from its frames everywhere. A
    [=COS entry/origins=] record from a [=first-party COS context=] also applies first-party under
    any top-level site, so restricted sharing between top-level sites keeps working. A lookup that
    such a record answers under another top-level site discloses what was stored under the
    writer's, so the [=cross-site lookup budget=] counts it (see [=apply availability gating=]).
-   [=COS entry/Globally disclosable=] is not keyed,
-   since the [=Public Hash List=] and GREASE'ing already govern it.
+   [=COS entry/Globally disclosable=] is not keyed, since the [=Public Hash List=], GREASE'ing,
+   and the [=cross-site lookup budget=] already govern it.
 
 A user agent has an associated <dfn>Cross-Origin Storage queue</dfn>, which is the result of
 [=starting a new parallel queue=]. All operations on the [=COS registry=] are to be
@@ -249,8 +250,8 @@ independent gate: membership on the <dfn export id="dfn-public-hash-list">Public
 (<dfn export>PHL</dfn>), a vendor-neutral, [=implementation-defined=] allowlist of [=COS hash=]
 values. A hash is admitted to the Public Hash List only once it clears a k-anonymity-style
 popularity bar (for example, appearing, byte-identical, across some minimum number of independent
-origins), so that confirming its presence in a shared cache is not informative about any
-individual user.
+origins), so that confirming its presence in a shared cache reveals little about any individual
+user.
 
 A [=COS hash=] |hash| is <dfn export data-lt="on the PHL">on the Public Hash List</dfn> if |hash|
 [=COS hash/equal|equals=] an entry of the user agent's current snapshot of the [=Public Hash
@@ -866,8 +867,8 @@ or null |origins|, and an [=environment settings object=] |settings|:
 
 </div>
 
-Note: As with [=verify and store=], a store always requires the complete bytes, including when the
-entry is already "`written`", so it reveals nothing about prior presence. The integration's lookup
+Note: As with [=verify and store=], a store always requires the complete bytes, including when an
+entry for the hash already exists, so it reveals nothing about prior presence. The integration's lookup
 before its network fetch is a read, subject to [[#availability-gating|availability gating]] and to
 the probing considerations in [[#cross-site-probing]].
 
@@ -955,9 +956,10 @@ writes become globally disclosable when the user does interact with a page of th
 same visit or a later one. An entry that is [[#eviction|evicted]] is also removed from every
 [=pending global entries=] [=set=].
 
-Issue: A shared or service worker has no {{Window}} of its own, so its global-scope writes wait
-for activation in a page of the same top-level site. Whether that is the right outcome for a
-service worker that stores files ahead of any navigation is open.
+Issue: A worker has no {{Window}} of its own, so its global-scope writes wait for the next
+activation in a page of the same top-level site, even when the {{Document}} that owns a dedicated
+worker already has [=sticky activation=]. Whether a dedicated worker should take its owners'
+sticky activation is open.
 
 ### Original storer access ### {#original-storer-access}
 
@@ -1199,7 +1201,7 @@ happen at very different points in an operation:
   caller has no reliable way to confirm after the fact whether its requested [=/origin=] was
   actually added: a subsequent {{CrossOriginStorageManager/getFileHandle()}} call as that
   origin can still fail even if the origin was added (for example, because the entry was
-  evicted or the user agent throttled the request), so its result must not be read as confirmation either way.
+  evicted or the reader's site spent its [=cross-site lookup budget=]), so its result must not be read as confirmation either way.
 
 ## Eviction ## {#eviction}
 
@@ -1612,6 +1614,9 @@ the ceiling from it.
 <em>This section is non-normative except where it uses RFC 2119 keywords; see also the
 [security and privacy questionnaire](security-privacy-questionnaire.md) in the repository.</em>
 
+The [privacy analysis](privacy.md) in the repository describes the attacks these considerations
+address and how far each mitigation reaches into them.
+
 ## Resource integrity ## {#resource-integrity}
 
 Every [=COS entry=] is keyed by, and its bytes are verified against, a cryptographic hash (see
@@ -1633,8 +1638,7 @@ itself (see [[#cross-site-probing]]).
 If a resource is only used by a narrow set of sites, an attacker able to learn that the resource is
 present in Cross-Origin Storage can infer that the user likely visited one of those sites. Because
 {{CrossOriginStorageManager/getFileHandle()}} is the mechanism for learning presence, each call
-is, in effect, a probe. Two independent mechanisms in this specification bound what a probe can
-learn:
+is, in effect, a probe. Three mechanisms in this specification bound what probes can learn:
 
 * [=COS entry/origins=] (see [[#resource-visibility-upgrades]]) lets a storing origin restrict
   disclosure to a chosen set of origins and the origins [=same site=] with them, so a proprietary or low-popularity resource need not be
@@ -1645,6 +1649,8 @@ learn:
   not automatically probeable by every origin on the web. This gate applies only to "`*`"-scoped
   entries; for list- and same-site-scoped entries, the first bullet's restriction is the sole
   gate, since the storing origin has already bounded disclosure explicitly for those.
+* The [=cross-site lookup budget=] bounds how many probes a top-level site can make per
+  [=lookup window=], so a combination of individually common files cannot be tested at will.
 
 The first bullet only holds if a "chosen set of origins" stays meaningfully smaller than the web.
 Nothing about the shape of {{CrossOriginStorageGetFileHandleOptions/origins}} stops a caller
@@ -1656,21 +1662,12 @@ deliberate, explicit opt-in that "`*`" alone requires. The [=maximum origins lis
 of "every origin" keeps the restricted-origins form of [=COS entry/origins=] from being usable as
 an undeclared substitute for "`*`".
 
-A user agent should additionally rate-limit or otherwise throttle repeated
-{{CrossOriginStorageManager/getFileHandle()}} calls from a single origin, and may apply
-on-device heuristics (for example, detecting a pattern of requests for hashes that appear to be
-generated per-user) to identify and block probing attempts, independent of whether the probed
-hashes are [=on the PHL=].
-
-<div class=note>
-A lookup performed by one of the host integrations in [[#integration-with-other-specifications]]
-is equally a probe, even though it surfaces no error to the page: a site can observe whether its
-own server received the fallback request, which carries the same single bit that a "not found"
-outcome carries here. Such a lookup discloses nothing this specification's gates would not, and
-those gates apply to it unchanged. A rate limit, however, is only effective if lookups from those
-surfaces are counted alongside {{CrossOriginStorageManager/getFileHandle()}} calls, since a
-scriptable integration can issue them in a loop just as readily.
-</div>
+Note: A lookup by one of the host integrations in [[#integration-with-other-specifications]] is
+equally a probe, even though it surfaces no error to the page: a site can observe whether its own
+server received the fallback request, the same bit a "{{NotFoundError}}" carries. The same gates
+apply to it, and the [=cross-site lookup budget=] counts it alongside
+{{CrossOriginStorageManager/getFileHandle()}} calls, since a scriptable integration can issue
+lookups in a loop just as readily.
 
 ## In-progress writes ## {#in-progress-writes}
 
@@ -1686,14 +1683,13 @@ The alternative, registering a placeholder when a create request is made and rej
 reads of it with a distinguishable error, would let a caller learn that *some* origin is writing a
 given hash right now. That single bit sounds minor and is not. It would be available:
 
-* to any origin, including one with no access of any kind to the entry, since the placeholder carries no sharing records and the read would be answered before [=determine COS disclosure=] ran;
+* to any origin, including one with no access of any kind to the entry, since the placeholder carries no sharing records and the read would be answered before [=apply availability gating=] ran;
 * for any hash, including one that is not [=on the PHL=] and never could be, so an attacker could
-  use hashes derived from a per-user value, which is exactly the pattern [[#fingerprinting]]
-  exists to catch;
+  use hashes derived from a per-user value (see [[#fingerprinting]]);
 * without [[#greaseing|GREASE'ing]], which applies only to disclosures that reach the gating step,
   so the bit would be noiseless;
-* without supplying any bytes, so neither the [[#storage-limits|per-origin storage limit]] nor
-  [[#eviction]] would bound how many such bits an origin could create.
+* without supplying any bytes, so neither the [[#storage-limits|per-origin storage limit]], the
+  [=COS write limit=], nor [[#eviction]] would bound how many such bits an origin could create.
 
 A tracker embedded on two sites could therefore mint an arbitrary-width identifier on the first and
 read it back on the second, at no storage cost, bypassing [=COS entry/origins=], the
@@ -1734,9 +1730,7 @@ anything more specific than "fall back to the network."
 Note: The [=Public Hash List=] alone does not bound the global scope: an attacker can build a
 cross-site identifier out of individually PHL-eligible resources by choosing which subset to write.
 The [=cross-site lookup budget=], the [=COS user activation gate=], and the [=COS write limit=]
-bound it. None of them depends on the user's third-party cookie settings, so they protect users
-whether or not third-party cookies are available. The README's
-[privacy considerations](README.md#privacy-considerations) describe these mitigations.
+bound it. None of them depends on the user's third-party cookie settings.
 
 Note: The [=cross-site lookup budget=] leaves a lookup uncharged only when it is answered
 through a sharing record written under the reader's own top-level site (see
@@ -1785,7 +1779,8 @@ in question. For small entries, where falling back to a network fetch is inexpen
 false negative is a reasonable privacy trade-off. A user agent must not apply GREASE'ing to entries
 whose size makes a spurious re-download clearly disproportionate to the resulting privacy benefit
 (for example, gigabyte-scale AI model weights), because a false negative there forces a full,
-observable, and costly re-download.
+observable, and costly re-download. The [=cross-site lookup budget=] bounds lookups for those
+entries, and charges every repeat of a lookup made to see through GREASE'ing.
 
 ## Derived artifact timing ## {#derived-artifact-timing}
 
@@ -1803,10 +1798,15 @@ The information an attacker can extract from probing Cross-Origin Storage is bou
 the probed resource is. Learning that a user has a very popular resource, such as a common AI model
 or a widely used JavaScript library, reveals only that the user visited one of the (possibly very
 many) sites that use it. Learning that a user has a rare or unique resource is far more informative.
-A user agent is expected to apply on-device heuristics to detect resources whose hashes look
-deliberately unique per user (for example, a hash that has only ever been written by a single
-site, or that is requested with unusual frequency) and to treat such patterns as probing attempts,
-independent of nominal PHL status.
+
+A rare or per-user hash is not [=on the PHL=], so other sites can read it only through an
+[=COS entry/origins=] [=list=] the writer's operator authorized, and the
+[=cross-site lookup budget=] charges those reads under any other top-level site. The residual risk
+is a hash on the PHL that few devices hold, such as a niche model admitted through its hand-curated
+AI model section: a single lookup can then point to one person, and no budget bounds an attack
+that needs one lookup. Since presence on the PHL only ever authorizes disclosure, a user agent may
+drop such an entry from its snapshot at any time, or leave out the hand-curated section entirely.
+A user agent may also apply on-device heuristics to detect and block probing patterns.
 
 # Integration with other specifications # {#integration-with-other-specifications}
 

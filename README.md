@@ -25,6 +25,7 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
 
 - [Spec](https://wicg.github.io/cross-origin-storage/) ([source](index.bs))
 - [Public Hash List explainer](public-hash-list/phl-explainer.md)
+- [Privacy analysis](privacy.md)
 - [Issues](https://github.com/WICG/cross-origin-storage/issues)
 - [PRs](https://github.com/WICG/cross-origin-storage/pulls)
 - Support this proposal: https://github.com/WICG/cross-origin-storage/labels/expression%20of%20support
@@ -83,14 +84,19 @@ This proposal outlines the design of the **Cross-Origin Storage (COS)** API, a *
     - [Cache flooding](#cache-flooding)
     - [The `Cross-Origin-Storage-Allow-Origin` header](#the-cross-origin-storage-allow-origin-header)
   - [Privacy considerations](#privacy-considerations)
+    - [Mitigations](#mitigations)
+    - [Rejected mitigations](#rejected-mitigations)
+    - [Remaining risks](#remaining-risks)
     - [Cross-site tracking through writes](#cross-site-tracking-through-writes)
     - [Cross-site probing](#cross-site-probing)
+    - [Cross-site lookup budget](#cross-site-lookup-budget)
+    - [User activation gate](#user-activation-gate)
     - [In-progress writes](#in-progress-writes)
     - [Availability gating](#availability-gating)
     - [GREASE'ing](#greaseing)
+    - [Developer guidance](#developer-guidance)
     - [Derived artifact timing](#derived-artifact-timing)
     - [API response reference](#api-response-reference)
-    - [Fingerprinting detection](#fingerprinting-detection)
 - [Stakeholder feedback / opposition](#stakeholder-feedback--opposition)
 - [References](#references)
 - [Acknowledgments](#acknowledgments)
@@ -204,7 +210,7 @@ Web fonts (especially large icon fonts, emoji fonts, and fonts with extensive Un
 
 The **COS** API will be available through the `navigator.crossOriginStorage` interface. Files will be stored and retrieved based on their hashes, ensuring that each file is uniquely identified.
 
-Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). A listed origin also brings its same-site origins along, so naming `https://a.example` covers `https://www.a.example` too. Same-site and list sharing work for any file. Sharing with every origin carries one more condition: an origin that no other scope covers only learns that the file is present if its hash is on the **Public Hash List (PHL)**. The PHL is a vendor-neutral list of resources so widespread on the web that having one of them cached reveals nothing about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing). [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
+Who may read an entry depends on how it was shared. An entry is always available to the origins that stored it and to their same-site origins, which is the default. A write can widen that to a list of named origins, or to every origin (`'*'`). A listed origin also brings its same-site origins along, so naming `https://a.example` covers `https://www.a.example` too. Same-site and list sharing work for any file. Sharing with every origin carries more conditions: an origin that no other scope covers only learns that the file is present if its hash is on the **Public Hash List (PHL)**, and only once the user has interacted with a page of the site that stored it. The PHL is a vendor-neutral list of resources so widespread on the web that having one of them cached reveals little about which sites the user visited. Even for a hash on the PHL, the user agent may occasionally answer such an origin as if the file were absent, a technique called [GREASE'ing](#greaseing). Every lookup that could reveal what another site stored also counts against a small [cross-site lookup budget](#cross-site-lookup-budget). [Availability gating](#availability-gating) describes the rules in full, and the [Public Hash List explainer](public-hash-list/phl-explainer.md) covers how hashes get onto the list.
 
 #### COS entry
 
@@ -396,12 +402,12 @@ await navigator.crossOriginStorage.getFileHandle(hash, {
 
 The visibility of a resource in COS can be upgraded but never downgraded:
 
-- **Adding access**: any site that supplies the full bytes can widen an entry's scope with another `create: true` request. A `'*'` write sets the global scope, once the user has interacted with a page of the writing site (see [Potential mitigations](#potential-mitigations)), and a list write merges its origins into the existing list; origins that already had access keep it. Requiring the full bytes keeps a write from revealing whether the entry already existed.
+- **Adding access**: any site that supplies the full bytes can widen an entry's scope with another `create: true` request. A `'*'` write sets the global scope, once the user has interacted with a page of the writing site (see [User activation gate](#user-activation-gate)), and a list write merges its origins into the existing list; origins that already had access keep it. Requiring the full bytes keeps a write from revealing whether the entry already existed.
 - **No removal**: a write never removes access. If origin A stores a file restricted to `['https://a.example']` and origin B later writes the same hash with `'*'`, the entry becomes globally disclosable and keeps its list, so `https://a.example` still reads it without the hash being on the PHL. A narrower request only adds its origins to the list, and the user agent should log a console warning that the write cannot restrict the resource.
 - **Origins list capacity**: the [maximum list length](#storing-files) also caps the merged list. Once separate writes have filled it, later writes still succeed, the excess origins are dropped, and the user agent should log a console warning.
 - **Global scope without the PHL**: a `'*'` write for a hash that is not on the [PHL](public-hash-list/phl-explainer.md) still succeeds, but other sites can't read the file through the global scope. The user agent should tell the developer so, through a console warning or its developer tools, since nothing in the call's result shows it:
 
-  > ⚠️ Cross-Origin Storage: `origins: '*'` was requested for a hash that is not on the Public Hash List. The entry is readable by same-site origins only.
+  > ⚠️ Cross-Origin Storage: `origins: '*'` was requested for a hash that is not on the Public Hash List. The entry is readable only by same-site origins and any origins on its list.
 
 #### Retrieving files
 
@@ -479,7 +485,7 @@ console.log('Obtained model from network', download.name);
 Only `whisper-tiny` carries a URL, because it is the only variant the app will ever download. Every probe is a read with no URL attached: the app has no download URL to offer for `whisper-large-v3`, since it never intended to fetch that variant, and the whole point of asking is to avoid a network request. A [fetch integration](#fetch-integration) cannot express this, which is one of the reasons it complements the imperative API (see [Replacing the imperative API with a `fetch()` integration](#replacing-the-imperative-api-with-a-fetch-integration)).
 
 > [!NOTE]
-> Each `getFileHandle()` call counts as a probe against the user agent's [cross-site probing](#cross-site-probing) safeguards, so candidate lists are expected to be short, in the order of the handful of variants a model family actually ships.
+> Each probe for a file the site has not stored itself counts against the [cross-site lookup budget](#cross-site-lookup-budget), whether or not it finds the file, so keep candidate lists to the handful of variants a model family actually ships.
 
 #### Transferring a handle
 
@@ -734,7 +740,7 @@ The user agent performs the COS lookup, serves the bytes from storage on a hit, 
 Two questions are specific to this integration and need answers in the [Fetch Standard discussion](https://github.com/whatwg/fetch/issues/1954):
 
 - **Response fidelity on a cache hit.** A COS entry stores bytes only (see [Storing the original URL as part of a COS entry](#storing-the-original-url-as-part-of-a-cos-entry)), so a `Response` served from a hit has no `Content-Type`. The three other integrations take the type from the element, the module type, or the CSS property; a plain `fetch()` has no destination to take it from. `WebAssembly.instantiateStreaming()` requires `application/wasm`, so without a declared type the collapsed example above works on a cold cache and fails on a warm one. The proposed answer is a caller-declared `contentType` in the option's dictionary form, applied on hits and misses alike, so both return the same `Content-Type`.
-- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read is gated by `origins`, the [Public Hash List](#availability-gating), and [GREASE'ing](#greaseing). A hit reports status `200` with status text `OK` and streams the stored bytes as its body. A declared `contentType` settles `Content-Type`, and the hit carries no other headers. Which `type` a hit reports is open.
+- **Header stripping.** A `Response` served from COS cannot carry the headers of a fetch that never happened. This discloses no more than `getFileHandle()` does: hits are timing-observable anyway, and the read goes through the same [availability gating](#availability-gating). A hit reports status `200` with status text `OK` and streams the stored bytes as its body. A declared `contentType` settles `Content-Type`, and the hit carries no other headers. Which `type` a hit reports is open.
 
 #### Processing flow common to all four integrations
 
@@ -830,14 +836,14 @@ Under critical storage pressure, user agents could offer a dialog that invites t
 
 User agents are further expected to provide settings UI through which users can inspect which files are stored in COS and which origins have most or least recently accessed each file. Users may then choose to delete files from COS through this UI. This UI could also let users add manually downloaded files, such as large AI models already on disk, to COS directly.
 
-When the user clears site data, all usage information associated with the origin should be removed from files in COS. If a file in COS, after the removal of usage information, is deemed unused, the user agent may delete it from COS.
+When the user clears site data, all usage information associated with the origin should be removed from files in COS. If a file in COS, after the removal of usage information, is deemed unused, the user agent may delete it from COS. Clearing a site's data through the browser's own settings also resets that site's [cross-site lookup budget](#cross-site-lookup-budget) and write limit.
 
 ### Derived artifacts
 
 A derived artifact is data the browser computes from a file and keeps for reuse, such as a compiled WebAssembly module, a GPU pipeline, or a compiled WebNN graph. Browsers cache these per top-level site, so a file shared through COS is still compiled again on every site. Sharing derived artifacts across sites saves that compile time, which can reach seconds for large shaders and models.
 
 - The browser keys an artifact on its **sources** (the COS entries the page read), its **page-chosen inputs** (such as compile options, override constants, or a WebNN graph's structure), and private browser and device properties. Pages can't read the key or the artifact.
-- An artifact made only from sources is reused across sites freely. Each cross-site reuse of one with page-chosen inputs is charged to the [cross-site lookup budget](#potential-mitigations), see [Derived artifact timing](#derived-artifact-timing).
+- An artifact made only from sources is reused across sites freely. Each cross-site reuse of one with page-chosen inputs is charged to the [cross-site lookup budget](#cross-site-lookup-budget), see [Derived artifact timing](#derived-artifact-timing).
 - The artifact can't depend on how the producing page ran, and must come from a component that site content can't alter, such as the GPU process.
 
 WebAssembly needs no new API: a module compiled from a COS `File` has that entry as its source.
@@ -964,48 +970,76 @@ The header lists origins separated by commas, each of which must be an `https:` 
 
 Only the list form needs the header. A `'*'`-scoped resource reaches a non-storing origin only if its hash is on the [Public Hash List](#availability-gating), which a per-user secret never is, and the same-site default names no cross-origin recipient.
 
-The header bounds disclosure to the origins the operator authorized. If a site legitimately shares data with `https://partner.example` and is then compromised, injected script can still reach that partner. This matches the guarantee `connect-src` gives: the attack surface shrinks from any origin on the web to the operator's declared partners. An operator can also name a cooperating site on purpose, which the header permits by design; the [cross-site lookup budget](#potential-mitigations) paces what that site can read back.
+The header bounds disclosure to the origins the operator authorized. If a site legitimately shares data with `https://partner.example` and is then compromised, injected script can still reach that partner. This matches the guarantee `connect-src` gives: the attack surface shrinks from any origin on the web to the operator's declared partners. An operator can also name a cooperating site on purpose, which the header permits by design; the [cross-site lookup budget](#cross-site-lookup-budget) paces what that site can read back.
 
 ### Privacy considerations
 
-In browsers that still support third-party cookies, COS lets a tracker link a user's visits across sites no better than a third-party cookie already can. By applying the mitigations listed below, COS can also be implemented in browsers without support for third-party cookies.
+The COS cache is shared across sites by design, so whether a file is present depends on which other sites the user visited and what they stored. That enables three threats: **cross-site leaks** (one site learns the user's state on another), **history leaks** (cached files hint at where the user has been), and **third-party cookie replacement** (a tracker recognizes the same device across sites). The [privacy analysis](privacy.md) works through fourteen concrete attacks and how far each mitigation reaches into them.
 
-Since every COS lookup and write passes through one explicit API, the user agent knows exactly where tracking would have to happen. That single mediation point is what makes it possible to count, gate, and rate-limit cross-site disclosure precisely, something browsers cannot do for signals they never see, such as those hiding in timing side channels or scattered platform quirks.
+COS is a progressive enhancement: a page that doesn't get a file from COS downloads it, exactly as without COS. Most mitigations turn some hits into misses, so they cost a page at most that download. Every lookup and write passes through one explicit API, so the user agent knows which origin asked for which hash, and can count, delay, or decline it.
+
+#### Mitigations
+
+None of these depends on the user's third-party cookie settings.
+
+1. **Permissions Policy.** `cross-origin-storage` has a default allowlist of `self`, so a cross-origin iframe can use COS only if the embedder opts it in with `allow="cross-origin-storage"`.
+2. **Same-site by default.** Wider sharing takes a capped `origins` list that the site confirms with its [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header, or `'*'`.
+3. **The [Public Hash List](#availability-gating)** gates the global scope.
+4. **[GREASE'ing](#greaseing)** makes a miss for a PHL file inconclusive.
+5. **A [cross-site lookup budget](#cross-site-lookup-budget)** per top-level site.
+6. **A [user activation gate](#user-activation-gate)** before the global scope applies.
+7. **Sharing keyed to the top-level site** (see [COS entry](#cos-entry)), so a frame can't carry a marker from one site to another.
+8. **A per-origin storage limit and a per-site write limit** on file count and bytes (see [Storing files](#storing-files) and [Cache flooding](#cache-flooding)).
+9. **[Developer guidance](#developer-guidance)** at write time.
+
+User agents may go further, for example with tighter limits for origins that Safe Browsing flags.
+
+#### Rejected mitigations
+
+- **Tying cross-site lookups to third-party cookies.** The argument that a tracker holding a third-party cookie gains nothing from COS covers only deliberate tracking. History leaks and cross-site leaks reach sites the tracker was never on. Without third-party cookies, the coupling would also rule out cross-site sharing entirely.
+- **Permission prompts.** The question is hard to explain, users can't check afterward what was read, and a prompt on every new site would remove most of the benefit of a shared cache.
+
+#### Remaining risks
+
+- **A rare file on the PHL.** The PHL's hand-curated AI model section can admit a model few devices hold, and one lookup for it can point to one person, which no budget bounds. Public review of every list change keeps this in check, user agents may leave the section out, and a user agent can drop a revealing entry from its copy at any time (see [emergency removals](public-hash-list/phl-explainer.md#change-process)).
+- **Sites under one operator** can recognize a visitor across them through a shared `origins` list (see [below](#cross-site-tracking-through-writes)). Their servers can already share sign-ins and IP addresses, so the list adds one signal to data the operator already controls.
 
 #### Cross-site tracking through writes
 
-COS lets a tracker write, which turns it into a potential cross-site store. Embedded as a third-party iframe, `tracker.example` can call `getFileHandle(hash, { create: true })` on site A to store a chosen subset of small files, each file's presence encoding one bit, and read that subset back from the same iframe on site B. COS rules this out by keying sharing scopes to the top-level site (see [COS entry](#cos-entry)). On site B, the frame is a storing origin only for what it wrote under site B, so reading site A's files takes the global scope, and minted marker files are never on the Public Hash List. The frame's lookups count against site B's budget like any other origin's.
+Embedded as a third-party iframe, `tracker.example` could store a chosen subset of small files on site A, each encoding one bit, and read the subset back from the same iframe on site B. Keying sharing scopes to the top-level site rules this out: on site B, the frame is a storing origin only for what it wrote under B, and its minted marker files are never on the PHL.
 
-A tracker script loaded directly into the page runs as the site's own origin, so everything it stores belongs to site A, and a script on site B runs as B and is not a storing origin. To read those files back from B, it has to make them cross-origin readable. A list naming B needs site A to send a `Cross-Origin-Storage-Allow-Origin` header authorizing B, which only the site operator can do. With `origins: '*'`, the only files other origins can see are those whose hashes are on the Public Hash List, so the tracker has to encode its bits as a strategically chosen subset of well-known public files. It then reads through the global scope, where GREASE'ing may drop some bits at random and files the user already cached on other sites add false signals, so the tracker needs redundancy to recover a stable identifier. Eviction and the per-origin storage limit bound both variants, and the identifier lasts as long as the tracker rewrites it, or until the cache evicts it.
+A tracker script loaded directly into the page runs as the site's own origin, so to read its files back on site B, it has to make them cross-origin readable. A list naming B needs a `Cross-Origin-Storage-Allow-Origin` header from site A's operator. With `origins: '*'`, the tracker has to encode its bits as a subset of files on the PHL. Those writes reach the global scope only after the user interacts with site A, and the write limit caps how many it can make. On B, each bit costs a lookup from the budget, GREASE'ing drops some at random, and files cached by other sites add false signals.
 
-Two cooperating sites can use a list the same way. Site A writes marker files as a top-level page, with a list naming site B, and sends a `Cross-Origin-Storage-Allow-Origin` header authorizing B. Site B then reads them back as a top-level page on a separate visit and recovers an identifier both sites share. The header permits this, since A's operator chose to name B. The cross-site lookup budget paces it: B's reads of what was stored under A count against B's budget, exactly like reads through the global scope.
-
-##### Potential mitigations
-
-Mitigations need to carefully balance between ensuring the user's privacy and maintaining the usefulness of the feature.
-
-* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window of about a week, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself, under this top-level site, stay free, and so do lookups answered by an `origins` list written under this top-level site. A lookup answered by a list written under another top-level site counts, because it reveals what was stored there. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
-* A file written with `origins: '*'` becomes available through the global scope only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page. The gate applies to the global scope alone: same-site origins and origins on an explicit list, which the site authorizes with its `Cross-Origin-Storage-Allow-Origin` header, read the file as soon as it is written.
-* The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it. Only a clearing of site data that the user asks for, through the browser's own settings or storage UI, resets it. A clearing the site requests itself, such as with the `Clear-Site-Data` header, leaves the count untouched.
-* Every completed write counts against a write limit on the number of files and bytes, which belongs to the top-level site like the lookup budget. A tracker storing dozens of tiny marker files to encode an identifier hits it right away, while a site storing one large AI model barely touches it. See [Storing files](#storing-files).
-* The user agent tells developers what a write exposes when they make it, through a console warning or its developer tools: for example, when `origins: '*'` is requested for a hash that is not on the PHL, or when the `Cross-Origin-Storage-Allow-Origin` header trims an `origins` list. Some leaks need no attacker on the leaking site: a site that stores a file only for signed-in users discloses that state without knowing it, and a warning at write time is the only thing that tells it so.
-* Each call to `getFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
-
-Since each lookup reveals at most one bit, a budget of 8 limits a tracker to 8 bits per window, well short of the roughly 32 bits needed to identify a device. A patient tracker can still combine partial results over time, so cross-site tracking becomes slow and paced by the user's own engagement, but not impossible.
+Two cooperating sites can use a list the same way: site A writes marker files with a list naming site B, authorized by its header, and B reads them back on a later visit. The header permits this, since A's operator chose to name B, and B's reads count against B's budget.
 
 #### Cross-site probing
 
-If a file is only used on certain kinds of websites, an attacker can discover that the user visited those sites by checking for the file's presence. For example, if someone has a game engine stored in COS, they probably play games on the web, which an attacker might exploit, for example, for targeted advertising. The attacker site would need to probe hashes of resources it's interested in. The `origins` field mitigates this risk by allowing origins to restrict resource access to a specific set of trusted origins, ensuring the resource is not globally "probeable". Sites are expected to use this field for proprietary resources or when global COS cache hits are not expected.
+If a file is only used on certain kinds of websites, an attacker can infer that the user visited such a site by checking for the file. For example, someone with a game engine in COS probably plays web games, which an attacker might use for targeted advertising. The same-site default and capped `origins` lists keep proprietary files from being probeable by every origin. For `'*'`, the PHL limits the probeable set to widely deployed files, and the lookup budget limits the number of probes.
 
-This mitigation only holds if a list stays meaningfully smaller than the web. A caller could otherwise enumerate a very large number of origins (for example, a public top-sites ranking) and approximate global disclosure without the explicit `'*'` opt-in. `origins` lists therefore have an implementation-defined maximum length that fits a handful of related origins under common control, and the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header bounds which origins a list may name.
+The cap on `origins` lists keeps a caller from approximating `'*'` by listing a public top-sites ranking. It fits a handful of related origins under common control, and the [`Cross-Origin-Storage-Allow-Origin`](#the-cross-origin-storage-allow-origin-header) header bounds which origins a list may name.
 
-A lookup performed by one of the [host integrations](#additional-integration-surfaces) counts as a probe on the same terms. Such a lookup returns no error to the page, but a site learns its outcome anyway by observing whether its own server receives the fallback request, which is the same single bit a `NotFoundError` carries. This discloses nothing the imperative API would not, and the same `origins` scoping, availability gating, and GREASE'ing apply. It does mean a probe limit must count all four surfaces: the [fetch integration](#fetch-integration) in particular is as scriptable in a loop as `getFileHandle()` is, so counting only imperative calls would leave the limit trivially avoidable.
+A lookup by one of the [host integrations](#additional-integration-surfaces) is a probe too. It returns no error, but a site sees whether its server receives the fallback request, the same bit a `NotFoundError` carries. The same gating applies, and the budget counts all four surfaces, since the [fetch integration](#fetch-integration) is as scriptable in a loop as `getFileHandle()`.
+
+#### Cross-site lookup budget
+
+Every lookup that could reveal what another site stored counts against a small budget, on the order of 8 to 16 lookups per window of about a week, both defined by the user agent. Hits and misses count alike.
+
+- **Free lookups** are those answered by a sharing record written under the current top-level site: the requester's own or a same-site origin's file, or a list written there that names the requester. A first lookup for a file the site hasn't stored yet counts; once stored, later lookups for it are free.
+- **One budget per top-level site** (scheme and registrable domain), shared by every frame on the page, so extra origins or subdomains don't multiply it.
+- **Persistence.** The count survives reloads and tabs. Only clearing site data through the browser's own UI resets it; `Clear-Site-Data` doesn't. The write limit persists and resets the same way.
+- **Over budget**, a lookup gets a `NotFoundError` identical to a miss.
+
+At 8 one-bit lookups per window, a tracker needs at least four windows, and the user's return visits, to collect the roughly 32 bits an identifier needs.
+
+#### User activation gate
+
+A `'*'` write takes effect for other sites only after the user interacts with a page of the writing site, in the same visit or a later one. The writing page uses the file right away. A page that `tracker.example` opens in a short-lived popup or a reload chain therefore never makes its files visible. Same-site and listed origins read the file immediately.
 
 #### In-progress writes
 
 A write that has been requested and not completed must look, to every origin, exactly like a hash that was never written. COS gets this structurally: `getFileHandle()` with `create: true` neither reads nor writes the COS registry, and an entry is added only after a writer supplies the complete bytes and the user agent verifies them.
 
-Registering a placeholder instead, and answering concurrent reads of it with a distinguishable error, would hand any origin one noiseless bit about any hash, ahead of `origins`, the PHL, and GREASE'ing, and without writing any bytes for the storage limit to bound.
+Registering a placeholder instead, and answering concurrent reads of it with a distinguishable error, would hand any origin one noiseless bit about any hash, ahead of every check in [availability gating](#availability-gating), and without writing any bytes for the storage or write limits to bound.
 
 #### Availability gating
 
@@ -1013,16 +1047,16 @@ Whether a `getFileHandle()` call returns a handle depends on the sharing scopes 
 
 - **Storing origins** can always read the entry under the top-level site they wrote it under, mirroring the partitioned Cache API, where an origin can always read what it stored.
 - **Same-site origins of a storing origin** can read it under that same top-level site. This is the default scope.
-- **Origins on the explicit `origins` list, and origins same-site with any of them,** can read it, whether or not the hash is on the PHL. Any list admits them under the writer's top-level site, and a list written first-party also admits them wherever they run first-party. Reads under another top-level site count against the [cross-site lookup budget](#potential-mitigations).
-- **Any other origin** can read it only through the global scope (`origins: '*'`), and only if the hash is on the **Public Hash List (PHL)**, a shared, vendor-neutral allowlist all browser vendors are expected to respect. [GREASE'ing](#greaseing) may still withhold it.
+- **Origins on the explicit `origins` list, and origins same-site with any of them,** can read it, whether or not the hash is on the PHL. Any list admits them under the writer's top-level site, and a list written first-party also admits them wherever they run first-party.
+- **Any other origin** can read it only through the global scope (`origins: '*'`), only if the hash is on the **Public Hash List (PHL)**, a shared, vendor-neutral allowlist all browser vendors are expected to respect, and only after the [user activation gate](#user-activation-gate). [GREASE'ing](#greaseing) may still withhold it.
 
-An origin that qualifies under none of these, or relies on the global scope for a hash not on the PHL, receives a `NotFoundError` `DOMException` that is identical in content and timing to the file being absent. A requester that qualifies through any of the first three never consults the PHL, even if the entry is also globally disclosable. The PHL gates only the global scope because the other scopes already reflect a bounded disclosure decision by the storing origin; requiring public curation for them would block ordinary restricted sharing of proprietary resources (see [Choosing who can read a file](#example-choosing-who-can-read-a-file)).
+A requester that qualifies through any of the first three never consults the PHL, even if the entry is also globally disclosable. The PHL gates only the global scope because the other scopes already reflect a bounded disclosure decision by the storing origin; requiring public curation for them would block ordinary restricted sharing of proprietary resources (see [Choosing who can read a file](#example-choosing-who-can-read-a-file)).
 
-The PHL covers well-known resources, such as popular open-source libraries, widely used Wasm modules, web fonts served by major font CDNs, and AI model weights published by recognized model hubs. These are unconditionally eligible for cross-origin availability disclosure because independent, corroborated evidence of their ubiquity (for example, appearing byte-identical across a large number of independently crawled origins) makes cache presence uninformative about any individual user, a form of **k-anonymity** where _k_ is that minimum corroborating-origin count. This ubiquity check happens once, offline, as part of how a hash is admitted to the PHL, so the user agent never repeats it at query time.
+The PHL covers well-known resources, such as popular open-source libraries, widely used Wasm modules, web fonts served by major font CDNs, and AI model weights published by recognized model hubs. Independent, corroborated evidence of their ubiquity (for example, appearing byte-identical across a large number of independently crawled origins) means that cache presence reveals little about any individual user, a form of **k-anonymity** where _k_ is that minimum corroborating-origin count. This check happens once, offline, when a hash is admitted, so the user agent never repeats it at query time. Combinations of common files can still point to one site, which the lookup budget bounds.
 
 The full design of the PHL (its data format, admission criteria, sourcing, and cross-vendor governance) is specified in the [Public Hash List explainer](public-hash-list/phl-explainer.md). In short, it proposes: governance by the WHATWG, modeled directly on the [Public Suffix List](https://publicsuffix.org/)'s cross-vendor, rolling-release precedent; a compact, algorithm-sectioned flat-text format of bare hex digests, with provenance kept in human-readable comments; and a separate, optional section for hashes hand-curated from a recognized AI model hub, to unlock the AI use case that objective popularity signals alone cannot cover. An early, non-normative code prototype of the list itself lives in this repository for now, at [`public-hash-list/implementation/`](public-hash-list/implementation/). The [Governance](public-hash-list/phl-explainer.md#governance) section of the PHL explainer describes the target end state, a dedicated, cross-vendor repository.
 
-Developers must NOT treat a `NotFoundError` as proof that a file is absent from COS: the requesting origin may be out of scope, or the user agent may be withholding a `'*'`-scoped file for privacy reasons. The fallback is always a network fetch.
+Every refusal is a `NotFoundError` `DOMException` identical in content and timing to a true miss, so developers must NOT treat it as proof that a file is absent: the requester may be out of scope, the hash may not be on the PHL, the global scope may still await user interaction, the budget may be spent, or GREASE'ing may have withheld the file. The fallback is always a network fetch.
 
 #### GREASE'ing
 
@@ -1030,7 +1064,15 @@ As an additional privacy mitigation, user agents may employ **GREASE'ing** ([Gen
 
 GREASE'ing applies only to origins that reach an entry through `origins: '*'`, the same case the PHL gates. Storing origins, origins on an explicit `origins` list, and the same-site origins of either are never GREASEd: same-site origins are one trust unit, and a listed origin was named on purpose by the storing site and authorized by its `Cross-Origin-Storage-Allow-Origin` header, so withholding the file from them would only cost a re-download.
 
-However, user agents must exercise size-proportionate judgment when applying GREASE'ing. For small files, where a fallback to a network fetch is inexpensive, occasional false negatives are a reasonable privacy trade-off. For very large files, such as gigabyte-scale AI model weights, a false negative would force the caller to perform a full re-download, imposing a significant and observable bandwidth and latency cost on the user. User agents must NOT GREASE responses for files whose size makes a spurious re-download clearly disproportionate to the privacy benefit.
+User agents must NOT GREASE files whose size makes a spurious re-download clearly disproportionate to the privacy benefit, such as gigabyte-scale AI model weights, and rely on the lookup budget for those. For small files, an occasional false negative is a reasonable trade-off, and repeating a lookup to see through it costs budget every time.
+
+#### Developer guidance
+
+Some leaks need no attacker on the leaking site: a site that stores a file only for signed-in users discloses that state without knowing it. The user agent therefore warns in the console or its developer tools when a write exposes or fails to share something, for example when:
+
+- `origins: '*'` names a hash that is not on the PHL (see [Resource visibility upgrades](#resource-visibility-upgrades));
+- the `Cross-Origin-Storage-Allow-Origin` header trims an `origins` list, or a merged list reaches its maximum length;
+- the storage limit or the write limit refuses a write.
 
 #### Derived artifact timing
 
@@ -1044,16 +1086,19 @@ The following tables summarize the response a user agent must return for every c
 
 The rows are keyed by how the requesting origin qualifies (see [Availability gating](#availability-gating)). A "—" means the column does not apply to that row.
 
-| Requester qualifies via | On PHL? | GREASEd? | Response |
-| -- | -- | -- | -- |
-| Storing origin | — | — | Success |
-| Same-site of a storing origin | — | — | Success |
-| On the explicit `origins` list, or same-site with a listed origin | — | — | Success |
-| Global scope only (`origins: '*'`) | Yes | No | Success |
-| Global scope only (`origins: '*'`) | Yes | Yes | `NotFoundError` |
-| Global scope only (`origins: '*'`) | No | — | `NotFoundError` |
-| No qualifying scope | — | — | `NotFoundError` |
-| Not in COS | — | — | `NotFoundError` |
+| Requester qualifies via | On PHL? | GREASEd? | Charged? | Response |
+| -- | -- | -- | -- | -- |
+| Storing origin | — | — | No | Success |
+| Same-site of a storing origin | — | — | No | Success |
+| On an `origins` list written under this top-level site, or same-site with a listed origin | — | — | No | Success |
+| On a first-party `origins` list written under another top-level site | — | — | Yes | Success |
+| Global scope only (`origins: '*'`) | Yes | No | Yes | Success |
+| Global scope only (`origins: '*'`) | Yes | Yes | Yes | `NotFoundError` |
+| Global scope only (`origins: '*'`) | No | — | Yes | `NotFoundError` |
+| No qualifying scope | — | — | Yes | `NotFoundError` |
+| Not in COS | — | — | Yes | `NotFoundError` |
+
+A charged lookup with the budget spent gets `NotFoundError` whatever its row says. A `'*'` write still waiting for the [user activation gate](#user-activation-gate) adds no global scope yet, so its global-only readers fall under "No qualifying scope".
 
 A hash whose only write is still in flight falls under the last row: it has no entry in COS yet, so it is `NotFoundError` like any other absent hash. There is no response that distinguishes it; see [In-progress writes](#in-progress-writes).
 
@@ -1068,8 +1113,10 @@ A hash whose only write is still in flight falls under the last row: it has no e
 | An `origins` entry is not an `https:` origin or a loopback `http:` origin | List | `TypeError` |
 | Permissions Policy blocks COS | Any | `NotAllowedError` |
 | Valid hash, declared hash matches computed hash | Any | Success |
-| Valid hash, declared hash matches computed hash, but exceeds the requesting origin's storage limit | Any | `QuotaExceededError` |
+| Valid hash, declared hash matches computed hash, but exceeds the requesting origin's storage limit or the top-level site's write limit | Any | `QuotaExceededError` |
 | Valid hash, declared hash does not match computed hash | Any | `DataError` |
+| The hash is not on the PHL | `'*'` | Success (no global scope for other sites; console warning) |
+| The writing page has no user activation yet | `'*'` | Success (global scope applies after the next user interaction) |
 | Merging `origins` into an existing list-scoped entry would exceed the implementation-defined maximum length | List | Success (excess origins silently dropped) |
 | A listed origin is not permitted by the writer's `Cross-Origin-Storage-Allow-Origin` header | List | Success (unauthorized origins dropped; falls back to same-site if none remain) |
 
@@ -1079,10 +1126,6 @@ A hash whose only write is still in flight falls under the last row: it has no e
 | -- | -- |
 | Deserializing a handle in a context same-origin with the one that obtained it | Success, preserving whether it was readable |
 | Deserializing a handle in any other origin | `DataCloneError` |
-
-#### Fingerprinting detection
-
-User agents are also expected to use (on-device) machine learning to identify possible fingerprinting attempts. For example, if a site crafts unique hashes for each user (which hints at fingerprinting), user agents can detect this and block the COS probing attempt. Some user agents have [successfully applied this technique](https://blog.google/products/chrome/building-a-more-helpful-browser-with-machine-learning/#:~:text=More%20peace%20of%20mind%2C%20less%20annoying%20prompts) to silence notification spam.
 
 ## Stakeholder feedback / opposition
 
