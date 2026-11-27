@@ -198,9 +198,10 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    it never withholds the entry from the writer's own site.
 : <dfn for="COS entry">globally disclosable</dfn>
 :: A [=boolean=], initially false, recording whether the entry has been written with a request for
-   global ("`*`") availability. When true, the entry is readable by any origin whose request
-   clears [[#availability-gating]], that is, whose [=COS entry/hash=] is [=on the PHL=] and which
-   GREASE'ing does not suppress. Once [[#resource-visibility-upgrades|set]], it stays true.
+   global ("`*`") availability and that request has cleared the [=COS user activation gate=]. When
+   true, the entry is readable by any origin whose request clears [[#availability-gating]], that
+   is, whose [=COS entry/hash=] is [=on the PHL=] and which GREASE'ing does not suppress. Once
+   [[#resource-visibility-upgrades|set]], it stays true.
 
    Note: This is a separate [=struct/item=] from [=COS entry/origins=], so that a later
    global-availability request adds the global scope on top of an existing explicit
@@ -228,7 +229,7 @@ Each user agent has a single <dfn>COS registry</dfn>, a [=map=] from [=COS hash=
    [=COS entry/origins=] record from a [=first-party COS context=] also applies first-party under
    any top-level site, so restricted sharing between top-level sites keeps working. A lookup that
    such a record answers under another top-level site discloses what was stored under the
-   writer's, so a cross-site lookup budget counts it (see [[#availability-gating]]).
+   writer's, so the [=cross-site lookup budget=] counts it (see [=apply availability gating=]).
    [=COS entry/Globally disclosable=] is not keyed,
    since the [=Public Hash List=] and GREASE'ing already govern it.
 
@@ -532,10 +533,80 @@ To <dfn>determine COS disclosure</dfn> given a [=COS entry=] or null |entry|, an
 To <dfn>apply availability gating</dfn> given a [=COS entry=] or null |entry|, an
 [=/origin=] |origin|, and a [=site=] |partition|, return a [=COS entry=] or null:
 
+1. If the result of running [=is an uncharged lookup=] given |entry|, |origin|, and |partition|
+   is false, and the result of running [=charge a cross-site lookup=] given |partition| is false,
+   return null.
+
+   Note: A lookup refused for being over budget returns null, which [=complete a read request=]
+   turns into the same "{{NotFoundError}}" {{DOMException}} a miss gets, in the same time. A
+   charged lookup is charged whether or not it finds an entry, since a miss discloses as much as
+   a hit.
 1. Return the result of running [=determine COS disclosure=] given |entry|, |origin|, and
    |partition|.
 
 </div>
+
+### Cross-site lookup budget ### {#lookup-budget}
+
+Every [=site=] has a <dfn>cross-site lookup budget</dfn>, a [=struct=] with the [=struct/items=]
+<dfn for="cross-site lookup budget">count</dfn>, a non-negative integer, initially 0, and
+<dfn for="cross-site lookup budget">window start</dfn>, a point in time or null, initially null. The
+budget belongs to the top-level site the user is visiting, so every frame on a page, and every
+origin those frames bring, draws from the same one.
+
+A user agent has an [=implementation-defined=] <dfn>maximum cross-site lookups</dfn>, a small
+positive integer, and an [=implementation-defined=] <dfn>lookup window</dfn>, a length of time.
+
+Note: A budget on the order of 8 to 16 lookups over a window on the order of a week keeps a
+tracker well short of the roughly 32 bits a cross-site identifier needs within one window, while
+leaving a site enough lookups for the shared files it actually uses.
+
+A user agent must persist each [=site=]'s [=cross-site lookup budget=] across page loads and across
+all of the user's top-level traversables, so reloading a page or opening it in a new tab does not
+reset it. It must reset a [=site=]'s budget to its initial state when the user clears that site's
+data through the user agent's own settings or storage interface, and must not reset it in response
+to anything a site can trigger itself, such as a `Clear-Site-Data` response header.
+
+<div algorithm>
+To determine whether a lookup <dfn data-lt="is an uncharged lookup">is uncharged</dfn> given a
+[=COS entry=] or null |entry|, an [=/origin=] |origin|, and a [=site=] |partition|:
+
+1. If |entry| is null, return false.
+1. If |entry|'s [=COS entry/storing origins=] [=set/contains=] a [=COS sharing record=] whose
+   [=COS sharing record/origin=] is [=same site=] with |origin| and whose
+   [=COS sharing record/partition=] is [=same site=] with |partition|, return true.
+1. If |entry|'s [=COS entry/origins=] [=list/contains=] a [=COS sharing record=] whose
+   [=COS sharing record/origin=] is [=same site=] with |origin| and whose
+   [=COS sharing record/partition=] is [=same site=] with |partition|, return true.
+1. Return false.
+
+Note: These are the lookups answered by a sharing record written under the reader's own
+top-level site, which disclose nothing about what another site stored. Every other lookup is
+charged, including a miss, a lookup answered through the global scope, and one answered by a
+[=COS sharing record/first-party=] [=COS entry/origins=] record written under another top-level
+site.
+
+</div>
+
+<div algorithm>
+To <dfn>charge a cross-site lookup</dfn> given a [=site=] |partition|, return a boolean:
+
+1. Let |budget| be |partition|'s [=cross-site lookup budget=].
+1. Let |now| be the current time on a clock the user agent persists across sessions.
+1. If |budget|'s [=cross-site lookup budget/window start=] is not null and |now| is at least
+   the [=lookup window=] after it, set |budget|'s [=cross-site lookup budget/count=] to 0 and its
+   [=cross-site lookup budget/window start=] to null.
+1. If |budget|'s [=cross-site lookup budget/count=] is at least the user agent's
+   [=maximum cross-site lookups=], return false.
+1. If |budget|'s [=cross-site lookup budget/window start=] is null, set it to |now|.
+1. Increment |budget|'s [=cross-site lookup budget/count=] by 1.
+1. Return true.
+
+</div>
+
+A lookup through any of the [[#integration-with-other-specifications|host integrations]] reaches
+[=apply availability gating=] the same way a {{CrossOriginStorageManager/getFileHandle()}} call
+does, so it is charged on the same terms. The budget counts all of them together.
 
 ## Creating and writing files ## {#creating-and-writing-files}
 
@@ -665,6 +736,11 @@ closed, the complete written [=byte sequence=] |bytes|, and the closing operatio
    {{CrossOriginStorageManager/getFileHandle()}} call for the same hash gets the same
    "{{NotFoundError}}" it would have got had the write never been attempted. An entry some origin
    has already written is likewise unaffected: this algorithm only ever adds bytes and sharing records.
+1. If the result of running [=charge a COS write=] given |partition| and |bytes|'s
+   [=byte sequence/length=] is false:
+   1. [=Reject=] the closing operation's promise with a "{{QuotaExceededError}}"
+      {{DOMException}}.
+   1. Abort these steps.
 1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
@@ -685,7 +761,8 @@ closed, the complete written [=byte sequence=] |bytes|, and the closing operatio
       [=COS sharing record/partition=] is |partition|, and [=COS sharing record/first-party=] is |firstParty| to
       |entry|'s [=COS entry/storing origins=], if no equal record is already present.
    1. Run [=upgrade resource visibility=] given |entry|, |handle|'s
-      [=FileSystemFileHandle/requested origins=], |partition|, and |firstParty|.
+      [=FileSystemFileHandle/requested origins=], |partition|, |firstParty|, and |settings|'s
+      [=environment settings object/global object=].
    1. Set |handle|'s [=FileSystemFileHandle/may read=] to true.
 
       Note: Only this handle becomes readable. Another handle for the same hash, obtained from a
@@ -762,6 +839,8 @@ or null |origins|, and an [=environment settings object=] |settings|:
 1. Let |origin| be |settings|'s [=environment settings object/origin=].
 1. Let |partition| be the [=COS partition=] of |settings|.
 1. Let |firstParty| be true if |settings| is a [=first-party COS context=], and false otherwise.
+1. If the result of running [=charge a COS write=] given |partition| and |bytes|'s
+   [=byte sequence/length=] is false, return.
 1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
@@ -781,8 +860,8 @@ or null |origins|, and an [=environment settings object=] |settings|:
    1. [=set/Append=] a [=COS sharing record=] whose [=COS sharing record/origin=] is |origin|,
       [=COS sharing record/partition=] is |partition|, and [=COS sharing record/first-party=] is |firstParty| to
       |entry|'s [=COS entry/storing origins=], if no equal record is already present.
-   1. Run [=upgrade resource visibility=] given |entry|, |requestedOrigins|, |partition|, and
-      |firstParty|.
+   1. Run [=upgrade resource visibility=] given |entry|, |requestedOrigins|, |partition|,
+      |firstParty|, and |settings|'s [=environment settings object/global object=].
 
 </div>
 
@@ -797,7 +876,8 @@ The visibility of a [=COS entry=] can be upgraded but never downgraded.
 
 <div algorithm>
 To <dfn>upgrade resource visibility</dfn> given a [=COS entry=] |entry|, "`*`", a [=list=] of
-[=/origins=], or null |requestedOrigins|, a [=site=] |partition|, and a [=boolean=] |firstParty|:
+[=/origins=], or null |requestedOrigins|, a [=site=] |partition|, a [=boolean=] |firstParty|, and a
+[=global object=] |global|:
 
 1. If |requestedOrigins| is null, return.
 
@@ -805,7 +885,16 @@ To <dfn>upgrade resource visibility</dfn> given a [=COS entry=] |entry|, "`*`", 
    availability, which every entry already has (see [=determine COS disclosure=]), so there is
    nothing to add.
 1. If |requestedOrigins| is "`*`":
-   1. Set |entry|'s [=COS entry/globally disclosable=] to true.
+   1. If |entry|'s [=COS entry/hash=] is not [=on the PHL=], the user agent is expected to log a
+      console warning, or report an issue in its developer tools, saying that the entry is
+      readable only by same-site origins and any origins on its [=COS entry/origins=] [=list=].
+
+      Note: The write itself succeeds, so without a message a developer has no way to learn that
+      the global scope did not take effect. See [[#developer-guidance]].
+   1. If |entry|'s [=COS entry/globally disclosable=] is true, return.
+   1. If |global| is a {{Window}} object that has [=sticky activation=], set |entry|'s
+      [=COS entry/globally disclosable=] to true.
+   1. Otherwise, [=set/append=] |entry| to |partition|'s [=pending global entries=].
    1. Return.
 
    Note: This adds the global scope; it does not touch |entry|'s [=COS entry/origins=]. An entry
@@ -837,6 +926,37 @@ Note: Any site, including one other than the original storer, can widen an entry
 [=COS entry/origins=], as long as it also supplies bytes that hash to the entry's [=COS entry/hash=]. This is intentional:
 any site that already possesses the correct bytes for a hash is, by construction, as authoritative
 as the original storer about what that hash denotes.
+
+### User activation gate ### {#user-activation-gate}
+
+The <dfn>COS user activation gate</dfn> holds back the global scope of a write until the user has
+interacted with a page of the site it was written under. The writing page reads the entry right
+away through its [=COS entry/storing origins=] record. Same-site origins and origins on an explicit
+[=COS entry/origins=] [=list=], which the writer authorized with its
+[[#allow-origin-header|`Cross-Origin-Storage-Allow-Origin`]] header, also read it right away.
+
+Every [=site=] has <dfn>pending global entries</dfn>, a [=set=] of [=COS entries=], initially
+empty.
+
+Whenever the user agent runs
+<a href="https://html.spec.whatwg.org/multipage/interaction.html#activation-notification">activation
+notification</a> for a {{Window}} |window| [[HTML]], it must
+[=parallel queue/enqueue the following steps=] to the [=Cross-Origin Storage queue=]:
+
+1. Let |partition| be the [=COS partition=] of |window|'s [=relevant settings object=].
+1. [=set/For each=] |entry| of |partition|'s [=pending global entries=], set |entry|'s
+   [=COS entry/globally disclosable=] to true.
+1. [=set/Empty=] |partition|'s [=pending global entries=].
+
+Note: A page that another site opens in a popup that closes within seconds, or reloads in a
+chain, never receives user activation, so the files it writes stay invisible to other sites. Its
+writes become globally disclosable when the user does interact with a page of that site, in the
+same visit or a later one. An entry that is [[#eviction|evicted]] is also removed from every
+[=pending global entries=] [=set=].
+
+Issue: A shared or service worker has no {{Window}} of its own, so its global-scope writes wait
+for activation in a page of the same top-level site. Whether that is the right outcome for a
+service worker that stores files ahead of any navigation is open.
 
 ### Original storer access ### {#original-storer-access}
 
@@ -1017,6 +1137,30 @@ Note: Because entries are [=content-addressable=], an origin that repeatedly wri
 bytes under the same hash does not consume additional quota beyond the first successful write; see
 [[#cos-entries]].
 
+The storage limit caps what one [=/origin=] holds at any moment, so a page that brings many origins
+gets that many limits. A user agent must therefore also keep a <dfn>COS write limit</dfn> for each
+[=site=], counting the writes made with that site as their [=COS partition=], whichever origin or
+frame makes them. It has an [=implementation-defined=] maximum number of writes and maximum number
+of bytes per [=implementation-defined=] time window, and is persisted and reset on the same terms
+as the [=cross-site lookup budget=].
+
+<div algorithm>
+To <dfn>charge a COS write</dfn> given a [=site=] |partition| and a non-negative integer |length|,
+return a boolean:
+
+1. If one more write, or |length| more bytes, would exceed |partition|'s [=COS write limit=] for
+   the current window, log a warning to the console and return false.
+1. Charge one write and |length| bytes against |partition|'s [=COS write limit=].
+1. Return true.
+
+</div>
+
+Note: A write is charged once its bytes are verified and before the [=COS registry=] is consulted,
+so it costs the same whether or not the hash was already stored, and the limit reveals nothing about
+what other sites stored. The two allowances separate the shapes of use cleanly: a site storing one
+large AI model spends bytes and barely touches the count, while a tracker storing dozens of tiny
+marker files to encode an identifier exhausts the count at once.
+
 A user agent also has an [=implementation-defined=] <dfn>maximum origins list length</dfn>, a
 positive integer bounding how many [=/origins=] a single [=COS entry/origins=] [=list=] may
 contain. This is enforced both when a [=list=] is first supplied (see [=validate a COS request=])
@@ -1114,13 +1258,12 @@ context supplied from reads of the [=COS registry=], return a boolean:
 1. If |obtained| does not [=list/contain=] every [=list/item=] of |artifact|'s
    [=derived artifact/sources=], return false.
 
-   Note: A read already went through [=determine COS disclosure=] and, if the user agent has one,
-   the cross-site lookup budget. Bytes from any other source would let a page learn whether an
+   Note: A read already went through [=apply availability gating=], which charges the
+   [=cross-site lookup budget=]. Bytes from any other source would let a page learn whether an
    entry exists, without either check, from how long the computation takes.
 1. If |artifact|'s [=derived artifact/page-chosen inputs=] [=list/is empty=], return true.
-1. If the user agent keeps a cross-site lookup budget for |partition| (see
-   [[#availability-gating]]) and the budget is not exhausted, charge one lookup against it and
-   return true.
+1. If the result of running [=charge a cross-site lookup=] given |partition| is true, return
+   true.
 1. Return false.
 
 </div>
@@ -1575,22 +1718,21 @@ exists at all*, governed by [=on the PHL|PHL membership=] and [[#greaseing|GREAS
 hold for such an entry; for a list- or same-site-scoped entry, only the first question applies.
 See [[#reading-files]] for the normative algorithm. A "{{NotFoundError}}" is therefore not
 proof that a resource is absent: it may mean the resource does not exist, that the requesting
-origin is out of scope, that a "`*`"-scoped resource's hash is not (yet, or ever) on the PHL, or
-that GREASE'ing suppressed a true positive. Developers must not treat "{{NotFoundError}}" as
+origin is out of scope, that a "`*`"-scoped resource's hash is not (yet, or ever) on the PHL, that
+it is still waiting for the [=COS user activation gate=], that the requesting top-level site has
+used up its [=cross-site lookup budget=], or that GREASE'ing suppressed a true positive. Developers must not treat "{{NotFoundError}}" as
 anything more specific than "fall back to the network."
 
-Note: In a user agent that supports third-party cookies, the global scope lets a tracker link a
-user's visits across sites no better than a third-party cookie already can. The [=PHL=] alone
-does not bound this: an attacker can build a cross-site identifier out of individually
-PHL-eligible resources by choosing which subset to write. A user agent that blocks third-party
-cookies can still offer the global scope if it bounds cross-site disclosure, for example with a
-small budget of cross-site lookups keyed on the top-level site and shared by every frame on
-the page, a count that persists across reloads for a time window, and making a written entry
-available through the global scope only after a user gesture. The README's
+Note: The [=Public Hash List=] alone does not bound the global scope: an attacker can build a
+cross-site identifier out of individually PHL-eligible resources by choosing which subset to write.
+The [=cross-site lookup budget=], the [=COS user activation gate=], and the [=COS write limit=]
+bound it. None of them depends on the user's third-party cookie settings, so they protect users
+whether or not third-party cookies are available. The README's
 [privacy considerations](README.md#privacy-considerations) describe these mitigations.
 
-Note: A lookup budget leaves a lookup uncharged only when [=determine COS disclosure=] answers it
-through a sharing record written under the reader's own top-level site: a [=COS entry/storing origins=] record, or a [=COS entry/origins=] record whose [=COS sharing record/partition=] is [=same site=] with the
+Note: The [=cross-site lookup budget=] leaves a lookup uncharged only when it is answered
+through a sharing record written under the reader's own top-level site (see
+[=is an uncharged lookup=]): a [=COS entry/storing origins=] record, or a [=COS entry/origins=] record whose [=COS sharing record/partition=] is [=same site=] with the
 reader's [=COS partition=]. Every other lookup counts, whether or not it finds an entry. That
 includes a lookup answered by a [=COS sharing record/first-party=] [=COS entry/origins=] record written under
 another top-level site. The `Cross-Origin-Storage-Allow-Origin` header keeps injected content
@@ -1598,10 +1740,24 @@ from naming such a reader. The writing site's operator can still name any origin
 charge two cooperating sites could mint marker files on one with a [=list=] naming the other and
 read back an identifier of any width there, across separate visits and with no limit. A lookup
 refused for being over budget rejects with a "{{NotFoundError}}" {{DOMException}}, exactly as a
-miss does. The user-gesture gate, like [[#greaseing|GREASE'ing]], applies only to an origin that
+miss does. The [=COS user activation gate=], like [[#greaseing|GREASE'ing]], applies only to an origin that
 qualifies through the global scope alone: [=COS entry/storing
 origins=], origins on the explicit [=COS entry/origins=] [=list=], and origins [=same site=] with
 either read an entry as soon as [=determine COS disclosure=] returns it.
+
+## Developer guidance ## {#developer-guidance}
+
+Some leaks need no attacker on the leaking site. A site that stores a file only for signed-in users,
+or one whose bytes differ per user, discloses that state to every site that can look the file up,
+and nothing in its own telemetry will show it. The user agent is expected to tell developers what a
+write exposes at the moment they make it, through a console warning or its developer tools. Cases
+worth a message include:
+
+* a write requesting "`*`" for a hash that is not [=on the PHL=], which stays same-site (see
+  [=upgrade resource visibility=]);
+* an [=COS entry/origins=] [=list=] that the [=COS scope ceiling=] trimmed (see
+  [=apply a COS scope ceiling=]) or that reached the [=maximum origins list length=];
+* a write refused by the per-origin storage limit or the [=COS write limit=].
 
 ## GREASE'ing ## {#greaseing}
 
@@ -1630,8 +1786,8 @@ without [=derived artifact/page-chosen inputs=] discloses nothing beyond the rea
 [=derived artifact/sources=]. [=derived artifact/page-chosen inputs|Page-chosen inputs=] can carry
 an identifier: cooperating scripts compute one artifact per set bit on one site, each with an
 unusual operator option, and read the bits on another site from which computations are fast.
-Charging each such reuse to the cross-site lookup budget limits this to what lookups already
-disclose. Without a budget, these artifacts stay partitioned.
+Charging each such reuse to the [=cross-site lookup budget=] limits this to what lookups already
+disclose.
 
 ## Fingerprinting ## {#fingerprinting}
 

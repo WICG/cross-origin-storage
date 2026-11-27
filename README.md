@@ -243,6 +243,9 @@ Sharing scopes are keyed to the top-level site, the same way storage partitionin
 > [!NOTE]
 > If storing the file would cause the requesting origin to exceed its implementation-defined storage limit, the user agent must reject the closing operation's promise with a `QuotaExceededError` `DOMException` and should log a warning to the console. Each origin can only store a limited amount of data in COS, which prevents any one site from flooding the cache in an attempt to evict other sites' resources; see [Cache flooding](#cache-flooding).
 
+> [!NOTE]
+> Every completed write also counts against a write limit that belongs to the top-level site, on how many files and how many bytes the site can store per time window, both defined by the user agent. A write over either limit rejects with a `QuotaExceededError` `DOMException`, and the user agent should log a console warning. A write is charged once its bytes are verified, whether or not the file was already stored, so the limit reveals nothing about what other sites stored. Storing one large AI model barely touches the count, while storing dozens of tiny files to encode an identifier exhausts it at once.
+
 ##### Example: Storing a single file
 
 ```js
@@ -393,9 +396,12 @@ await navigator.crossOriginStorage.getFileHandle(hash, {
 
 The visibility of a resource in COS can be upgraded but never downgraded:
 
-- **Adding access**: any site that supplies the full bytes can widen an entry's scope with another `create: true` request. A `'*'` write sets the global scope, and a list write merges its origins into the existing list; origins that already had access keep it. Requiring the full bytes keeps a write from revealing whether the entry already existed.
+- **Adding access**: any site that supplies the full bytes can widen an entry's scope with another `create: true` request. A `'*'` write sets the global scope, once the user has interacted with a page of the writing site (see [Potential mitigations](#potential-mitigations)), and a list write merges its origins into the existing list; origins that already had access keep it. Requiring the full bytes keeps a write from revealing whether the entry already existed.
 - **No removal**: a write never removes access. If origin A stores a file restricted to `['https://a.example']` and origin B later writes the same hash with `'*'`, the entry becomes globally disclosable and keeps its list, so `https://a.example` still reads it without the hash being on the PHL. A narrower request only adds its origins to the list, and the user agent should log a console warning that the write cannot restrict the resource.
 - **Origins list capacity**: the [maximum list length](#storing-files) also caps the merged list. Once separate writes have filled it, later writes still succeed, the excess origins are dropped, and the user agent should log a console warning.
+- **Global scope without the PHL**: a `'*'` write for a hash that is not on the [PHL](public-hash-list/phl-explainer.md) still succeeds, but other sites can't read the file through the global scope. The user agent should tell the developer so, through a console warning or its developer tools, since nothing in the call's result shows it:
+
+  > ⚠️ Cross-Origin Storage: `origins: '*'` was requested for a hash that is not on the Public Hash List. The entry is readable by same-site origins only.
 
 #### Retrieving files
 
@@ -924,7 +930,7 @@ Users can inspect, evict, and clear COS files through the user agent's settings 
 
 #### Cache flooding
 
-A per-origin storage limit keeps any one site from flooding the cache to evict other sites' resources; see the `QuotaExceededError` note under [Storing files](#storing-files).
+A per-origin storage limit keeps any one site from flooding the cache to evict other sites' resources; see the `QuotaExceededError` note under [Storing files](#storing-files). The storage limit caps what one origin holds, so a page that brings sixteen subdomains would get sixteen limits. The write limit closes that opening: it belongs to the top-level site, so every origin and frame on the page draws from one allowance.
 
 #### The `Cross-Origin-Storage-Allow-Origin` header
 
@@ -978,9 +984,11 @@ Two cooperating sites can use a list the same way. Site A writes marker files as
 
 Mitigations need to carefully balance between ensuring the user's privacy and maintaining the usefulness of the feature.
 
-* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself, under this top-level site, stay free, and so do lookups answered by an `origins` list written under this top-level site. A lookup answered by a list written under another top-level site counts, because it reveals what was stored there. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
+* Every lookup that could reveal what another site stored, whether it finds the file or not, counts against a small budget of cross-site lookups, on the order of 8 to 16 per time window of about a week, both budget and time window defined by the user agent. Lookups for files the requesting site stored itself, under this top-level site, stay free, and so do lookups answered by an `origins` list written under this top-level site. A lookup answered by a list written under another top-level site counts, because it reveals what was stored there. The budget belongs to the top-level site the user is visiting (its scheme and registrable domain), and every frame on the page draws from it, so a tracker cannot multiply it by adding origins or by moving the page through subdomains of one site.
 * A file written with `origins: '*'` becomes available through the global scope only after a user gesture on the page, while the page itself can use the file right away. This is to prevent writes during silent reloads of the page. The gate applies to the global scope alone: same-site origins and origins on an explicit list, which the site authorizes with its `Cross-Origin-Storage-Allow-Origin` header, read the file as soon as it is written.
-* The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it.
+* The count persists across page reloads for the whole top-level site (and across tabs), so reloading does not reset it. Only a clearing of site data that the user asks for, through the browser's own settings or storage UI, resets it. A clearing the site requests itself, such as with the `Clear-Site-Data` header, leaves the count untouched.
+* Every completed write counts against a write limit on the number of files and bytes, which belongs to the top-level site like the lookup budget. A tracker storing dozens of tiny marker files to encode an identifier hits it right away, while a site storing one large AI model barely touches it. See [Storing files](#storing-files).
+* The user agent tells developers what a write exposes when they make it, through a console warning or its developer tools: for example, when `origins: '*'` is requested for a hash that is not on the PHL, or when the `Cross-Origin-Storage-Allow-Origin` header trims an `origins` list. Some leaks need no attacker on the leaking site: a site that stores a file only for signed-in users discloses that state without knowing it, and a warning at write time is the only thing that tells it so.
 * Each call to `getFileHandle()` can further be limited for sites known to be malicious, for example, from Safe Browsing.
 
 Since each lookup reveals at most one bit, a budget of 8 limits a tracker to 8 bits per window, well short of the roughly 32 bits needed to identify a device. A patient tracker can still combine partial results over time, so cross-site tracking becomes slow and paced by the user's own engagement, but not impossible.

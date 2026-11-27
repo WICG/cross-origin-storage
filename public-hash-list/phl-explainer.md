@@ -246,6 +246,8 @@ Manual entries do not inherit the automated pipeline's continuous update cycle. 
 
 **Automated removals.** A hash is removed automatically when it no longer appears in any active source, subject to a **grace period of two consecutive pipeline runs** to absorb transient scraping failures. Removals are less sensitive than additions (removing a hash can only make COS more conservative), so an automated removal PR may be merged by a single editor without a waiting period.
 
+**Emergency removals.** An entry that turns out to reveal something about the people whose devices hold it, such as a niche model used by a small, identifiable group, is a kill-switch case. Anyone can report one. A single editor may merge its removal right away, without the grace period or a second approval, and records the reason in the governance log. Because user agents refresh the list out-of-band from their release cycle, the removal reaches users within one refresh. A user agent doesn't have to wait for the canonical list either: presence on the PHL only ever authorizes disclosure, so a user agent may drop any entry from its own copy at any time, which only makes COS more conservative.
+
 **Manual addition proposals.** A human contributor who believes a resource meets the inclusion criteria opens a pull request following the manual additions template. The PR must include:
 
 * The proposed hash (bare hex digest, lowercase).  
