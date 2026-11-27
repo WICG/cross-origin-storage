@@ -780,7 +780,7 @@ for (const filler of fillerFiles) {
 }
 ```
 
-The per-origin storage limit (see [Cache flooding](README.md#cache-flooding)) is
+The per-origin storage limit (see [Storage and write limits](README.md#storage-and-write-limits)) is
 what bounds one origin. It is keyed to the origin, and an attacker brings as
 many origins as it cares to, which is Attack 9's move applied to the write path.
 
@@ -1151,12 +1151,10 @@ averaging over repetitions would recover it however small the difference is.
 
 ## Mitigations
 
-The spec includes two of these: the gesture gate on the global scope
-([Mitigation 2](#mitigation-2-m2-a-user-gesture-before-the-global-scope-applies))
-and sharing scopes keyed to the top-level site
-([Mitigation 10](#mitigation-10-m10-sharing-scopes-keyed-to-the-top-level-site)).
-The others are proposals, some described in the explainer and some left to user
-agents. Two were considered and discarded:
+The [spec](https://wicg.github.io/cross-origin-storage/) includes every
+mitigation below except three.
+[Mitigation 4](#mitigation-4-m4-tighter-limits-for-origins-on-a-blocklist) is
+left to user agents. Two were considered and discarded:
 [Mitigation 5](#mitigation-5-m5-availability-tied-to-third-party-cookies) and
 [Mitigation 6](#mitigation-6-m6-permission-prompts). Their sections stay as the
 record of why, and the coverage gaps table marks them with a footnote.
@@ -1487,7 +1485,7 @@ limit leaves in [Attack 8](#attack-8-a8-cache-flooding-to-force-eviction).
 
 Each origin can store only so much in COS, and a write that would take it over
 rejects when it closes with a `QuotaExceededError` (see
-[Cache flooding](README.md#cache-flooding)). The limit is keyed to the origin,
+[Storage and write limits](README.md#storage-and-write-limits)). The limit is keyed to the origin,
 so what it bounds is how much any one origin holds at a time, and sixteen
 subdomains buy sixteen limits.
 
@@ -1637,13 +1635,11 @@ absence from browsers that have already removed third-party cookies, is why it
 was discarded. The degrees above rest on the other mitigations, so COS behaves
 the same whatever the user's cookie settings.
 
-Attack 8 is reached by Mitigation 8 and, in the explainer as it stands, by
-Mitigation 9 alone. That limit is keyed to the origin, and the lookup budget is
-keyed to the top-level site precisely because an attacker brings as many origins
-as it cares to ([Attack 9](#attack-9-a9-sybil-attack-on-the-budget)). A write
-limit keyed the same way carries that lesson to the write path. Until one
-exists, sixteen subdomains buy sixteen storage limits, and what bounds flooding
-is the bandwidth it takes to fill a cache sized for AI models.
+Attack 8 is reached by Mitigations 8 and 9. The storage limit is keyed to
+the origin, and the lookup budget is keyed to the top-level site precisely
+because an attacker brings as many origins as it cares to
+([Attack 9](#attack-9-a9-sybil-attack-on-the-budget)). The write limit is
+keyed the same way, which carries that lesson to the write path.
 
 Attack 12 is the only attack here aimed at a mitigation the rest of the document
 treats as given. Variants 1 and 2 turn on one unsettled specification detail,

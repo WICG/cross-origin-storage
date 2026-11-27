@@ -741,8 +741,9 @@ closed, the complete written [=byte sequence=] |bytes|, and the closing operatio
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
       [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
-   1. If the result of running [=charge a COS write=] given |entry|, |origin|, |partition|, and
-      |bytes|'s [=byte sequence/length=] is false:
+   1. If the result of running [=check the COS storage limit=] given |entry|, |origin|, and
+      |bytes|'s [=byte sequence/length=] is false, or the result of running [=charge a COS write=]
+      given |entry|, |origin|, |partition|, and |bytes|'s [=byte sequence/length=] is false:
       1. [=Queue a global task=] on the [=DOM manipulation task source=] given |settings|'s
          [=environment settings object/global object=] to [=reject=] the closing operation's
          promise with a "{{QuotaExceededError}}" {{DOMException}}.
@@ -845,8 +846,10 @@ or null |origins|, and an [=environment settings object=] |settings|:
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
       [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
-   1. If the result of running [=charge a COS write=] given |entry|, |origin|, |partition|, and
-      |bytes|'s [=byte sequence/length=] is false, abort these steps.
+   1. If the result of running [=check the COS storage limit=] given |entry|, |origin|, and
+      |bytes|'s [=byte sequence/length=] is false, or the result of running [=charge a COS write=]
+      given |entry|, |origin|, |partition|, and |bytes|'s [=byte sequence/length=] is false, abort
+      these steps.
    1. If |entry| is null:
       1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
          [=COS entry/bytes=] is |bytes|, [=COS entry/origins=] is an empty [=list=],
@@ -894,7 +897,7 @@ To <dfn>upgrade resource visibility</dfn> given a [=COS entry=] |entry|, "`*`", 
       Note: The write itself succeeds, so without a message a developer has no way to learn that
       the global scope did not take effect. See [[#developer-guidance]].
    1. If |entry|'s [=COS entry/globally disclosable=] is true, return.
-   1. If |global| is a {{Window}} object that has [=sticky activation=], set |entry|'s
+   1. If |global| [=has COS user activation=], set |entry|'s
       [=COS entry/globally disclosable=] to true.
    1. Otherwise, [=set/append=] |entry| to |partition|'s [=pending global entries=].
    1. Return.
@@ -956,10 +959,14 @@ writes become globally disclosable when the user does interact with a page of th
 same visit or a later one. An entry that is [[#eviction|evicted]] is also removed from every
 [=pending global entries=] [=set=].
 
-Issue: A worker has no {{Window}} of its own, so its global-scope writes wait for the next
-activation in a page of the same top-level site, even when the {{Document}} that owns a dedicated
-worker already has [=sticky activation=]. Whether a dedicated worker should take its owners'
-sticky activation is open.
+A [=global object=] |global| <dfn>has COS user activation</dfn> if |global| is a {{Window}} object
+that has [=sticky activation=], or |global| is a {{DedicatedWorkerGlobalScope}} object one of whose
+[=WorkerGlobalScope/owner set|owners=]' [=relevant global objects=] [=has COS user activation=].
+
+Note: A dedicated worker acts for the pages that own it, so it takes their activation, as it
+takes their policy in [=check Cross-Origin Storage permission=]. A shared worker's owners come and
+go, so its global-scope writes wait for the next activation in a page of the same top-level
+site.
 
 ### Original storer access ### {#original-storer-access}
 
@@ -1132,13 +1139,25 @@ call {{CrossOriginStorageManager/getFileHandle()}} without
 A user agent must impose a limit on the total number of bytes an [=/origin=] may contribute to the
 [=COS registry=] through [=verify and store|successful writes=], to prevent a single origin from
 flooding the cache in an attempt to evict other origins' entries. The specific limit is
-[=implementation-defined=]. If an origin's write would exceed its limit, the user agent must
-[=reject=] the write with a "{{QuotaExceededError}}" {{DOMException}} and should log a warning to
-the console.
+[=implementation-defined=].
 
-Note: Because entries are [=content-addressable=], an origin that repeatedly writes the same
-bytes under the same hash does not consume additional quota beyond the first successful write; see
-[[#cos-entries]].
+<div algorithm>
+To <dfn>check the COS storage limit</dfn> given a [=COS entry=] or null |entry|, an [=/origin=]
+|origin|, and a non-negative integer |length|, return a boolean:
+
+1. If |entry| is not null and its [=COS entry/storing origins=] [=set/contains=] a
+   [=COS sharing record=] whose [=COS sharing record/origin=] is |origin|, return true.
+
+   Note: Entries are [=content-addressable=], so writing bytes this origin already stored adds
+   nothing to what it holds.
+1. Let |held| be the sum of the [=byte sequence/length=]s of the [=COS entry/bytes=] of every
+   [=COS entry=] in the [=COS registry=] whose [=COS entry/storing origins=] [=set/contains=] a
+   [=COS sharing record=] whose [=COS sharing record/origin=] is |origin|.
+1. If |held| plus |length| exceeds |origin|'s storage limit, log a warning to the console and
+   return false.
+1. Return true.
+
+</div>
 
 The storage limit caps what one [=/origin=] holds at any moment, so a page that brings many origins
 gets that many limits. A user agent must therefore also keep a <dfn>COS write limit</dfn> for each
