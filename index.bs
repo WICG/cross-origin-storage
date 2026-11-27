@@ -736,15 +736,16 @@ closed, the complete written [=byte sequence=] |bytes|, and the closing operatio
    {{CrossOriginStorageManager/getFileHandle()}} call for the same hash gets the same
    "{{NotFoundError}}" it would have got had the write never been attempted. An entry some origin
    has already written is likewise unaffected: this algorithm only ever adds bytes and sharing records.
-1. If the result of running [=charge a COS write=] given |partition| and |bytes|'s
-   [=byte sequence/length=] is false:
-   1. [=Reject=] the closing operation's promise with a "{{QuotaExceededError}}"
-      {{DOMException}}.
-   1. Abort these steps.
 1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
       [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
+   1. If the result of running [=charge a COS write=] given |entry|, |origin|, |partition|, and
+      |bytes|'s [=byte sequence/length=] is false:
+      1. [=Queue a global task=] on the [=DOM manipulation task source=] given |settings|'s
+         [=environment settings object/global object=] to [=reject=] the closing operation's
+         promise with a "{{QuotaExceededError}}" {{DOMException}}.
+      1. Abort these steps.
    1. If |entry| is null:
       1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
          [=COS entry/bytes=] is |bytes|, [=COS entry/origins=] is an empty [=list=],
@@ -839,12 +840,12 @@ or null |origins|, and an [=environment settings object=] |settings|:
 1. Let |origin| be |settings|'s [=environment settings object/origin=].
 1. Let |partition| be the [=COS partition=] of |settings|.
 1. Let |firstParty| be true if |settings| is a [=first-party COS context=], and false otherwise.
-1. If the result of running [=charge a COS write=] given |partition| and |bytes|'s
-   [=byte sequence/length=] is false, return.
 1. [=parallel queue/enqueue the following steps|Enqueue the following steps=] to the
    [=Cross-Origin Storage queue=]:
    1. Let |entry| be the [=COS entry=] in the [=COS registry=] whose [=COS entry/hash=]
       [=COS hash/equal|equals=] |hash|, if any, or null otherwise.
+   1. If the result of running [=charge a COS write=] given |entry|, |origin|, |partition|, and
+      |bytes|'s [=byte sequence/length=] is false, abort these steps.
    1. If |entry| is null:
       1. Set |entry| to a new [=COS entry=] whose [=COS entry/hash=] is |hash|,
          [=COS entry/bytes=] is |bytes|, [=COS entry/origins=] is an empty [=list=],
@@ -1145,9 +1146,16 @@ of bytes per [=implementation-defined=] time window, and is persisted and reset 
 as the [=cross-site lookup budget=].
 
 <div algorithm>
-To <dfn>charge a COS write</dfn> given a [=site=] |partition| and a non-negative integer |length|,
-return a boolean:
+To <dfn>charge a COS write</dfn> given a [=COS entry=] or null |entry|, an [=/origin=] |origin|, a
+[=site=] |partition|, and a non-negative integer |length|, return a boolean:
 
+1. If |entry| is not null and its [=COS entry/storing origins=] [=set/contains=] a
+   [=COS sharing record=] whose [=COS sharing record/origin=] is |origin| and whose
+   [=COS sharing record/partition=] is |partition|, return true.
+
+   Note: Writing bytes this origin already stored under this top-level site adds nothing, so it
+   is free, as it is for the per-origin storage limit. Whether it applies depends only on this
+   origin's own earlier writes, so it discloses nothing about what other origins stored.
 1. If one more write, or |length| more bytes, would exceed |partition|'s [=COS write limit=] for
    the current window, log a warning to the console and return false.
 1. Charge one write and |length| bytes against |partition|'s [=COS write limit=].
@@ -1155,9 +1163,9 @@ return a boolean:
 
 </div>
 
-Note: A write is charged once its bytes are verified and before the [=COS registry=] is consulted,
-so it costs the same whether or not the hash was already stored, and the limit reveals nothing about
-what other sites stored. The two allowances separate the shapes of use cleanly: a site storing one
+Note: A write is charged once its bytes are verified, at the same cost whether or not another
+origin, or this origin under another top-level site, already stored the hash, so the limit reveals
+nothing about what other sites stored. The two allowances separate the shapes of use cleanly: a site storing one
 large AI model spends bytes and barely touches the count, while a tracker storing dozens of tiny
 marker files to encode an identifier exhausts the count at once.
 
